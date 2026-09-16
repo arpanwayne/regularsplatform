@@ -10,6 +10,7 @@ export type AdminBusinessRow = {
   sector: string;
   status: string;
   plan: string;
+  planExpiresAt: string | Date | null;
   connectedLocations: number;
   atRiskAfterDaysOverride: number | null;
   dormantAfterDaysOverride: number | null;
@@ -91,6 +92,11 @@ export function BusinessAdminTable({ businesses }: { businesses: AdminBusinessRo
                       </option>
                     ))}
                   </select>
+                  {b.planExpiresAt && (
+                    <p className="mt-1 text-xs text-gray-400">
+                      till {new Date(b.planExpiresAt).toLocaleDateString("en-IN")}
+                    </p>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <span

@@ -79,7 +79,14 @@ Then log in as that user and go to `/admin`. What's there today:
 - **Usage** — AI script personalization calls and their estimated Claude cost, and voice-call
   trigger counts, per business (`lib/usage.ts` — estimates only, not billing-grade).
 - **Logs** — the last 100 `SystemLog` entries (webhook failures, calling-script/voice-call
-  errors, billing failures), filterable by level (`lib/logger.ts`).
+  errors, billing failures), filterable by level (`lib/logger.ts`). ERROR-level entries are also
+  forwarded to `ALERT_WEBHOOK_URL` when set (a Slack incoming webhook or any JSON endpoint) —
+  see "Alerting" below.
+- **Compliance** — automated self-check (`lib/compliance-check.ts`): is webhook signature
+  verification on, is any location misconfigured, and an integrity check that no calling script
+  was ever generated for an opted-out customer. This is a stand-in for the parts of the WhatsApp
+  compliance review that code *can* verify — see "WhatsApp compliance self-check" below for what
+  it can't.
 - **Overview** — platform-wide counts: total/active/suspended businesses, WhatsApp-connected
   locations, total customers, segment breakdown, calling-script trigger counts, and total paid
   revenue, all aggregated across every business.
@@ -90,9 +97,29 @@ A `Business` can have multiple `Location`s (e.g. a salon chain's branches) — e
 connects its **own** WhatsApp Business number independently, and customers/messages/visits
 belong to the location whose number they messaged. A single-outlet signup gets one Location
 auto-created with the business's own name, so the common case needs no extra step; add more from
-**Settings**. Known simplification: the same phone number messaging two locations of one chain
-is tracked as two separate customer records today (one per location), not unified across the
-business — see `prisma/schema.prisma` (`Customer` model) for the reasoning.
+**Settings**. The same phone number messaging two locations of one chain still creates two
+separate `Customer` rows (each location keeps its own segmentation/calling-script targeting) —
+but **Dashboard → Customers → "View unified across locations"** (shown once a business has more
+than one location) rolls those rows up by phone number into one read-only combined view: total
+visits/spend across every branch, which locations they've visited, and a unified segment
+computed from the combined stats. Nothing is merged in the database; it's purely additive.
+
+### WhatsApp compliance self-check
+
+`/admin/compliance` runs the checks in `lib/compliance-check.ts` — PASS/WARN/FAIL per business
+for everything this codebase actually controls (signature verification, misconfigured locations,
+opt-out integrity). It is explicitly **not** a substitute for a human reviewing your live Meta
+Business Manager setup against the items `COMPLIANCE.md` lists as needing manual review (opt-in
+policy, the 24-hour messaging window, template category approval) — those live on Meta's side,
+not in this database, so no amount of code here can verify them for you.
+
+### Alerting
+
+Set `ALERT_WEBHOOK_URL` (a Slack incoming webhook URL, or any endpoint that accepts JSON) to get
+real-time notifications for ERROR-level `SystemLog` entries — otherwise they only surface to
+someone who checks `/admin/logs`. This is deliberately lightweight (error alerting only, no
+traces or performance monitoring) rather than a full APM integration like Sentry/Datadog, which
+would be the next step for real production observability.
 
 ### Self-service password reset
 
@@ -110,8 +137,13 @@ create an order, Razorpay Checkout collects payment, the backend verifies the HM
 before marking it paid and updating `Business.plan` (never trusts the client-side success
 callback alone). Needs `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` — without them the page still
 shows the plans but "Upgrade" explains payments aren't configured instead of opening a fake
-checkout. This is one-time period payments (30 days per purchase), not a recurring subscription
-engine — nothing auto-charges or auto-downgrades on expiry yet.
+checkout. This is one-time period payments (30 days per purchase) — there's no saved payment
+method or UPI Autopay mandate, so nothing ever *auto-charges*. What it does do: `getCurrentBusiness()`
+lazily checks on every request whether a paid plan's `planExpiresAt` has passed and, if so,
+downgrades it back to `STARTER` (`lib/billing.ts`, `downgradeIfExpired`) — so a lapsed plan never
+silently keeps paid perks. For businesses nobody happens to load that day, `POST /api/cron/downgrade-expired-plans`
+(protected by `CRON_SECRET`, wired to run daily via `vercel.json` if deployed on Vercel) sweeps
+the rest. The Billing page shows a renewal reminder banner starting 3 days before expiry.
 
 ### Connecting a real WhatsApp Business number
 
@@ -138,13 +170,16 @@ success: static (non-AI-personalized) scripts without `ANTHROPIC_API_KEY`, calls
   configured provider, "triggering" a call just logs it — this is honest by design rather than
   faking a phone call that never happens. Usage tracking (`/admin/usage`) counts trigger
   *attempts*, not billed minutes, since no provider reports call duration back yet.
-- **Billing**: one-time period payments via Razorpay, not a recurring subscription engine — see
-  "Billing" above.
-- **WhatsApp Business API compliance**: automated opt-out handling is implemented (see
-  [`COMPLIANCE.md`](./COMPLIANCE.md)), but several items in that doc still need a manual review
-  against your actual Meta Business Manager setup before going live with real customers.
-- **Multi-location**: one location = one WhatsApp number = its own customer list; no unified
-  cross-location customer profile yet (see "Multi-location businesses" above).
+- **Billing**: one-time period payments via Razorpay with auto-downgrade on expiry, not a
+  recurring subscription engine with auto-charge — see "Billing" above.
+- **WhatsApp Business API compliance**: automated opt-out handling plus an automated self-check
+  (`/admin/compliance`) cover everything code can verify (see [`COMPLIANCE.md`](./COMPLIANCE.md)),
+  but the items that live on Meta's side of your account still need a human to review them there.
+- **Multi-location**: one location = one WhatsApp number = its own `Customer` rows; there's now a
+  read-only unified cross-location view (see "Multi-location businesses" above), but the
+  underlying records still aren't merged.
+- **Observability**: `/admin/logs` plus optional Slack/webhook alerting on errors (see
+  "Alerting" above) — not a full APM (no traces, no performance monitoring).
 
 ## Roadmap (from the project notes)
 
@@ -161,11 +196,14 @@ success: static (non-AI-personalized) scripts without `ANTHROPIC_API_KEY`, calls
 - [x] WhatsApp Business API compliance review — [`COMPLIANCE.md`](./COMPLIANCE.md) documents
   what's enforced in code (opt-out handling) vs. what needs manual verification against your
   Meta setup before launch
-- [x] Billing/payment integration (Razorpay, one-time period payments)
+- [x] Billing/payment integration (Razorpay, one-time period payments + auto-downgrade on expiry)
 - [x] API usage/cost tracking (`/admin/usage`)
-- [x] System error/log viewer (`/admin/logs`)
+- [x] System error/log viewer (`/admin/logs`) + optional Slack/webhook alerting
 - [x] Self-service "forgot password" for owners
-- [x] Multi-location support (each location connects its own WhatsApp number)
+- [x] Multi-location support (each location connects its own WhatsApp number) + a read-only
+  cross-location unified customer view
+- [x] Automated WhatsApp compliance self-check (`/admin/compliance`) — covers what code can
+  verify; the Meta-side review in `COMPLIANCE.md` still needs a human
 
 ### Pilot readiness
 
@@ -196,8 +234,9 @@ What you need to bring to start one:
 app/
   api/            route handlers (auth, webhook, segmentation, calling scripts, business,
                    locations, billing, admin)
-  dashboard/      per-business owner: overview, customers, calling-scripts, billing, settings
-  admin/          super admin: platform overview, businesses, owners, usage, logs
+  dashboard/      per-business owner: overview, customers (+ unified view), calling-scripts,
+                   billing, settings
+  admin/          super admin: platform overview, businesses, owners, usage, logs, compliance
   login/ signup/ forgot-password/ reset-password/   auth pages
 lib/
   segmentation.ts       rule-based behavioral segmentation
@@ -205,16 +244,18 @@ lib/
   whatsapp.ts            webhook payload parsing + message classification + opt-out detection
   calling-scripts/      Hinglish templates + generation (+ optional Claude personalization)
   calling-provider.ts   voice-call trigger seam (no vendor wired by default)
-  billing.ts             Razorpay order creation + payment signature verification
+  billing.ts             Razorpay order creation, signature verification, auto-downgrade
+  compliance-check.ts    automated checks backing /admin/compliance
   email.ts               email-sending seam (Resend) for password-reset links
   usage.ts                records AI/voice usage events + estimated Claude cost
-  logger.ts               writes to SystemLog, read by /admin/logs
+  logger.ts               writes to SystemLog (+ optional webhook alerting), read by /admin/logs
   auth.ts / session.ts / reset-token.ts   JWT cookie auth + password-reset tokens
   admin.ts               requireSuperAdmin() guard for admin routes
   pricing.ts             draft pricing tiers shown on the landing page
 prisma/
   schema.prisma         data model (Business → Location[] → Customer/Message/Visit)
   promote-admin.ts      CLI script to grant SUPER_ADMIN to an existing user
+vercel.json             daily cron config for the plan-downgrade sweep
 COMPLIANCE.md           WhatsApp Business Policy checklist (what's enforced vs. manual review)
 PRICING.md              pricing tier reasoning + open questions
 ```

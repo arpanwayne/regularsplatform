@@ -13,6 +13,13 @@ customers, especially at scale.
 | Honor opt-outs immediately | `lib/whatsapp.ts` (`isOptOutMessage`) scans every inbound message for opt-out phrases (English: "stop", "unsubscribe"; Hinglish: "band karo", "mat bhejo", etc.). A match sets `Customer.optedOut = true` in the webhook handler, permanently. |
 | Never contact an opted-out customer | `POST /api/calling-scripts/generate` and `POST /api/calling-scripts/trigger` both reject (`409`) if the target customer is opted out. The dashboard customer table shows an "Opted out" badge and disables the generate button. |
 | Don't fabricate outbound calls | If no voice-calling provider is configured (`CALLING_PROVIDER_API_KEY`), `CallLog.status` stays `PENDING` instead of `TRIGGERED` — no call is claimed to have happened when it didn't. |
+| Signature-verify inbound webhooks | When `WHATSAPP_APP_SECRET` is set, every webhook POST's HMAC signature is checked before processing (`lib/whatsapp.ts`). |
+
+`/admin/compliance` runs these as live automated checks (`lib/compliance-check.ts`) — PASS/WARN/FAIL
+per business, plus an integrity check that no `CallLog` was ever created for an opted-out customer
+(which the app-level guards above should make impossible; the check exists to catch a bug or a
+bypass, not because it's expected to fire). It is **not** a substitute for the manual review below —
+it can only verify what this codebase itself controls, not your live Meta Business Manager setup.
 
 ## What still needs a manual review before launch
 

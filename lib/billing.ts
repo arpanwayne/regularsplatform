@@ -1,6 +1,11 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import type { Business } from "@prisma/client";
 import type { Plan } from "@/lib/types";
 import { PLAN_PRICE_INR } from "@/lib/types";
+import { prisma } from "@/lib/prisma";
+import { logEvent } from "@/lib/logger";
+
+export const RENEWAL_REMINDER_WINDOW_DAYS = 3;
 
 export function isRazorpayConfigured(): boolean {
   return Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
@@ -69,4 +74,41 @@ export function verifyRazorpaySignature(params: {
   const actualBuf = Buffer.from(params.signature, "hex");
   if (expectedBuf.length !== actualBuf.length) return false;
   return timingSafeEqual(expectedBuf, actualBuf);
+}
+
+/**
+ * Recurring billing "lite": there's no saved payment method / UPI Autopay
+ * mandate wired in (that needs a live Razorpay Subscriptions setup to build
+ * against — see README), so nothing auto-*charges*. What this platform can
+ * honestly do without that is auto-*downgrade* a lapsed plan back to
+ * STARTER, so a business never silently keeps GROWTH/PRO perks after their
+ * paid period ends. Called lazily from getCurrentBusiness() on every
+ * request, and sweepable in bulk via the cron route for businesses that
+ * aren't actively being viewed.
+ */
+export async function downgradeIfExpired(business: Business): Promise<Business> {
+  if (business.plan === "STARTER" || !business.planExpiresAt) return business;
+  if (business.planExpiresAt.getTime() > Date.now()) return business;
+
+  const updated = await prisma.business.update({
+    where: { id: business.id },
+    data: { plan: "STARTER", planExpiresAt: null },
+  });
+  await logEvent({
+    businessId: business.id,
+    source: "BILLING",
+    level: "INFO",
+    message: `Plan lapsed and was auto-downgraded from ${business.plan} to STARTER`,
+  });
+  return updated;
+}
+
+export async function sweepExpiredPlans(): Promise<number> {
+  const expired = await prisma.business.findMany({
+    where: { plan: { not: "STARTER" }, planExpiresAt: { lt: new Date() } },
+  });
+  for (const business of expired) {
+    await downgradeIfExpired(business);
+  }
+  return expired.length;
 }

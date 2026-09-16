@@ -4,7 +4,15 @@ import { Fragment, useState } from "react";
 import type { Customer } from "@prisma/client";
 import { SegmentBadge } from "@/components/segment-badge";
 
-export function CustomerTable({ customers }: { customers: Customer[] }) {
+type CustomerWithLocation = Customer & { location?: { name: string } };
+
+export function CustomerTable({
+  customers,
+  showLocation = false,
+}: {
+  customers: CustomerWithLocation[];
+  showLocation?: boolean;
+}) {
   const [openScriptFor, setOpenScriptFor] = useState<string | null>(null);
   const [scripts, setScripts] = useState<Record<string, { title: string; content: string }>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -38,6 +46,7 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
         <thead className="bg-gray-50 text-left text-gray-500">
           <tr>
             <th className="px-4 py-2 font-medium">Customer</th>
+            {showLocation && <th className="px-4 py-2 font-medium">Location</th>}
             <th className="px-4 py-2 font-medium">Segment</th>
             <th className="px-4 py-2 font-medium">Visits</th>
             <th className="px-4 py-2 font-medium">Last seen</th>
@@ -52,6 +61,9 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
                   <p className="font-medium">{c.name || "Unnamed"}</p>
                   <p className="text-gray-500">{c.phone}</p>
                 </td>
+                {showLocation && (
+                  <td className="px-4 py-3 text-gray-600">{c.location?.name ?? "—"}</td>
+                )}
                 <td className="px-4 py-3">
                   <SegmentBadge segment={c.segment} />
                   {c.optedOut && (
@@ -77,7 +89,7 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
               </tr>
               {openScriptFor === c.id && scripts[c.id] && (
                 <tr>
-                  <td colSpan={5} className="bg-gray-50 px-4 py-3">
+                  <td colSpan={showLocation ? 6 : 5} className="bg-gray-50 px-4 py-3">
                     <p className="text-xs font-medium text-gray-500 mb-1">{scripts[c.id].title}</p>
                     <p className="text-sm whitespace-pre-wrap">{scripts[c.id].content}</p>
                   </td>

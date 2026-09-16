@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
+import { downgradeIfExpired } from "@/lib/billing";
 
 // Server-side helper for Server Components and route handlers: resolves the
 // signed-in owner and their first business (MVP is single-business-per-owner
@@ -24,5 +25,10 @@ export async function getCurrentBusiness() {
     where: { ownerId: user.id },
     orderBy: { createdAt: "asc" },
   });
-  return business;
+  if (!business) return null;
+  // Lazy auto-downgrade: cheap no-op when the plan hasn't lapsed, so this
+  // is safe to call on every request rather than needing a cron to run
+  // first (the cron sweep in app/api/cron/downgrade-expired-plans covers
+  // businesses nobody is actively viewing).
+  return downgradeIfExpired(business);
 }
