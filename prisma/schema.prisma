@@ -1,0 +1,149 @@
+// Regulars — WhatsApp-native loyalty & retention platform
+// Data model covers: business owners, multi-sector businesses, customers
+// passively captured from WhatsApp, their message/visit history, computed
+// behavioral segments, and the Hinglish AI calling scripts triggered per segment.
+//
+// SQLite (the default dev datasource) has no native enum type, so the
+// enum-shaped fields below are plain Strings; their valid values are the
+// TypeScript union types in lib/types.ts, enforced at the application
+// boundary (zod schemas on API routes) rather than by the database.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime   @default(now())
+  businesses   Business[]
+}
+
+model Business {
+  id      String @id @default(cuid())
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name    String
+  /// Sector: SALON | GYM | CLINIC | RETAIL
+  sector  String
+
+  // WhatsApp Cloud API config for this business. The webhook route matches
+  // an inbound event to a Business via phoneNumberId.
+  whatsappPhoneNumberId String? @unique
+  whatsappAccessToken   String?
+  whatsappVerifyToken   String  @default(cuid())
+
+  createdAt DateTime @default(now())
+
+  customers      Customer[]
+  messages       Message[]
+  visits         Visit[]
+  callingScripts CallingScript[]
+  callLogs       CallLog[]
+
+  @@index([ownerId])
+}
+
+model Customer {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // WhatsApp wa_id (phone number, no "+")
+  phone String
+  name  String?
+
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  visitCount  Int      @default(0)
+  totalSpend  Float    @default(0)
+
+  /// Segment: NEW | REGULAR | AT_RISK | HIGH_SPENDER | DORMANT
+  segment          String   @default("NEW")
+  segmentUpdatedAt DateTime @default(now())
+
+  messages Message[]
+  visits   Visit[]
+  callLogs CallLog[]
+
+  @@unique([businessId, phone])
+  @@index([businessId, segment])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  /// Direction: INBOUND | OUTBOUND
+  direction String
+  /// Coarse classification of the transactional message, used for passive
+  /// data capture — we never require the business owner to type anything in.
+  /// Type: BOOKING_CONFIRMATION | ORDER_UPDATE | APPOINTMENT_REMINDER | OTHER
+  type       String   @default("OTHER")
+  text       String?
+  rawPayload String? // raw WhatsApp webhook JSON, for audit/debugging
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, customerId])
+}
+
+model Visit {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  amount     Float?
+  occurredAt DateTime @default(now())
+  source     String? // e.g. "whatsapp:booking_confirmation"
+
+  @@index([businessId, customerId])
+}
+
+model CallingScript {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  /// Sector: SALON | GYM | CLINIC | RETAIL
+  sector    String
+  /// Segment: NEW | REGULAR | AT_RISK | HIGH_SPENDER | DORMANT
+  segment   String
+  language  String   @default("hinglish")
+  title     String
+  content   String
+  isDefault Boolean  @default(false) // seeded template vs. custom edit
+  createdAt DateTime @default(now())
+
+  callLogs CallLog[]
+
+  @@index([businessId, sector, segment])
+}
+
+model CallLog {
+  id         String        @id @default(cuid())
+  businessId String
+  business   Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   Customer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  scriptId   String
+  script     CallingScript @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+
+  generatedContent String
+  /// Status: PENDING | TRIGGERED | COMPLETED | FAILED
+  status            String   @default("PENDING")
+  createdAt         DateTime @default(now())
+
+  @@index([businessId, customerId])
+}
