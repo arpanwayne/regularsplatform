@@ -23,6 +23,12 @@ export async function POST(req: NextRequest) {
   if (!customer) {
     return NextResponse.json({ error: "Customer not found" }, { status: 404 });
   }
+  if (customer.optedOut) {
+    return NextResponse.json(
+      { error: "Customer has opted out of WhatsApp/calling outreach" },
+      { status: 409 }
+    );
+  }
 
   const script = await generateCallingScript(business, customer);
 

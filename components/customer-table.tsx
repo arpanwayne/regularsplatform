@@ -54,6 +54,11 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
                 </td>
                 <td className="px-4 py-3">
                   <SegmentBadge segment={c.segment} />
+                  {c.optedOut && (
+                    <span className="ml-1 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                      Opted out
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">{c.visitCount}</td>
                 <td className="px-4 py-3 text-gray-500">
@@ -62,8 +67,9 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
                 <td className="px-4 py-3 text-right">
                   <button
                     onClick={() => generateScript(c.id)}
-                    disabled={loadingId === c.id}
-                    className="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60"
+                    disabled={loadingId === c.id || c.optedOut}
+                    title={c.optedOut ? "Customer opted out — cannot generate outreach" : undefined}
+                    className="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {loadingId === c.id ? "Generating…" : "Generate calling script"}
                   </button>

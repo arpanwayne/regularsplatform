@@ -8,7 +8,7 @@ const signupSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   businessName: z.string().min(1),
-  sector: z.enum(["SALON", "GYM", "CLINIC", "RETAIL"]),
+  sector: z.enum(["SALON", "GYM", "CLINIC", "RETAIL", "RESTAURANT"]),
 });
 
 export async function POST(req: NextRequest) {

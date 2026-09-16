@@ -2,9 +2,9 @@ import { Sector, Segment } from "@/lib/types";
 
 // Static Hinglish calling-script library, per the PDF: "Abhi tak clinic aur
 // salon ke liye variants bane hain, wo bhi Hinglish mein — taaki local
-// customers ke saath naturally connect ho sake." Sectors without a
-// dedicated variant yet (gym, retail) fall back to GENERIC — see README
-// roadmap for adding sector-specific scripts.
+// customers ke saath naturally connect ho sake." Restaurant/food is a
+// dedicated variant too (added per the PDF's own roadmap suggestion). Sectors
+// without a dedicated variant yet (gym, retail) fall back to GENERIC.
 //
 // Placeholders filled by lib/calling-scripts/generate.ts:
 //   {{customerName}}, {{businessName}}, {{lastVisitDate}}
@@ -81,6 +81,39 @@ const SALON_SCRIPTS: ScriptTemplate[] = [
   },
 ];
 
+const RESTAURANT_SCRIPTS: ScriptTemplate[] = [
+  {
+    segment: "AT_RISK",
+    title: "At-risk diner win-back",
+    content:
+      "Namaste {{customerName}} ji, main {{businessName}} se baat kar raha hoon. Aapne last time {{lastVisitDate}} ko order/visit kiya tha, uske baad se nahi aaye — sab theek hai na? Is week menu mein kuch naya add hua hai, agar table book karni ho ya order karna ho to bataiye.",
+  },
+  {
+    segment: "DORMANT",
+    title: "Dormant diner re-engagement",
+    content:
+      "Namaste {{customerName}} ji, {{businessName}} se baat kar raha hoon. Bahut time ho gaya — {{lastVisitDate}} ke baad se aap nahi aaye, miss kar rahe hain! Aapke liye ek special comeback offer hai is hafte, kya main aapke liye table ya order arrange kar doon?",
+  },
+  {
+    segment: "HIGH_SPENDER",
+    title: "Frequent diner priority check-in",
+    content:
+      "Namaste {{customerName}} ji, {{businessName}} se baat kar raha hoon. Aap humare favourite regulars mein se hain, isliye personally bata raha hoon — weekend pe special table/priority reservation chahiye ho to abhi bata dijiye, main arrange kar deta hoon.",
+  },
+  {
+    segment: "REGULAR",
+    title: "Regular diner check-in + referral ask",
+    content:
+      "Namaste {{customerName}} ji, {{businessName}} se baat kar raha hoon. Aap humare regular customer hain, shukriya! Agar family/friends ko refer karna ho to unke liye bhi special table rakh denge — bataiye kab aana hai.",
+  },
+  {
+    segment: "NEW",
+    title: "New diner welcome call",
+    content:
+      "Namaste {{customerName}} ji, {{businessName}} se baat kar raha hoon. Aapki recent visit ({{lastVisitDate}}) ke liye dhanyavaad! Khana kaisa laga? Koi feedback ho ya agli booking ke liye help chahiye ho to bataiye.",
+  },
+];
+
 const GENERIC_SCRIPTS: ScriptTemplate[] = [
   {
     segment: "AT_RISK",
@@ -117,6 +150,7 @@ const GENERIC_SCRIPTS: ScriptTemplate[] = [
 const LIBRARY: Record<Sector, ScriptTemplate[]> = {
   CLINIC: CLINIC_SCRIPTS,
   SALON: SALON_SCRIPTS,
+  RESTAURANT: RESTAURANT_SCRIPTS,
   GYM: GENERIC_SCRIPTS,
   RETAIL: GENERIC_SCRIPTS,
 };

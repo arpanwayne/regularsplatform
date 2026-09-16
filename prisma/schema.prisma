@@ -69,6 +69,12 @@ model Customer {
   segment          String   @default("NEW")
   segmentUpdatedAt DateTime @default(now())
 
+  // WhatsApp Business Policy compliance: a customer who has opted out must
+  // never be targeted by an outbound/AI calling script again. Set when an
+  // inbound message matches an opt-out keyword (see lib/whatsapp.ts).
+  optedOut   Boolean   @default(false)
+  optedOutAt DateTime?
+
   messages Message[]
   visits   Visit[]
   callLogs CallLog[]

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { classifyMessageType, isQualifyingVisit, verifyWebhookSignature, WhatsAppWebhookPayload } from "@/lib/whatsapp";
+import { classifyMessageType, isOptOutMessage, isQualifyingVisit, verifyWebhookSignature, WhatsAppWebhookPayload } from "@/lib/whatsapp";
 import { runSegmentationForBusiness } from "@/lib/run-segmentation";
 
 // GET — Meta's webhook verification handshake. Each business gets its own
@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
       for (const message of value.messages) {
         const text = message.text?.body;
         const messageType = classifyMessageType(text);
+        const optOut = isOptOutMessage(text);
         const now = new Date();
 
         const customer = await prisma.customer.upsert({
@@ -81,11 +82,16 @@ export async function POST(req: NextRequest) {
             firstSeenAt: now,
             lastSeenAt: now,
             visitCount: isQualifyingVisit(messageType) ? 1 : 0,
+            optedOut: optOut,
+            optedOutAt: optOut ? now : null,
           },
           update: {
             name: contactsByWaId.get(message.from) ?? undefined,
             lastSeenAt: now,
             ...(isQualifyingVisit(messageType) ? { visitCount: { increment: 1 } } : {}),
+            // Opt-outs are one-directional here: once set, only the business
+            // owner can undo it via Settings, not a later inbound message.
+            ...(optOut ? { optedOut: true, optedOutAt: now } : {}),
           },
         });
 

@@ -17,10 +17,10 @@ This repo is the **product platform** (backend + dashboard) — separate from
    `HIGH_SPENDER`, or `DORMANT` based on visit recency, frequency, and spend. The rules are in
    [`lib/segmentation.ts`](./lib/segmentation.ts) — see below, this was previously undocumented
    per the project notes.
-3. **AI calling scripts** — Hinglish call scripts, tailored per sector (clinic and salon
-   variants ship today; gym/retail use a generic fallback) and per segment, ready to trigger
-   re-engagement. Optionally personalized per-customer via Claude when `ANTHROPIC_API_KEY` is
-   set; falls back to the static template otherwise.
+3. **AI calling scripts** — Hinglish call scripts, tailored per sector (clinic, salon, and
+   restaurant variants ship today; gym/retail use a generic fallback) and per segment, ready to
+   trigger re-engagement. Optionally personalized per-customer via Claude when
+   `ANTHROPIC_API_KEY` is set; falls back to the static template otherwise.
 
 ## Segmentation logic (documented, as flagged in the project notes)
 
@@ -75,17 +75,47 @@ scripts and calls logged as `PENDING` instead of actually dialed.
   integration seam — Bland AI, Vapi, Exotel, Knowlarity are common choices). Without a
   configured provider, "triggering" a call just logs it — this is honest by design rather than
   faking a phone call that never happens.
-- **WhatsApp Business API compliance**: verify your Meta WhatsApp Business policy compliance
-  before going live with automated messaging — see the roadmap below.
+- **WhatsApp Business API compliance**: automated opt-out handling is implemented (see
+  [`COMPLIANCE.md`](./COMPLIANCE.md)), but several items in that doc still need a manual review
+  against your actual Meta Business Manager setup before going live with real customers.
 
 ## Roadmap (from the project notes)
 
-- [ ] Pilot client — run this against one real salon/clinic/gym to validate segmentation accuracy
+- [ ] **Pilot client** — run this against one real salon/clinic/gym. This is the one item that
+  needs a real business relationship, not more code — see "Pilot readiness" below for what's
+  ready and what to prep before that first call.
 - [x] Document segmentation logic (this README + `lib/segmentation.ts`)
-- [ ] Restaurant/food business calling-script variant (only clinic + salon exist today)
+- [x] Restaurant/food business calling-script variant (`lib/calling-scripts/templates.ts` —
+  clinic, salon, and restaurant now have dedicated scripts; gym/retail still use the generic one)
 - [x] Analytics dashboard (overview + customers + calling scripts pages)
-- [ ] Pricing/packaging tiers
-- [ ] WhatsApp Business API compliance review against Meta policy
+- [x] Pricing/packaging tiers — drafted in [`PRICING.md`](./PRICING.md) and shown on the landing
+  page (`lib/pricing.ts`); numbers are a starting proposal, not finalized (see that doc for why)
+- [x] WhatsApp Business API compliance review — [`COMPLIANCE.md`](./COMPLIANCE.md) documents
+  what's enforced in code (opt-out handling) vs. what needs manual verification against your
+  Meta setup before launch
+
+### Pilot readiness
+
+What's already in place for a real pilot:
+
+- Opt-out handling is live (see Compliance section above) — required before contacting real
+  customers.
+- Segmentation thresholds (`DEFAULT_THRESHOLDS` in `lib/segmentation.ts`) are a reasonable
+  starting point but *will* need tuning once real visit-frequency data comes in — that tuning is
+  the actual point of running a pilot.
+- Sector scripts exist for clinic, salon, and restaurant; gym/retail get the generic fallback,
+  fine for a first pilot.
+
+What you need to bring to start one:
+
+1. A real salon/clinic/gym willing to connect their WhatsApp Business number (see "Connecting a
+   real WhatsApp Business number" above) — ideally a business already used to some WhatsApp
+   traffic with customers, so passive capture has something to work with quickly.
+2. A read of `COMPLIANCE.md`'s "needs manual review" section against that business's actual
+   Meta Business Manager setup, before turning on automated outreach.
+3. A decision on whether the pilot runs free/discounted in exchange for feedback (see
+   `PRICING.md`, open question 3) — recommended, since neither the segmentation thresholds nor
+   the pricing tiers are validated against real usage yet.
 
 ## Project structure
 
@@ -101,5 +131,8 @@ lib/
   calling-scripts/      Hinglish templates + generation (+ optional Claude personalization)
   calling-provider.ts   voice-call trigger seam (no vendor wired by default)
   auth.ts / session.ts  JWT cookie auth
+  pricing.ts             draft pricing tiers shown on the landing page
 prisma/schema.prisma    data model
+COMPLIANCE.md           WhatsApp Business Policy checklist (what's enforced vs. manual review)
+PRICING.md              pricing tier reasoning + open questions
 ```

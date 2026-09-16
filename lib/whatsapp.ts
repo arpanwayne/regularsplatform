@@ -61,6 +61,28 @@ export function isQualifyingVisit(type: MessageType): boolean {
   return type !== "OTHER";
 }
 
+// WhatsApp Business Policy requires honoring opt-outs immediately. Checked
+// against every inbound message, in English and Hinglish, so a customer
+// texting "STOP" or "band karo" is never contacted again by an AI script.
+const OPT_OUT_KEYWORDS = [
+  "stop",
+  "unsubscribe",
+  "opt out",
+  "optout",
+  "band karo",
+  "band kardo",
+  "mat bhejo",
+  "message mat karo",
+  "hatao mujhe",
+  "remove me",
+];
+
+export function isOptOutMessage(text: string | undefined): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase().trim();
+  return OPT_OUT_KEYWORDS.some((k) => lower === k || lower.includes(k));
+}
+
 /**
  * Verifies Meta's app-secret HMAC signature on the webhook body, when
  * WHATSAPP_APP_SECRET is configured. Skips verification (returns true) when

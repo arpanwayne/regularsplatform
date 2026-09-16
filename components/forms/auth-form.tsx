@@ -61,6 +61,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               <option value="GYM">Gym</option>
               <option value="CLINIC">Clinic</option>
               <option value="RETAIL">Retail</option>
+              <option value="RESTAURANT">Restaurant</option>
             </select>
           </div>
         </>
