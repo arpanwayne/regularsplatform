@@ -62,6 +62,9 @@ export async function POST(req: NextRequest) {
       // Unrecognized phone_number_id (e.g. business hasn't finished setup
       // yet) — ack with 200 so Meta doesn't retry, but do nothing.
       if (!business) continue;
+      // Suspended by a super admin (see /admin) — stop ingesting for this
+      // business without erroring the webhook itself.
+      if (business.status === "SUSPENDED") continue;
 
       const contactsByWaId = new Map(
         (value.contacts ?? []).map((c) => [c.wa_id, c.profile?.name])

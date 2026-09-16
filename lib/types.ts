@@ -17,3 +17,12 @@ export type MessageType =
   | "OTHER";
 
 export type CallLogStatus = "PENDING" | "TRIGGERED" | "COMPLETED" | "FAILED";
+
+export type Role = "OWNER" | "SUPER_ADMIN";
+
+export type BusinessStatus = "ACTIVE" | "SUSPENDED";
+
+// Manually assigned by a super admin (see PRICING.md) — no payment gateway
+// is wired in yet, so this does not enforce feature/usage limits by itself.
+export type Plan = "STARTER" | "GROWTH" | "PRO";
+export const PLANS: Plan[] = ["STARTER", "GROWTH", "PRO"];

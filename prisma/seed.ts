@@ -63,9 +63,21 @@ async function main() {
   await runSegmentationForBusiness(salon.id);
   await runSegmentationForBusiness(clinic.id);
 
+  await prisma.user.upsert({
+    where: { email: "admin@regulars.demo" },
+    update: { role: "SUPER_ADMIN" },
+    create: {
+      name: "Regulars Admin",
+      email: "admin@regulars.demo",
+      passwordHash,
+      role: "SUPER_ADMIN",
+    },
+  });
+
   console.log("Seeded demo data:");
   console.log("  Salon login: owner@glow-salon.demo / password123");
   console.log("  Clinic login: owner@wellness-clinic.demo / password123");
+  console.log("  Super admin login: admin@regulars.demo / password123 (/admin)");
 }
 
 main()

@@ -53,7 +53,36 @@ npm run dev
 ```
 
 Demo logins after seeding: `owner@glow-salon.demo` / `owner@wellness-clinic.demo`, password
-`password123`.
+`password123`. A demo super admin is also seeded: `admin@regulars.demo` / `password123` → `/admin`.
+
+### Super admin panel
+
+A `SUPER_ADMIN` role manages the platform across every business (not tied to one business like a
+regular owner login). It's not self-service signup — grant it to an existing user with:
+
+```bash
+npm run admin:promote -- someone@example.com
+```
+
+Then log in as that user and go to `/admin`. What's there today:
+
+- **Businesses** — every registered business, its owner, WhatsApp connection status, customer
+  count; suspend/reactivate a business (stops its webhook ingestion and blocks its calling
+  scripts immediately — see `app/api/webhook/whatsapp/route.ts` and the calling-script routes);
+  change its plan label (`STARTER`/`GROWTH`/`PRO`, manual only — no billing integration); override
+  its segmentation thresholds (at-risk/dormant days, established-visit-count) without touching
+  code, falling back to the platform defaults in `lib/segmentation.ts` when unset.
+- **Owners** — every business owner; reset a lost password (generates a one-time temporary
+  password since there's no email-based "forgot password" flow yet — the admin has to relay it
+  out-of-band).
+- **Overview** — platform-wide counts: total/active/suspended businesses, WhatsApp-connected
+  businesses, total customers, segment breakdown, and calling-script trigger counts, all
+  aggregated across every business.
+
+Not built yet (see roadmap): per-business billing/payment status beyond the manual plan label,
+API cost/usage metering (Anthropic spend, voice-provider minutes) per business, and a structured
+error/failed-webhook log viewer — right now troubleshooting a business's WhatsApp connection
+means checking its `whatsappPhoneNumberId` in the Businesses list and its `CallLog` rows.
 
 ### Connecting a real WhatsApp Business number
 
@@ -121,18 +150,22 @@ What you need to bring to start one:
 
 ```
 app/
-  api/            route handlers (auth, webhook, segmentation, calling scripts, business)
-  dashboard/      overview, customers, calling-scripts, settings pages
+  api/            route handlers (auth, webhook, segmentation, calling scripts, business, admin)
+  dashboard/      per-business owner: overview, customers, calling-scripts, settings pages
+  admin/          super admin: platform overview, businesses, owners
   login/ signup/  auth pages
 lib/
   segmentation.ts       rule-based behavioral segmentation
-  run-segmentation.ts   recompute + persist segments for a business
-  whatsapp.ts            webhook payload parsing + message classification
+  run-segmentation.ts   recompute + persist segments for a business (applies admin overrides)
+  whatsapp.ts            webhook payload parsing + message classification + opt-out detection
   calling-scripts/      Hinglish templates + generation (+ optional Claude personalization)
   calling-provider.ts   voice-call trigger seam (no vendor wired by default)
   auth.ts / session.ts  JWT cookie auth
+  admin.ts               requireSuperAdmin() guard for admin routes
   pricing.ts             draft pricing tiers shown on the landing page
-prisma/schema.prisma    data model
+prisma/
+  schema.prisma         data model
+  promote-admin.ts      CLI script to grant SUPER_ADMIN to an existing user
 COMPLIANCE.md           WhatsApp Business Policy checklist (what's enforced vs. manual review)
 PRICING.md              pricing tier reasoning + open questions
 ```

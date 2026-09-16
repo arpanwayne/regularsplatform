@@ -22,6 +22,9 @@ model User {
   email        String     @unique
   passwordHash String
   name         String
+  /// Role: OWNER | SUPER_ADMIN. Not self-assignable via signup — granted via
+  /// prisma/promote-admin.ts by someone with server access.
+  role         String     @default("OWNER")
   createdAt    DateTime   @default(now())
   businesses   Business[]
 }
@@ -31,7 +34,7 @@ model Business {
   ownerId String
   owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   name    String
-  /// Sector: SALON | GYM | CLINIC | RETAIL
+  /// Sector: SALON | GYM | CLINIC | RETAIL | RESTAURANT
   sector  String
 
   // WhatsApp Cloud API config for this business. The webhook route matches
@@ -39,6 +42,22 @@ model Business {
   whatsappPhoneNumberId String? @unique
   whatsappAccessToken   String?
   whatsappVerifyToken   String  @default(cuid())
+
+  /// Status: ACTIVE | SUSPENDED. A super admin can suspend a business —
+  /// its webhook stops ingesting and its dashboard is read-only (see
+  /// app/api/webhook/whatsapp/route.ts and app/dashboard/layout.tsx).
+  status String @default("ACTIVE")
+  /// Plan: STARTER | GROWTH | PRO. Manually assigned by a super admin — see
+  /// PRICING.md. No payment gateway is wired in, so this label doesn't yet
+  /// enforce any usage limit on its own.
+  plan   String @default("STARTER")
+
+  // Per-business overrides for lib/segmentation.ts DEFAULT_THRESHOLDS. Null
+  // means "use the platform default" — a super admin can tune these per
+  // business from the admin panel without a code change.
+  atRiskAfterDaysOverride       Int?
+  dormantAfterDaysOverride      Int?
+  establishedVisitCountOverride Int?
 
   createdAt DateTime @default(now())
 

@@ -11,6 +11,9 @@ export async function POST(req: NextRequest) {
   if (!business) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (business.status === "SUSPENDED") {
+    return NextResponse.json({ error: "This business account is suspended" }, { status: 403 });
+  }
 
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {

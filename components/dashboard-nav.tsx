@@ -11,7 +11,13 @@ const LINKS = [
   { href: "/dashboard/settings", label: "Settings" },
 ];
 
-export function DashboardNav({ businessName }: { businessName: string }) {
+export function DashboardNav({
+  businessName,
+  isSuperAdmin,
+}: {
+  businessName: string;
+  isSuperAdmin?: boolean;
+}) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -44,6 +50,11 @@ export function DashboardNav({ businessName }: { businessName: string }) {
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm text-gray-500">
+          {isSuperAdmin && (
+            <Link href="/admin" className="font-medium text-brand-700 hover:text-brand-800">
+              Admin panel
+            </Link>
+          )}
           <span>{businessName}</span>
           <button onClick={logout} className="font-medium text-gray-700 hover:text-gray-900">
             Log out

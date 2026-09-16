@@ -8,7 +8,7 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isAuthPage = pathname === "/login" || pathname === "/signup";
 
-  if (!session && pathname.startsWith("/dashboard")) {
+  if (!session && (pathname.startsWith("/dashboard") || pathname.startsWith("/admin"))) {
     const url = req.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
@@ -24,5 +24,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login", "/signup"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/login", "/signup"],
 };
