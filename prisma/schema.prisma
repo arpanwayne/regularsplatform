@@ -1,7 +1,9 @@
 // Regulars — WhatsApp-native loyalty & retention platform
-// Data model covers: business owners, multi-sector businesses, customers
-// passively captured from WhatsApp, their message/visit history, computed
-// behavioral segments, and the Hinglish AI calling scripts triggered per segment.
+// Data model covers: business owners, multi-sector businesses (each with one
+// or more physical locations), customers passively captured from WhatsApp,
+// their message/visit history, computed behavioral segments, the Hinglish AI
+// calling scripts triggered per segment, and platform operations (billing,
+// usage tracking, system logs, password resets).
 //
 // SQLite (the default dev datasource) has no native enum type, so the
 // enum-shaped fields below are plain Strings; their valid values are the
@@ -27,6 +29,7 @@ model User {
   role         String     @default("OWNER")
   createdAt    DateTime   @default(now())
   businesses   Business[]
+  resetTokens  PasswordResetToken[]
 }
 
 model Business {
@@ -37,20 +40,19 @@ model Business {
   /// Sector: SALON | GYM | CLINIC | RETAIL | RESTAURANT
   sector  String
 
-  // WhatsApp Cloud API config for this business. The webhook route matches
-  // an inbound event to a Business via phoneNumberId.
-  whatsappPhoneNumberId String? @unique
-  whatsappAccessToken   String?
-  whatsappVerifyToken   String  @default(cuid())
-
   /// Status: ACTIVE | SUSPENDED. A super admin can suspend a business —
-  /// its webhook stops ingesting and its dashboard is read-only (see
-  /// app/api/webhook/whatsapp/route.ts and app/dashboard/layout.tsx).
+  /// every one of its locations stops ingesting WhatsApp and its dashboard
+  /// is read-only (see app/api/webhook/whatsapp/route.ts and
+  /// app/dashboard/layout.tsx). A single location can also be individually
+  /// suspended (see Location.status) without suspending the whole business.
   status String @default("ACTIVE")
-  /// Plan: STARTER | GROWTH | PRO. Manually assigned by a super admin — see
-  /// PRICING.md. No payment gateway is wired in, so this label doesn't yet
-  /// enforce any usage limit on its own.
+  /// Plan: STARTER | GROWTH | PRO. See PRICING.md. Set automatically when a
+  /// Payment is verified (see lib/billing.ts), or manually by a super admin.
   plan   String @default("STARTER")
+  /// When the current plan's paid period ends. Null on the free/default
+  /// STARTER plan. Past this date the plan should be treated as lapsed —
+  /// nothing currently auto-downgrades on expiry (see README billing notes).
+  planExpiresAt DateTime?
 
   // Per-business overrides for lib/segmentation.ts DEFAULT_THRESHOLDS. Null
   // means "use the platform default" — a super admin can tune these per
@@ -61,21 +63,60 @@ model Business {
 
   createdAt DateTime @default(now())
 
+  locations      Location[]
   customers      Customer[]
   messages       Message[]
   visits         Visit[]
   callingScripts CallingScript[]
   callLogs       CallLog[]
+  usageEvents    UsageEvent[]
+  payments       Payment[]
+  systemLogs     SystemLog[]
 
   @@index([ownerId])
+}
+
+model Location {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  name    String // e.g. "Andheri branch" — for a single-location business
+  // this is just the business name, auto-created on signup (see
+  // app/api/auth/signup/route.ts) so the common case needs no extra setup.
+  address String?
+
+  // WhatsApp Cloud API config — each location connects its own WhatsApp
+  // Business number. The webhook route matches an inbound event to a
+  // Location (not directly to a Business) via phoneNumberId.
+  whatsappPhoneNumberId String? @unique
+  whatsappAccessToken   String?
+  whatsappVerifyToken   String  @default(cuid())
+
+  /// Status: ACTIVE | SUSPENDED. Independent of Business.status — a chain
+  /// can suspend one branch without affecting the others.
+  status String @default("ACTIVE")
+
+  createdAt DateTime @default(now())
+
+  customers Customer[]
+  messages  Message[]
+  visits    Visit[]
+
+  @@index([businessId])
 }
 
 model Customer {
   id         String   @id @default(cuid())
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
-  // WhatsApp wa_id (phone number, no "+")
+  // WhatsApp wa_id (phone number, no "+"). A customer belongs to the single
+  // location whose WhatsApp number they messaged — the same phone visiting
+  // two branches of one chain is currently tracked as two separate customer
+  // records (one per location), not unified. See README multi-location notes.
   phone String
   name  String?
 
@@ -98,14 +139,17 @@ model Customer {
   visits   Visit[]
   callLogs CallLog[]
 
-  @@unique([businessId, phone])
+  @@unique([locationId, phone])
   @@index([businessId, segment])
+  @@index([locationId])
 }
 
 model Message {
   id         String   @id @default(cuid())
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
@@ -120,12 +164,15 @@ model Message {
   createdAt  DateTime @default(now())
 
   @@index([businessId, customerId])
+  @@index([locationId])
 }
 
 model Visit {
   id         String   @id @default(cuid())
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
@@ -134,6 +181,7 @@ model Visit {
   source     String? // e.g. "whatsapp:booking_confirmation"
 
   @@index([businessId, customerId])
+  @@index([locationId])
 }
 
 model CallingScript {
@@ -141,7 +189,7 @@ model CallingScript {
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  /// Sector: SALON | GYM | CLINIC | RETAIL
+  /// Sector: SALON | GYM | CLINIC | RETAIL | RESTAURANT
   sector    String
   /// Segment: NEW | REGULAR | AT_RISK | HIGH_SPENDER | DORMANT
   segment   String
@@ -171,4 +219,81 @@ model CallLog {
   createdAt         DateTime @default(now())
 
   @@index([businessId, customerId])
+}
+
+model UsageEvent {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  /// Type: AI_SCRIPT_PERSONALIZATION | VOICE_CALL
+  type String
+
+  // AI_SCRIPT_PERSONALIZATION: token counts from the Claude API response,
+  // and an estimated USD cost computed from published per-token pricing at
+  // call time (see lib/usage.ts) — an estimate, not a billing-grade figure.
+  inputTokens  Int?
+  outputTokens Int?
+  estimatedCostUsd Float?
+
+  // VOICE_CALL: recorded when a call is triggered via lib/calling-provider.ts.
+  // Duration/actual cost isn't known at trigger time (the provider would
+  // need to report it back via its own webhook, not wired in yet — see
+  // README), so this counts *attempts*, not minutes billed.
+  callTriggered Boolean?
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId, type, createdAt])
+}
+
+model SystemLog {
+  id         String    @id @default(cuid())
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+
+  /// Source: WEBHOOK | CALLING_SCRIPT | BILLING | AUTH
+  source String
+  /// Level: INFO | WARN | ERROR
+  level  String
+  message String
+  meta    String? // JSON-encoded extra context, e.g. { "customerId": "..." }
+
+  createdAt DateTime @default(now())
+
+  @@index([level, createdAt])
+  @@index([businessId, createdAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  /// Plan being purchased: STARTER | GROWTH | PRO
+  plan          String
+  amountInPaise Int // Razorpay amounts are in paise (₹1 = 100 paise)
+  currency      String @default("INR")
+
+  razorpayOrderId   String  @unique
+  razorpayPaymentId String?
+  /// Status: CREATED | PAID | FAILED
+  status String @default("CREATED")
+
+  createdAt DateTime @default(now())
+  paidAt    DateTime?
+
+  @@index([businessId, createdAt])
 }

@@ -10,7 +10,7 @@ export default async function DashboardOverviewPage() {
   const business = await getCurrentBusiness();
   if (!business) return null;
 
-  const [segmentCounts, totalCustomers, recentCallLogs, hasWhatsappConfig] = await Promise.all([
+  const [segmentCounts, totalCustomers, recentCallLogs, connectedLocationCount] = await Promise.all([
     prisma.customer.groupBy({
       by: ["segment"],
       where: { businessId: business.id },
@@ -23,8 +23,9 @@ export default async function DashboardOverviewPage() {
       take: 5,
       include: { customer: true },
     }),
-    Promise.resolve(Boolean(business.whatsappPhoneNumberId)),
+    prisma.location.count({ where: { businessId: business.id, whatsappPhoneNumberId: { not: null } } }),
   ]);
+  const hasWhatsappConfig = connectedLocationCount > 0;
 
   const countBySegment = Object.fromEntries(segmentCounts.map((s) => [s.segment, s._count]));
 

@@ -22,7 +22,19 @@ export type Role = "OWNER" | "SUPER_ADMIN";
 
 export type BusinessStatus = "ACTIVE" | "SUSPENDED";
 
-// Manually assigned by a super admin (see PRICING.md) — no payment gateway
-// is wired in yet, so this does not enforce feature/usage limits by itself.
+// Set automatically on a verified Razorpay payment (see lib/billing.ts), or
+// manually by a super admin. See PRICING.md for what each tier includes.
 export type Plan = "STARTER" | "GROWTH" | "PRO";
 export const PLANS: Plan[] = ["STARTER", "GROWTH", "PRO"];
+export const PLAN_PRICE_INR: Record<Plan, number> = {
+  STARTER: 999,
+  GROWTH: 2499,
+  PRO: 5999,
+};
+
+export type UsageEventType = "AI_SCRIPT_PERSONALIZATION" | "VOICE_CALL";
+
+export type LogSource = "WEBHOOK" | "CALLING_SCRIPT" | "BILLING" | "AUTH";
+export type LogLevel = "INFO" | "WARN" | "ERROR";
+
+export type PaymentStatus = "CREATED" | "PAID" | "FAILED";

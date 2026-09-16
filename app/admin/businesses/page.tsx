@@ -8,9 +8,15 @@ export default async function AdminBusinessesPage() {
     orderBy: { createdAt: "desc" },
     include: {
       owner: { select: { name: true, email: true } },
-      _count: { select: { customers: true, callLogs: true } },
+      _count: { select: { customers: true, callLogs: true, locations: true } },
+      locations: { select: { whatsappPhoneNumberId: true } },
     },
   });
+
+  const rows = businesses.map((b) => ({
+    ...b,
+    connectedLocations: b.locations.filter((l) => l.whatsappPhoneNumberId).length,
+  }));
 
   return (
     <div className="space-y-4">
@@ -20,7 +26,7 @@ export default async function AdminBusinessesPage() {
           Suspend a business, change its plan, or override its segmentation thresholds.
         </p>
       </div>
-      <BusinessAdminTable businesses={businesses} />
+      <BusinessAdminTable businesses={rows} />
     </div>
   );
 }

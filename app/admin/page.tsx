@@ -7,21 +7,24 @@ export default async function AdminOverviewPage() {
   const [
     totalBusinesses,
     activeBusinesses,
-    connectedToWhatsapp,
+    connectedLocations,
     totalCustomers,
     segmentCounts,
     callLogCounts,
+    paidPayments,
   ] = await Promise.all([
     prisma.business.count(),
     prisma.business.count({ where: { status: "ACTIVE" } }),
-    prisma.business.count({ where: { whatsappPhoneNumberId: { not: null } } }),
+    prisma.location.count({ where: { whatsappPhoneNumberId: { not: null } } }),
     prisma.customer.count(),
     prisma.customer.groupBy({ by: ["segment"], _count: true }),
     prisma.callLog.groupBy({ by: ["status"], _count: true }),
+    prisma.payment.aggregate({ where: { status: "PAID" }, _sum: { amountInPaise: true } }),
   ]);
 
   const segments = Object.fromEntries(segmentCounts.map((s) => [s.segment, s._count]));
   const callLogs = Object.fromEntries(callLogCounts.map((c) => [c.status, c._count]));
+  const totalRevenueInr = (paidPayments._sum.amountInPaise ?? 0) / 100;
 
   return (
     <div className="space-y-8">
@@ -32,13 +35,17 @@ export default async function AdminOverviewPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard label="Businesses" value={totalBusinesses} hint={`${activeBusinesses} active`} />
-        <StatCard label="WhatsApp connected" value={connectedToWhatsapp} />
+        <StatCard label="Locations WhatsApp-connected" value={connectedLocations} />
         <StatCard label="Total customers" value={totalCustomers} />
         <StatCard
           label="Calling scripts triggered"
           value={(callLogs.TRIGGERED ?? 0) + (callLogs.COMPLETED ?? 0)}
           hint={`${callLogs.PENDING ?? 0} pending (no voice provider connected)`}
         />
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCard label="Total revenue (paid)" value={`₹${totalRevenueInr.toLocaleString("en-IN")}`} />
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white">

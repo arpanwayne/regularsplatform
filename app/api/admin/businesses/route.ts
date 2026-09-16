@@ -12,9 +12,15 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
     include: {
       owner: { select: { id: true, name: true, email: true } },
-      _count: { select: { customers: true, callLogs: true } },
+      _count: { select: { customers: true, callLogs: true, locations: true } },
+      locations: { select: { whatsappPhoneNumberId: true } },
     },
   });
 
-  return NextResponse.json({ businesses });
+  const rows = businesses.map((b) => ({
+    ...b,
+    connectedLocations: b.locations.filter((l) => l.whatsappPhoneNumberId).length,
+  }));
+
+  return NextResponse.json({ businesses: rows });
 }

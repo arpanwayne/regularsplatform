@@ -10,12 +10,12 @@ export type AdminBusinessRow = {
   sector: string;
   status: string;
   plan: string;
-  whatsappPhoneNumberId: string | null;
+  connectedLocations: number;
   atRiskAfterDaysOverride: number | null;
   dormantAfterDaysOverride: number | null;
   establishedVisitCountOverride: number | null;
   owner: { name: string; email: string };
-  _count: { customers: number; callLogs: number };
+  _count: { customers: number; callLogs: number; locations: number };
 };
 
 export function BusinessAdminTable({ businesses }: { businesses: AdminBusinessRow[] }) {
@@ -69,10 +69,12 @@ export function BusinessAdminTable({ businesses }: { businesses: AdminBusinessRo
                   <p className="text-gray-500">{b.owner.email}</p>
                 </td>
                 <td className="px-4 py-3">
-                  {b.whatsappPhoneNumberId ? (
-                    <span className="text-brand-700 font-medium">Connected</span>
+                  {b.connectedLocations > 0 ? (
+                    <span className="text-brand-700 font-medium">
+                      {b.connectedLocations}/{b._count.locations} connected
+                    </span>
                   ) : (
-                    <span className="text-gray-400">Not connected</span>
+                    <span className="text-gray-400">0/{b._count.locations} connected</span>
                   )}
                 </td>
                 <td className="px-4 py-3">{b._count.customers}</td>

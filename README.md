@@ -66,47 +66,85 @@ npm run admin:promote -- someone@example.com
 
 Then log in as that user and go to `/admin`. What's there today:
 
-- **Businesses** — every registered business, its owner, WhatsApp connection status, customer
-  count; suspend/reactivate a business (stops its webhook ingestion and blocks its calling
-  scripts immediately — see `app/api/webhook/whatsapp/route.ts` and the calling-script routes);
-  change its plan label (`STARTER`/`GROWTH`/`PRO`, manual only — no billing integration); override
+- **Businesses** — every registered business, its owner, how many of its locations have
+  WhatsApp connected, customer count; suspend/reactivate a business (stops every one of its
+  locations from ingesting WhatsApp and blocks its calling scripts immediately — see
+  `app/api/webhook/whatsapp/route.ts` and the calling-script routes); change its plan label
+  (`STARTER`/`GROWTH`/`PRO` — set automatically on a verified payment, or manually here); override
   its segmentation thresholds (at-risk/dormant days, established-visit-count) without touching
   code, falling back to the platform defaults in `lib/segmentation.ts` when unset.
 - **Owners** — every business owner; reset a lost password (generates a one-time temporary
-  password since there's no email-based "forgot password" flow yet — the admin has to relay it
-  out-of-band).
+  password — owners also have their own self-service "forgot password" flow now, see below; this
+  admin-reset is the fallback when that isn't reachable either).
+- **Usage** — AI script personalization calls and their estimated Claude cost, and voice-call
+  trigger counts, per business (`lib/usage.ts` — estimates only, not billing-grade).
+- **Logs** — the last 100 `SystemLog` entries (webhook failures, calling-script/voice-call
+  errors, billing failures), filterable by level (`lib/logger.ts`).
 - **Overview** — platform-wide counts: total/active/suspended businesses, WhatsApp-connected
-  businesses, total customers, segment breakdown, and calling-script trigger counts, all
-  aggregated across every business.
+  locations, total customers, segment breakdown, calling-script trigger counts, and total paid
+  revenue, all aggregated across every business.
 
-Not built yet (see roadmap): per-business billing/payment status beyond the manual plan label,
-API cost/usage metering (Anthropic spend, voice-provider minutes) per business, and a structured
-error/failed-webhook log viewer — right now troubleshooting a business's WhatsApp connection
-means checking its `whatsappPhoneNumberId` in the Businesses list and its `CallLog` rows.
+### Multi-location businesses
+
+A `Business` can have multiple `Location`s (e.g. a salon chain's branches) — each Location
+connects its **own** WhatsApp Business number independently, and customers/messages/visits
+belong to the location whose number they messaged. A single-outlet signup gets one Location
+auto-created with the business's own name, so the common case needs no extra step; add more from
+**Settings**. Known simplification: the same phone number messaging two locations of one chain
+is tracked as two separate customer records today (one per location), not unified across the
+business — see `prisma/schema.prisma` (`Customer` model) for the reasoning.
+
+### Self-service password reset
+
+**Settings → (login page) → Forgot password?** sends a 1-hour reset link. It only actually
+*emails* that link if `EMAIL_PROVIDER_API_KEY`/`EMAIL_FROM_ADDRESS` (Resend) are configured
+(`lib/email.ts`) — without them, the link is written to `SystemLog` (`/admin/logs`, level WARN)
+instead of silently failing, so a super admin can still retrieve and relay it. The response to
+the forgot-password request is always the same generic message either way, so the endpoint can't
+be used to check which emails are registered.
+
+### Billing
+
+**Dashboard → Billing** lets an owner pay for a plan upgrade via Razorpay (`lib/billing.ts`):
+create an order, Razorpay Checkout collects payment, the backend verifies the HMAC signature
+before marking it paid and updating `Business.plan` (never trusts the client-side success
+callback alone). Needs `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` — without them the page still
+shows the plans but "Upgrade" explains payments aren't configured instead of opening a fake
+checkout. This is one-time period payments (30 days per purchase), not a recurring subscription
+engine — nothing auto-charges or auto-downgrades on expiry yet.
 
 ### Connecting a real WhatsApp Business number
 
 1. Create a Meta App with the WhatsApp product, get a phone number ID + access token.
-2. In the dashboard → **Settings**, save the phone number ID and access token.
+2. In the dashboard → **Settings**, find the location you want to connect (or add a new one) and
+   save its phone number ID and access token.
 3. In the Meta App dashboard, set the webhook callback URL and verify token to the values shown
-   on that same Settings page, and subscribe to the `messages` field.
+   on that same location's card, and subscribe to the `messages` field.
 4. Customer messages will now start appearing under **Customers**, segmented automatically.
 
 ### Environment variables
 
-See [`.env.example`](./.env.example). `ANTHROPIC_API_KEY` and the `CALLING_PROVIDER_*` vars are
-optional — the platform works fully without them, just with static (non-AI-personalized)
-scripts and calls logged as `PENDING` instead of actually dialed.
+See [`.env.example`](./.env.example). Everything except `DATABASE_URL` and `SESSION_SECRET` is
+optional — the platform works fully without any of it, degrading honestly instead of faking
+success: static (non-AI-personalized) scripts without `ANTHROPIC_API_KEY`, calls logged as
+`PENDING` without a `CALLING_PROVIDER_*`, reset links logged instead of emailed without
+`EMAIL_PROVIDER_API_KEY`, and a "payments not configured" message instead of checkout without
+`RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`.
 
 ## What's intentionally an MVP boundary
 
 - **Voice calling**: no telephony/voice-AI vendor is wired in (`lib/calling-provider.ts` is the
   integration seam — Bland AI, Vapi, Exotel, Knowlarity are common choices). Without a
   configured provider, "triggering" a call just logs it — this is honest by design rather than
-  faking a phone call that never happens.
+  faking a phone call that never happens. Usage tracking (`/admin/usage`) counts trigger
+  *attempts*, not billed minutes, since no provider reports call duration back yet.
+- **Billing**: one-time period payments via Razorpay, not a recurring subscription engine — see
+  "Billing" above.
 - **WhatsApp Business API compliance**: automated opt-out handling is implemented (see
   [`COMPLIANCE.md`](./COMPLIANCE.md)), but several items in that doc still need a manual review
   against your actual Meta Business Manager setup before going live with real customers.
+- **Multi-location**: one location = one WhatsApp number = its own customer list; no unified
+  cross-location customer profile yet (see "Multi-location businesses" above).
 
 ## Roadmap (from the project notes)
 
@@ -117,11 +155,17 @@ scripts and calls logged as `PENDING` instead of actually dialed.
 - [x] Restaurant/food business calling-script variant (`lib/calling-scripts/templates.ts` —
   clinic, salon, and restaurant now have dedicated scripts; gym/retail still use the generic one)
 - [x] Analytics dashboard (overview + customers + calling scripts pages)
-- [x] Pricing/packaging tiers — drafted in [`PRICING.md`](./PRICING.md) and shown on the landing
-  page (`lib/pricing.ts`); numbers are a starting proposal, not finalized (see that doc for why)
+- [x] Pricing/packaging tiers — drafted in [`PRICING.md`](./PRICING.md), shown on the landing
+  page and billable via Razorpay from the dashboard; numbers are a starting proposal, not
+  finalized (see that doc for why)
 - [x] WhatsApp Business API compliance review — [`COMPLIANCE.md`](./COMPLIANCE.md) documents
   what's enforced in code (opt-out handling) vs. what needs manual verification against your
   Meta setup before launch
+- [x] Billing/payment integration (Razorpay, one-time period payments)
+- [x] API usage/cost tracking (`/admin/usage`)
+- [x] System error/log viewer (`/admin/logs`)
+- [x] Self-service "forgot password" for owners
+- [x] Multi-location support (each location connects its own WhatsApp number)
 
 ### Pilot readiness
 
@@ -150,21 +194,26 @@ What you need to bring to start one:
 
 ```
 app/
-  api/            route handlers (auth, webhook, segmentation, calling scripts, business, admin)
-  dashboard/      per-business owner: overview, customers, calling-scripts, settings pages
-  admin/          super admin: platform overview, businesses, owners
-  login/ signup/  auth pages
+  api/            route handlers (auth, webhook, segmentation, calling scripts, business,
+                   locations, billing, admin)
+  dashboard/      per-business owner: overview, customers, calling-scripts, billing, settings
+  admin/          super admin: platform overview, businesses, owners, usage, logs
+  login/ signup/ forgot-password/ reset-password/   auth pages
 lib/
   segmentation.ts       rule-based behavioral segmentation
   run-segmentation.ts   recompute + persist segments for a business (applies admin overrides)
   whatsapp.ts            webhook payload parsing + message classification + opt-out detection
   calling-scripts/      Hinglish templates + generation (+ optional Claude personalization)
   calling-provider.ts   voice-call trigger seam (no vendor wired by default)
-  auth.ts / session.ts  JWT cookie auth
+  billing.ts             Razorpay order creation + payment signature verification
+  email.ts               email-sending seam (Resend) for password-reset links
+  usage.ts                records AI/voice usage events + estimated Claude cost
+  logger.ts               writes to SystemLog, read by /admin/logs
+  auth.ts / session.ts / reset-token.ts   JWT cookie auth + password-reset tokens
   admin.ts               requireSuperAdmin() guard for admin routes
   pricing.ts             draft pricing tiers shown on the landing page
 prisma/
-  schema.prisma         data model
+  schema.prisma         data model (Business → Location[] → Customer/Message/Visit)
   promote-admin.ts      CLI script to grant SUPER_ADMIN to an existing user
 COMPLIANCE.md           WhatsApp Business Policy checklist (what's enforced vs. manual review)
 PRICING.md              pricing tier reasoning + open questions

@@ -1,6 +1,8 @@
 import { Business, Customer } from "@prisma/client";
 import { getTemplate } from "@/lib/calling-scripts/templates";
 import type { Sector, Segment } from "@/lib/types";
+import { estimateClaudeCostUsd, recordUsageEvent } from "@/lib/usage";
+import { logEvent } from "@/lib/logger";
 
 function fillPlaceholders(content: string, vars: Record<string, string>): string {
   return content.replace(/{{\s*(\w+)\s*}}/g, (_, key) => vars[key] ?? "");
@@ -18,10 +20,13 @@ function formatDate(date: Date): string {
  * the platform must keep working without this key (see PDF: "zero manual
  * effort", not "zero effort unless an API is down").
  */
+type ClaudePersonalizeResult = { text: string; inputTokens: number; outputTokens: number };
+
 async function personalizeWithClaude(
   baseScript: string,
-  context: { customerName: string; businessName: string; sector: string; segment: string }
-): Promise<string | null> {
+  context: { customerName: string; businessName: string; sector: string; segment: string },
+  businessId: string
+): Promise<ClaudePersonalizeResult | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
@@ -49,17 +54,37 @@ async function personalizeWithClaude(
         ],
       }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      await logEvent({
+        businessId,
+        source: "CALLING_SCRIPT",
+        level: "WARN",
+        message: `Claude personalization request failed (HTTP ${res.status})`,
+      });
+      return null;
+    }
     const data = await res.json();
     const text = data?.content?.[0]?.text;
-    return typeof text === "string" && text.trim() ? text.trim() : null;
-  } catch {
+    if (typeof text !== "string" || !text.trim()) return null;
+    return {
+      text: text.trim(),
+      inputTokens: data?.usage?.input_tokens ?? 0,
+      outputTokens: data?.usage?.output_tokens ?? 0,
+    };
+  } catch (err) {
+    await logEvent({
+      businessId,
+      source: "CALLING_SCRIPT",
+      level: "WARN",
+      message: "Claude personalization request threw an error",
+      meta: { error: err instanceof Error ? err.message : String(err) },
+    });
     return null;
   }
 }
 
 export async function generateCallingScript(
-  business: Pick<Business, "name" | "sector">,
+  business: Pick<Business, "id" | "name" | "sector">,
   customer: Pick<Customer, "name" | "phone" | "lastSeenAt" | "segment">
 ) {
   const template = getTemplate(business.sector as Sector, customer.segment as Segment);
@@ -70,16 +95,34 @@ export async function generateCallingScript(
   };
   const filled = fillPlaceholders(template.content, vars);
 
-  const personalized = await personalizeWithClaude(filled, {
-    customerName: vars.customerName,
-    businessName: vars.businessName,
-    sector: business.sector,
-    segment: customer.segment,
-  });
+  const personalized = await personalizeWithClaude(
+    filled,
+    {
+      customerName: vars.customerName,
+      businessName: vars.businessName,
+      sector: business.sector,
+      segment: customer.segment,
+    },
+    business.id
+  );
+
+  if (personalized) {
+    const estimatedCostUsd = estimateClaudeCostUsd(
+      personalized.inputTokens,
+      personalized.outputTokens
+    );
+    await recordUsageEvent({
+      businessId: business.id,
+      type: "AI_SCRIPT_PERSONALIZATION",
+      inputTokens: personalized.inputTokens,
+      outputTokens: personalized.outputTokens,
+      estimatedCostUsd,
+    });
+  }
 
   return {
     title: template.title,
-    content: personalized ?? filled,
+    content: personalized?.text ?? filled,
     aiPersonalized: personalized !== null,
   };
 }

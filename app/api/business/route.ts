@@ -1,36 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 import { getCurrentBusiness } from "@/lib/session";
 
-const updateSchema = z.object({
-  whatsappPhoneNumberId: z.string().min(1).optional(),
-  whatsappAccessToken: z.string().min(1).optional(),
-});
-
+// WhatsApp connection fields used to live directly on Business; they moved
+// to Location (a business can have multiple, each with its own WhatsApp
+// number) — see app/api/locations/route.ts and app/api/locations/[id]/route.ts.
 export async function GET() {
   const business = await getCurrentBusiness();
   if (!business) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   return NextResponse.json({ business });
-}
-
-export async function PATCH(req: NextRequest) {
-  const business = await getCurrentBusiness();
-  if (!business) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const parsed = updateSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  }
-
-  const updated = await prisma.business.update({
-    where: { id: business.id },
-    data: parsed.data,
-  });
-
-  return NextResponse.json({ business: updated });
 }

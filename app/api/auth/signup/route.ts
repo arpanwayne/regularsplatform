@@ -34,6 +34,11 @@ export async function POST(req: NextRequest) {
         create: {
           name: businessName,
           sector,
+          // Every business needs at least one Location to connect WhatsApp
+          // to (see Location model) — auto-create one named after the
+          // business itself so a single-outlet signup needs no extra step.
+          // Multi-location chains add more from Settings.
+          locations: { create: { name: businessName } },
         },
       },
     },

@@ -18,7 +18,7 @@ export async function GET() {
   ] = await Promise.all([
     prisma.business.count(),
     prisma.business.count({ where: { status: "ACTIVE" } }),
-    prisma.business.count({ where: { whatsappPhoneNumberId: { not: null } } }),
+    prisma.location.count({ where: { whatsappPhoneNumberId: { not: null } } }),
     prisma.customer.count(),
     prisma.customer.groupBy({ by: ["segment"], _count: true }),
     prisma.callLog.groupBy({ by: ["status"], _count: true }),

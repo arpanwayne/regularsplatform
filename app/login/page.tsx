@@ -6,6 +6,11 @@ export default function LoginPage() {
     <main className="min-h-screen flex flex-col items-center justify-center px-6">
       <h1 className="text-2xl font-semibold mb-6">Log in to Regulars</h1>
       <AuthForm mode="login" />
+      <p className="mt-3 text-sm">
+        <Link href="/forgot-password" className="text-brand-700 font-medium">
+          Forgot password?
+        </Link>
+      </p>
       <p className="mt-4 text-sm text-gray-500">
         No account?{" "}
         <Link href="/signup" className="text-brand-700 font-medium">
