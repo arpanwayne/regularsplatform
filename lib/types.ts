@@ -34,7 +34,7 @@ export const PLAN_PRICE_INR: Record<Plan, number> = {
 
 export type UsageEventType = "AI_SCRIPT_PERSONALIZATION" | "VOICE_CALL";
 
-export type LogSource = "WEBHOOK" | "CALLING_SCRIPT" | "BILLING" | "AUTH";
+export type LogSource = "WEBHOOK" | "CALLING_SCRIPT" | "BILLING" | "AUTH" | "API";
 export type LogLevel = "INFO" | "WARN" | "ERROR";
 
 export type PaymentStatus = "CREATED" | "PAID" | "FAILED";

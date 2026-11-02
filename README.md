@@ -259,3 +259,24 @@ vercel.json             daily cron config for the plan-downgrade sweep
 COMPLIANCE.md           WhatsApp Business Policy checklist (what's enforced vs. manual review)
 PRICING.md              pricing tier reasoning + open questions
 ```
+
+## Inbound events API (`/api/v1`)
+
+Lets another system report **real visits** for a business, instead of Regulars guessing from customer-typed WhatsApp keywords (the "Capture visits from business-side events" and "Capture spend" gaps). First consumer: Sehat Saathi (clinic visits).
+
+**Setup:** run `npx prisma db push` (adds the `ApiKey` table and `Visit.externalId`), then issue a key per business in **Admin → API keys**. The key is shown once; only its SHA-256 hash is stored.
+
+**`GET /api/v1/ping`** with `Authorization: Bearer rk_live_…` → `{ ok, business, locations }`. Use it to test a key.
+
+**`POST /api/v1/events`** with the same header, body `{ "events": [ … ] }` (1–100 per call):
+
+| Field | Notes |
+|---|---|
+| `type` | `VISIT` (counts a visit), `CUSTOMER` (create/refresh profile only), `OPT_OUT` (never target again) |
+| `phone` | With country code, 11–15 digits (`919876543210`) so it matches WhatsApp-captured customers |
+| `externalId` | **Required for VISIT.** Unique per business — a retried push returns `duplicate`, never double-counts |
+| `occurredAt` | ISO 8601 with offset; defaults to now; future times rejected. Out-of-order backfills are fine |
+| `amount` | Optional, adds to `totalSpend` (so High Spender can trigger) |
+| `name`, `locationId` | Optional. No `locationId` → the business's first active location |
+
+Reply: `{ summary: { created, updated, duplicate, rejected }, results: [{ index, status, customerId | error }] }`. One bad event never fails the batch. Segments are recomputed once per call. Rejections are logged as `API` warnings in Admin → Logs.
