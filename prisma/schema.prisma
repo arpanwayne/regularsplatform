@@ -72,6 +72,7 @@ model Business {
   usageEvents    UsageEvent[]
   payments       Payment[]
   systemLogs     SystemLog[]
+  apiKeys        ApiKey[]
 
   @@index([ownerId])
 }
@@ -178,8 +179,14 @@ model Visit {
 
   amount     Float?
   occurredAt DateTime @default(now())
-  source     String? // e.g. "whatsapp:booking_confirmation"
+  source     String? // e.g. "whatsapp:booking_confirmation", "api:sehat-saathi"
 
+  /// Caller-supplied id for visits pushed through the events API
+  /// (POST /api/v1/events). Unique per business so a retried push never
+  /// double-counts a visit. Null for WhatsApp-captured visits.
+  externalId String?
+
+  @@unique([businessId, externalId])
   @@index([businessId, customerId])
   @@index([locationId])
 }
@@ -296,4 +303,23 @@ model Payment {
   paidAt    DateTime?
 
   @@index([businessId, createdAt])
+}
+
+/// Server-to-server key for the inbound events API (POST /api/v1/events),
+/// one business per key. Lets another system (e.g. Sehat Saathi, a POS or a
+/// booking tool) report real visits instead of relying on customer-typed
+/// WhatsApp keywords. Only the SHA-256 hash is stored; the plaintext is shown
+/// once, at creation. Issued and revoked by a super admin (/admin/api-keys).
+model ApiKey {
+  id         String    @id @default(cuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name       String // who uses it, e.g. "Sehat Saathi — City Care Hospital"
+  keyPrefix  String // first characters, to recognise a key without revealing it
+  keyHash    String    @unique
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([businessId])
 }
