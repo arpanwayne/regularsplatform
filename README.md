@@ -323,3 +323,36 @@ Autonomy per action type: Suggest only / Ask me first (default) / Do it, then te
 Guardrails: opt-outs, contact hours, max touches per customer per week, daily cap, one action per customer per plan, AI calls only to people with an existing relationship (enforced again in WayneRing).
 
 Cron: `/api/cron/growth` hourly (`vercel.json`). Settings: `/dashboard/growth`.
+
+## One platform (Bundle A) — Regulars is the hub
+
+Bundle A is sold as one product. Regulars handles signup, the bill, the
+login and the home screen; the other tools are set up automatically.
+
+| What | Where |
+| --- | --- |
+| Plans, prices, which tools each plan includes | `lib/hub/plans.ts` (INR prices are a draft) |
+| Signup with a plan | `/signup?plan=GROW&country=CA` → `app/api/auth/signup` |
+| One bill (Razorpay, CAD or INR, 30 days) | `app/api/billing/bundle` → `app/api/billing/verify` → `lib/hub/bundle.ts` |
+| Automatic set-up in every tool | `lib/hub/provision.ts` (idempotent; retried daily with backoff) |
+| One login into WayneRing / Field Service CRM | `GET /api/hub/open/wayneRing?page=calls`, `/api/hub/open/field-service` |
+| Home screen | `components/hub-home.tsx` on `/dashboard` |
+| Team tools | `/admin/bundles` — activate a plan paid offline, re-run set-up, issue new keys |
+
+**Hub ↔ tool contract.** Every tool exposes two endpoints, both checked
+with a JWT signed by the hub with that tool's own `HUB_SECRET`
+(issuer `regulars-hub`, audience = the tool, single-use `jti`, ≤ 2 min):
+
+- `POST …/hub/provision` (`purpose: "provision"`) — create or update the
+  account for `hubBusinessId`; `active: false` pauses it. Returns
+  `{ accountId, status, data, secrets? }`.
+- `POST …/hub/sso/exchange` (`purpose: "sso"`, owner-login tools only) —
+  swaps the browser's one-time token for the tool's normal session.
+
+GMB Manager and Video Studio are run by our team (no client login), so they
+only get `provision`: the client's Google listing and reel requests show up
+in Growth AI, and the team connects the Google listing once.
+
+Plan lifecycle: `PENDING_PAYMENT` → pay → `ACTIVE` (30 days; paying again
+adds 30 days to the end date) → 3-day grace → `LAPSED` (every tool paused,
+Growth Manager off, nothing deleted) → pay → `ACTIVE`.

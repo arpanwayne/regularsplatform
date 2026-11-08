@@ -75,9 +75,19 @@ model Business {
   smsMonthlyLimit   Int?
   smsOverageRateCad Float   @default(0.05)
 
+  // ── One platform (Bundle A, Nov 2026) ──────────────────────────────────
+  // frontDeskPlan above doubles as the bundle plan. Regulars is the hub:
+  // signup, one bill, single sign-on into the other tools, and automatic
+  // account set-up in each of them (see lib/hub/).
+  /// BundleStatus: NONE | PENDING_PAYMENT | ACTIVE | LAPSED
+  bundleStatus    String    @default("NONE")
+  /// End of the paid bundle period. Tools keep working for a 3-day grace.
+  bundlePaidUntil DateTime?
+
   createdAt DateTime @default(now())
 
   locations      Location[]
+  toolAccounts   ToolAccount[]
   customers      Customer[]
   messages       Message[]
   visits         Visit[]
@@ -346,8 +356,11 @@ model Payment {
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  /// Plan being purchased: STARTER | GROWTH | PRO
+  /// Plan being purchased: STARTER | GROWTH | PRO, or a bundle plan
+  /// (ANSWER | ANSWER_RETURN | GROW) when kind = BUNDLE.
   plan          String
+  /// Kind: PLAN (Regulars-only plans) | BUNDLE (the one-platform bundle)
+  kind          String @default("PLAN")
   amountInPaise Int // Razorpay amounts are in paise (₹1 = 100 paise)
   currency      String @default("INR")
 
@@ -514,4 +527,31 @@ model GrowthAction {
   @@unique([businessId, dedupeKey])
   @@index([businessId, status])
   @@index([businessId, customerId, executedAt])
+}
+
+/// The business's account in one of the other tools (WayneRing, Field
+/// Service CRM, GMB Manager, Video Studio), created automatically by
+/// lib/hub/provision.ts. One row per business per tool.
+model ToolAccount {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  /// Tool: WAYNERING | FIELD_SERVICE | GMB | VIDEO
+  tool       String
+  /// Status: PENDING | ACTIVE | PAUSED | FAILED
+  status     String   @default("PENDING")
+  /// The account's id in that tool (tenant / company / client id).
+  externalId String?
+  /// JSON: what the tool reported back (assistant id, phone number, Google connected…)
+  data       String   @default("{}")
+  /// Id of the rk_live_ key the hub issued to this tool (to revoke on re-issue).
+  apiKeyId   String?
+  lastError  String?
+  attempts   Int      @default(0)
+  provisionedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([businessId, tool])
+  @@index([status])
 }
