@@ -101,6 +101,7 @@ export async function POST(req: NextRequest) {
               firstSeenAt: now,
               lastSeenAt: now,
               visitCount: isQualifyingVisit(messageType) ? 1 : 0,
+              preferredChannel: "WHATSAPP", // they reached us on WhatsApp
               optedOut: optOut,
               optedOutAt: optOut ? now : null,
             },

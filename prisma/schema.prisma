@@ -61,6 +61,20 @@ model Business {
   dormantAfterDaysOverride      Int?
   establishedVisitCountOverride Int?
 
+  // ── WayneRing AI Front Desk / SMS (Nov 2026) ──────────────────────────
+  /// ISO country, used to read local phone numbers in CSV imports ("CA" → +1).
+  country           String  @default("IN")
+  /// DefaultChannel: WHATSAPP | SMS. Canada texts → SMS; India → WHATSAPP.
+  /// A customer's own preferredChannel overrides this.
+  defaultChannel    String  @default("WHATSAPP")
+  /// Send a Google review request SMS automatically after each VISIT event.
+  autoReviewRequest Boolean @default(false)
+  /// FrontDeskPlan: ANSWER | ANSWER_RETURN | GROW (null = not a Front Desk client).
+  frontDeskPlan     String?
+  /// Included outgoing SMS segments per calendar month (null = no limit set).
+  smsMonthlyLimit   Int?
+  smsOverageRateCad Float   @default(0.05)
+
   createdAt DateTime @default(now())
 
   locations      Location[]
@@ -93,6 +107,19 @@ model Location {
   whatsappPhoneNumberId String? @unique
   whatsappAccessToken   String?
   whatsappVerifyToken   String  @default(cuid())
+
+  // SMS (Twilio) — each location gets its own Canadian texting number
+  // (provisioned by a super admin, see app/api/admin/locations/[id]/sms-number).
+  // Inbound SMS is matched to a Location by this number, like WhatsApp is by
+  // phoneNumberId.
+  smsFromNumber    String? @unique // E.164, e.g. +14165550123
+  twilioNumberSid  String?
+  /// Prefixed to every customer SMS ("Maple HVAC: ...") — CASL sender ID.
+  smsSenderName    String?
+  bookingUrl       String?
+  googleReviewUrl  String?
+  /// Customer SMS replies are forwarded here (E.164) as well as shown in the inbox.
+  ownerNotifyPhone String?
 
   /// Status: ACTIVE | SUSPENDED. Independent of Business.status — a chain
   /// can suspend one branch without affecting the others.
@@ -136,6 +163,16 @@ model Customer {
   optedOut   Boolean   @default(false)
   optedOutAt DateTime?
 
+  // SMS has its own opt-out (STOP/START keywords, carrier rules). Either
+  // flag blocks outbound SMS; START clears only this one.
+  smsOptedOut   Boolean   @default(false)
+  smsOptedOutAt DateTime?
+  /// PreferredChannel: WHATSAPP | SMS — null = the business default.
+  preferredChannel String?
+  lastMissedCallTextAt DateTime?
+  lastReviewRequestAt  DateTime?
+  lastWinbackAt        DateTime?
+
   messages Message[]
   visits   Visit[]
   callLogs CallLog[]
@@ -164,8 +201,20 @@ model Message {
   rawPayload String? // raw WhatsApp webhook JSON, for audit/debugging
   createdAt  DateTime @default(now())
 
+  /// Channel: WHATSAPP | SMS
+  channel     String    @default("WHATSAPP")
+  /// Purpose: MISSED_CALL | REVIEW_REQUEST | WINBACK | REPLY | OTHER
+  purpose     String?
+  /// Status: QUEUED | SENT | DELIVERED | FAILED | UNDELIVERED | RECEIVED | NOT_SENT
+  status      String?
+  providerSid String?   @unique
+  segments    Int?
+  /// Inbox: null = unread inbound message.
+  readAt      DateTime?
+
   @@index([businessId, customerId])
   @@index([locationId])
+  @@index([businessId, channel, createdAt])
 }
 
 model Visit {
@@ -248,6 +297,9 @@ model UsageEvent {
   // need to report it back via its own webhook, not wired in yet — see
   // README), so this counts *attempts*, not minutes billed.
   callTriggered Boolean?
+
+  // SMS_SENT: billable SMS segments (160 GSM / 70 Unicode chars each).
+  smsSegments Int?
 
   createdAt DateTime @default(now())
 

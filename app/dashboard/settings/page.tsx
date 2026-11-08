@@ -1,6 +1,7 @@
 import { getCurrentBusiness } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { LocationsManager } from "@/components/locations-manager";
+import { FrontDeskSettings } from "@/components/front-desk-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function SettingsPage() {
     <div className="space-y-4">
       <h1 className="text-xl font-semibold">Settings</h1>
       <LocationsManager locations={locations} />
+      <FrontDeskSettings business={business} locations={locations} />
     </div>
   );
 }

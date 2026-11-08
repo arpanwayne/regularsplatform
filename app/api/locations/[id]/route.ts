@@ -9,6 +9,11 @@ const updateSchema = z.object({
   whatsappPhoneNumberId: z.string().min(1).optional(),
   whatsappAccessToken: z.string().min(1).optional(),
   status: z.enum(["ACTIVE", "SUSPENDED"]).optional(),
+  // SMS / Front Desk (the texting number itself is assigned by a super admin)
+  smsSenderName: z.string().trim().max(40).nullable().optional(),
+  bookingUrl: z.string().url().nullable().optional(),
+  googleReviewUrl: z.string().url().nullable().optional(),
+  ownerNotifyPhone: z.string().regex(/^\+\d{10,15}$/, "Use international format, e.g. +14165550123").nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {

@@ -280,3 +280,27 @@ Lets another system report **real visits** for a business, instead of Regulars g
 | `name`, `locationId` | Optional. No `locationId` → the business's first active location |
 
 Reply: `{ summary: { created, updated, duplicate, rejected }, results: [{ index, status, customerId | error }] }`. One bad event never fails the batch. Segments are recomputed once per call. Rejections are logged as `API` warnings in Admin → Logs.
+
+## SMS channel + WayneRing AI Front Desk (Nov 2026)
+
+Canadian customers text rather than use WhatsApp, so SMS (Twilio) now runs alongside WhatsApp.
+This is the "Return" half of **WayneRing AI Front Desk**; WayneRing answers the calls.
+
+| Feature | Where |
+|---|---|
+| One Canadian texting number per location | super admin: `POST /api/admin/locations/:id/sms-number` `{ "action": "buy", "areaCode": "416" }` (sets the SMS webhook), or `{ "action": "assign", "number": "+1…" }` |
+| Two-way inbox (customer texts → dashboard + forwarded to the owner) | `/dashboard/inbox`, webhook `POST /api/webhook/sms`, receipts `POST /api/webhook/sms/status` |
+| Missed-call text-back | `POST /api/v1/front-desk/missed-call` (called by WayneRing; API key from `/admin/api-keys`) |
+| Review request after a visit | automatic per VISIT event when *Settings → Ask for a Google review* is on, or `POST /api/v1/front-desk/review-request` |
+| Win-back for at-risk / dormant customers | *Settings → Win back quiet customers*, plus daily `GET /api/cron/winback` (Vercel cron, `CRON_SECRET`) for Answer + Return / Grow plans |
+| Channel per customer | `Customer.preferredChannel` (SMS / WhatsApp), else `Business.defaultChannel`; WhatsApp needs approved templates (`WHATSAPP_TEMPLATE_*`), otherwise falls back to SMS |
+| STOP / START, sender name, opt-out list | enforced in `lib/sms.ts` for every customer text; STOP/START flip `Customer.smsOptedOut` |
+| SMS counter + C$0.05 overage | `UsageEvent` `SMS_SENT` (segments); limit = `Business.smsMonthlyLimit` (set from the Front Desk plan by a super admin); shown on the Inbox page |
+| Customer list import | *Settings → Import customer list (CSV)* → `POST /api/customers/import` |
+
+Without `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`, SMS runs in **dry-run**: messages are saved as `NOT_SENT` and shown in the inbox, nothing is texted.
+
+Compliance: CASL needs consent (express, or implied from an existing business relationship), sender
+identification and a working unsubscribe in every commercial message. The sender prefix and
+"Reply STOP to opt out" footer are added automatically; only import people who were real customers.
+Before high-volume sending, register toll-free numbers with carriers (Twilio toll-free verification).
