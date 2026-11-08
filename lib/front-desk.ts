@@ -39,7 +39,8 @@ export const TEMPLATES = {
 
 /** WhatsApp template send (business-initiated messages need an approved template). */
 async function sendWhatsAppTemplate(business: Business, location: Location, customer: Customer, purpose: MessagePurpose, vars: string[]) {
-  const template = purpose === "WINBACK" ? process.env.WHATSAPP_TEMPLATE_WINBACK : purpose === "REVIEW_REQUEST" ? process.env.WHATSAPP_TEMPLATE_REVIEW : undefined;
+  const template = purpose === "WINBACK" ? process.env.WHATSAPP_TEMPLATE_WINBACK : purpose === "REVIEW_REQUEST" ? process.env.WHATSAPP_TEMPLATE_REVIEW
+    : purpose === "FOLLOW_UP" ? process.env.WHATSAPP_TEMPLATE_FOLLOWUP : undefined;
   if (!template || !location.whatsappPhoneNumberId || !location.whatsappAccessToken) return null; // not set up → caller falls back to SMS
   if (customer.optedOut) return { ok: false, status: "OPTED_OUT" } as SendResult;
   const res = await fetch(`https://graph.facebook.com/v21.0/${location.whatsappPhoneNumberId}/messages`, {
@@ -62,7 +63,7 @@ async function sendWhatsAppTemplate(business: Business, location: Location, cust
 }
 
 /** Customer's channel: their own preference, else the business default. WhatsApp falls back to SMS when not set up. */
-async function sendToCustomer(business: Business, location: Location, customer: Customer, purpose: MessagePurpose, body: string, waVars: string[]) {
+export async function sendToCustomer(business: Business, location: Location, customer: Customer, purpose: MessagePurpose, body: string, waVars: string[]) {
   const channel = customer.preferredChannel ?? business.defaultChannel;
   if (channel === "WHATSAPP") {
     const r = await sendWhatsAppTemplate(business, location, customer, purpose, waVars);
