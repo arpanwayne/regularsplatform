@@ -2,17 +2,33 @@
 
 import { Fragment, useState } from "react";
 import type { Customer } from "@prisma/client";
+import { useRouter } from "next/navigation";
 import { SegmentBadge } from "@/components/segment-badge";
+import { formatDate } from "@/lib/format";
 
 type CustomerWithLocation = Customer & { location?: { name: string } };
 
 export function CustomerTable({
   customers,
   showLocation = false,
+  country,
+  bundle = false,
 }: {
   customers: CustomerWithLocation[];
   showLocation?: boolean;
+  country?: string | null;
+  /** Bundle owners get AI follow-ups from Growth AI, so no manual scripts. */
+  bundle?: boolean;
 }) {
+  const router = useRouter();
+
+  async function removeData(id: string, label: string) {
+    if (!window.confirm(`Permanently remove ${label}'s data? This can't be undone.`)) return;
+    const res = await fetch(`/api/customers/${id}`, { method: "DELETE" });
+    if (res.ok) router.refresh();
+    else window.alert("That couldn't be removed. Please try again.");
+  }
+
   const [openScriptFor, setOpenScriptFor] = useState<string | null>(null);
   const [scripts, setScripts] = useState<Record<string, { title: string; content: string }>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -34,8 +50,7 @@ export function CustomerTable({
   if (customers.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
-        Abhi tak koi customer capture nahi hua. WhatsApp connect hone ke baad customers yahan
-        automatically dikhne lagenge.
+        Customers appear here after their first call, text or visit. You can also import a list in Settings.
       </div>
     );
   }
@@ -74,17 +89,19 @@ export function CustomerTable({
                 </td>
                 <td className="px-4 py-3">{c.visitCount}</td>
                 <td className="px-4 py-3 text-gray-500">
-                  {new Date(c.lastSeenAt).toLocaleDateString("en-IN")}
+                  {formatDate(c.lastSeenAt, country)}
                 </td>
-                <td className="px-4 py-3 text-right">
-                  <button
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  <a href={`/api/customers/${c.id}`} className="mr-3 text-xs text-gray-500 underline">Export</a>
+                  <button type="button" onClick={() => removeData(c.id, c.name || c.phone)} className="mr-3 text-xs text-red-600 underline">Remove</button>
+                  {!bundle && <button
                     onClick={() => generateScript(c.id)}
                     disabled={loadingId === c.id || c.optedOut}
                     title={c.optedOut ? "Customer opted out — cannot generate outreach" : undefined}
                     className="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {loadingId === c.id ? "Generating…" : "Generate calling script"}
-                  </button>
+                  </button>}
                 </td>
               </tr>
               {openScriptFor === c.id && scripts[c.id] && (

@@ -23,6 +23,8 @@ model User {
   id           String     @id @default(cuid())
   email        String     @unique
   passwordHash String
+  // A password reset signs out every session issued before this moment.
+  sessionsValidFrom DateTime?
   name         String
   /// Role: OWNER | SUPER_ADMIN. Not self-assignable via signup — granted via
   /// prisma/promote-admin.ts by someone with server access.
@@ -554,4 +556,11 @@ model ToolAccount {
 
   @@unique([businessId, tool])
   @@index([status])
+}
+
+// Attempt counters for sign-in, signup and password reset.
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
 }

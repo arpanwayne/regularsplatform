@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
+import { BUNDLE_NAME } from "@/lib/brand";
 
 const LINKS = [
   { href: "/dashboard", label: "Overview" },
@@ -35,16 +36,16 @@ export function DashboardNav({
 
   return (
     <header className="border-b border-gray-200 bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <span className="font-semibold">{bundle ? "WayneRing" : "Regulars"}</span>
-          <nav className="flex flex-wrap gap-1">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
+        <div className="order-last flex w-full items-center gap-8 lg:order-none lg:w-auto">
+          <span className="hidden font-semibold lg:inline">{bundle ? BUNDLE_NAME : "Regulars"}</span>
+          <nav className="-mx-1 flex gap-1 overflow-x-auto whitespace-nowrap lg:mx-0 lg:flex-wrap">
             {(bundle ? LINKS.filter((l) => l.href !== "/dashboard/calling-scripts").map((l) => (l.href === "/dashboard" ? { ...l, label: "Home" } : l)) : LINKS).map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 className={clsx(
-                  "rounded-md px-3 py-1.5 text-sm font-medium transition",
+                  "shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition",
                   pathname === link.href
                     ? "bg-brand-100 text-brand-700"
                     : "text-gray-600 hover:bg-gray-100"
@@ -63,7 +64,7 @@ export function DashboardNav({
               Admin panel
             </Link>
           )}
-          <span>{businessName}</span>
+          <span className="truncate font-medium text-gray-800 lg:font-normal lg:text-gray-500">{businessName}</span>
           <button onClick={logout} className="font-medium text-gray-700 hover:text-gray-900">
             Log out
           </button>

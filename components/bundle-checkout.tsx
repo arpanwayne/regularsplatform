@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BUNDLE_NAME } from "@/lib/brand";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import clsx from "clsx";
@@ -24,7 +25,7 @@ export function BundleCheckout({ currentPlan, status, currency }: { currentPlan:
     if (typeof window.Razorpay !== "function") { setBusy(false); setNotice("Checkout didn't load. Refresh the page and try again."); return; }
     const rzp = new window.Razorpay({
       key: data.keyId, order_id: data.orderId, amount: data.amountInMinor, currency: data.currency,
-      name: "WayneRing", description: `${BUNDLE_PLANS[plan].name} — 30 days`,
+      name: BUNDLE_NAME, description: `${BUNDLE_PLANS[plan].name} — 30 days`,
       handler: async (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
         setNotice("Payment received — setting up your tools…");
         const v = await fetch("/api/billing/verify", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(response) });

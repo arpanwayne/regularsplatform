@@ -3,6 +3,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { generateResetToken, hashResetToken } from "@/lib/reset-token";
 import { sendEmail } from "@/lib/email";
+import { allow, clientIp } from "@/lib/rate-limit";
+import { BUNDLE_NAME } from "@/lib/brand";
 
 const schema = z.object({ email: z.string().email() });
 
@@ -14,7 +16,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Valid email required" }, { status: 400 });
   }
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  if (!(await allow(`forgot:ip:${clientIp(req)}`, 5, 15 * 60_000))) return NextResponse.json({ error: "Too many requests. Try again in 15 minutes." }, { status: 429 });
+  const user = await prisma.user.findFirst({ where: { email: { in: [parsed.data.email, parsed.data.email.toLowerCase()] } } });
 
   // Always return the same generic response whether or not the email
   // exists — otherwise this endpoint becomes an account-enumeration oracle.
@@ -35,12 +38,12 @@ export async function POST(req: NextRequest) {
 
     await sendEmail({
       to: user.email,
-      subject: "Reset your Regulars password",
-      text: `Password reset link (valid 1 hour): ${resetLink}\n\nIf you didn't request this, ignore this email.`,
+      subject: `Reset your ${BUNDLE_NAME} password`,
+      text: `Use this link to set a new password. It works for one hour.\n\n${resetLink}\n\nIf you didn't ask for this, you can ignore this email.`,
     });
   }
 
   return NextResponse.json({
-    message: "Agar yeh email registered hai, to ek reset link bheja gaya hai.",
+    message: "If that email has an account, we've sent a reset link.",
   });
 }

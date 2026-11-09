@@ -94,7 +94,7 @@ export async function verifyWebhookSignature(
   signatureHeader: string | null
 ): Promise<boolean> {
   const appSecret = process.env.WHATSAPP_APP_SECRET;
-  if (!appSecret) return true;
+  if (!appSecret) return process.env.NODE_ENV !== "production"; // never accept unsigned events on a live server
   if (!signatureHeader?.startsWith("sha256=")) return false;
 
   const expectedHex = signatureHeader.slice("sha256=".length);

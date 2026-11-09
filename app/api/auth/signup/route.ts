@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { allow, clientIp } from "@/lib/rate-limit";
 import { createSessionToken, hashPassword, SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/auth";
 import { SECTORS } from "@/lib/types";
 import { BUNDLE_PLAN_IDS } from "@/lib/hub/plans";
@@ -25,9 +26,11 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
-  const { name, email, password, businessName, sector, bundlePlan, country, phone } = parsed.data;
+  const { name, password, businessName, sector, bundlePlan, country, phone } = parsed.data;
+  const email = parsed.data.email.toLowerCase();
+  if (!(await allow(`signup:ip:${clientIp(req)}`, 10, 60 * 60_000))) return NextResponse.json({ error: "Too many signups from this connection. Try again later." }, { status: 429 });
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.user.findFirst({ where: { email: { in: [email, parsed.data.email] } } });
   if (existing) {
     return NextResponse.json({ error: "Email already registered" }, { status: 409 });
   }

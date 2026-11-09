@@ -48,7 +48,7 @@ export default async function CustomersPage({
           <FilterLink key={s} label={s.replace("_", " ")} segment={s} active={segmentFilter === s} />
         ))}
       </div>
-      <CustomerTable customers={customers} showLocation={locationCount > 1} />
+      <CustomerTable customers={customers} showLocation={locationCount > 1} country={business.country} bundle={business.bundleStatus !== "NONE"} />
     </div>
   );
 }

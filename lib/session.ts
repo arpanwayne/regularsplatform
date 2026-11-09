@@ -15,6 +15,7 @@ export async function getCurrentUser() {
   if (!payload) return null;
 
   const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+  if (user?.sessionsValidFrom && (payload.iat ?? 0) * 1000 < user.sessionsValidFrom.getTime() - 1000) return null;
   return user;
 }
 

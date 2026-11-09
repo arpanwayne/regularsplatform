@@ -70,7 +70,7 @@ export function signedUrl(req: { url: string; nextUrl: { pathname: string; searc
 /** Twilio request signature check (X-Twilio-Signature). */
 export function verifyTwilioSignature(url: string, params: Record<string, string>, signature: string | null) {
   const token = process.env.TWILIO_AUTH_TOKEN;
-  if (!token) return true; // dry-run / local setup — same stance as the WhatsApp webhook
+  if (!token) return process.env.NODE_ENV !== "production"; // dry-run on a dev machine only
   if (!signature) return false;
   const data = url + Object.keys(params).sort().map((k) => k + params[k]).join("");
   const expected = createHmac("sha1", token).update(data, "utf8").digest("base64");

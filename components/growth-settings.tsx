@@ -13,7 +13,7 @@ type S = {
 
 const LEVEL_TEXT: Record<Autonomy, string> = { SUGGEST: "Suggest only", APPROVE: "Ask me first", AUTO: "Do it, then tell me" };
 
-export function GrowthSettingsForm({ settings, autonomy, tools }: { settings: S; autonomy: Record<ActionType, Autonomy>; tools: { wayneRing: boolean; gmb: boolean; videoStudio: boolean } }) {
+export function GrowthSettingsForm({ settings, autonomy, tools, managed = false }: { settings: S; autonomy: Record<ActionType, Autonomy>; tools: { wayneRing: boolean; gmb: boolean; videoStudio: boolean }; managed?: boolean }) {
   const router = useRouter();
   const [f, setF] = useState({ ...settings, wayneRingCallbackKey: "" });
   const [levels, setLevels] = useState(autonomy);
@@ -98,7 +98,7 @@ export function GrowthSettingsForm({ settings, autonomy, tools }: { settings: S;
           <input className={field} type="number" min={1} max={5} value={f.maxTouchesPerWeek} onChange={(e) => set("maxTouchesPerWeek", Number(e.target.value))} /></label>
       </fieldset>
 
-      <fieldset className="grid gap-4 md:grid-cols-3">
+      {!managed && (<fieldset className="grid gap-4 md:grid-cols-3">
         <legend className="mb-2 text-sm font-medium md:col-span-3">Connected tools</legend>
         <label className="text-sm"><span className="text-gray-600">WayneRing URL {tools.wayneRing ? "· connected" : ""}</span>
           <input className={field} value={f.wayneRingBaseUrl ?? ""} onChange={(e) => set("wayneRingBaseUrl", e.target.value)} placeholder="https://api.wayneringai.com" /></label>
@@ -108,7 +108,7 @@ export function GrowthSettingsForm({ settings, autonomy, tools }: { settings: S;
           <input className={field} value={f.gmbLocationId ?? ""} onChange={(e) => set("gmbLocationId", e.target.value)} /></label>
         <label className="text-sm"><span className="text-gray-600">Video Studio client id {tools.videoStudio ? "· connected" : ""}</span>
           <input className={field} value={f.videoStudioClientId ?? ""} onChange={(e) => set("videoStudioClientId", e.target.value)} /></label>
-      </fieldset>
+      </fieldset>)}
 
       <div className="flex items-center gap-3">
         <button className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Save</button>

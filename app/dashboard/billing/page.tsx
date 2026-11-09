@@ -1,4 +1,5 @@
 import { getCurrentBusiness } from "@/lib/session";
+import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { BillingCheckout } from "@/components/billing-checkout";
 import { BundleCheckout } from "@/components/bundle-checkout";
@@ -23,7 +24,7 @@ export default async function BillingPage() {
           <h1 className="text-xl font-semibold">Billing</h1>
           <p className="text-sm text-gray-500">
             {business.bundleStatus === "PENDING_PAYMENT" && `One payment sets up everything in ${plan.name}: your AI receptionist, follow-ups${plan.tools.length > 1 ? ", CRM and Google profile" : ""}.`}
-            {business.bundleStatus === "ACTIVE" && until && `${plan.name} is paid until ${until.toLocaleDateString("en-CA", { dateStyle: "medium" })}.`}
+            {business.bundleStatus === "ACTIVE" && until && `${plan.name} is paid until ${formatDate(until, business.country)}.`}
             {business.bundleStatus === "LAPSED" && "Your plan has ended and your tools are paused. Nothing has been deleted — pay to switch everything back on."}
           </p>
         </div>
@@ -39,7 +40,7 @@ export default async function BillingPage() {
               <thead className="bg-gray-50 text-left text-gray-500"><tr><th className="px-4 py-2 font-medium">Date</th><th className="px-4 py-2 font-medium">Plan</th><th className="px-4 py-2 font-medium">Amount</th><th className="px-4 py-2 font-medium">Status</th></tr></thead>
               <tbody>{payments.map((p) => (
                 <tr key={p.id} className="border-t border-gray-100">
-                  <td className="px-4 py-2">{(p.paidAt ?? p.createdAt).toLocaleDateString("en-CA", { dateStyle: "medium" })}</td>
+                  <td className="px-4 py-2">{formatDate(p.paidAt ?? p.createdAt, business.country)}</td>
                   <td className="px-4 py-2">{isBundlePlan(p.plan) ? BUNDLE_PLANS[p.plan].name : p.plan}</td>
                   <td className="px-4 py-2">{(p.amountInPaise / 100).toLocaleString("en-CA", { style: "currency", currency: p.currency })}</td>
                   <td className="px-4 py-2">{p.status === "PAID" ? "Paid" : p.status === "FAILED" ? "Failed" : "Not completed"}</td>
@@ -64,24 +65,20 @@ export default async function BillingPage() {
         <h1 className="text-xl font-semibold">Billing</h1>
         <p className="text-sm text-gray-500">
           {business.planExpiresAt
-            ? `Current plan valid tak: ${new Date(business.planExpiresAt).toLocaleDateString("en-IN")}`
-            : "Abhi free Starter plan pe ho."}
+            ? `Your plan is paid until ${formatDate(business.planExpiresAt, business.country)}.`
+            : "You're on the free Starter plan."}
         </p>
       </div>
 
       {nearingExpiry && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          Aapka {business.plan} plan {daysUntilExpiry! <= 0 ? "expire ho chuka hai" : `${daysUntilExpiry} din mein expire ho raha hai`}
-          {" "}— renew karne ke liye neeche se dobara same plan select karo. Auto-charge nahi hota,
-          expire hone pe plan automatically Starter pe wapas aa jaayega.
+          Your {business.plan} plan {daysUntilExpiry! <= 0 ? "has ended" : `ends in ${daysUntilExpiry} day(s)`}. To renew, choose the same plan below. You won&apos;t be charged automatically; when it ends you move back to Starter.
         </div>
       )}
 
       <BillingCheckout currentPlan={business.plan} />
       <p className="text-xs text-gray-400">
-        Pricing draft hai — dekho PRICING.md repo mein. Plan 30 din ke liye valid rehta hai; koi
-        saved payment method/autopay nahi hai, isliye renewal manual hai — expire hone pe plan
-        khud-ba-khud Starter pe downgrade ho jaata hai (koi surprise charge nahi).
+        Plans last 30 days and renew manually, so there are no surprise charges.
       </p>
     </div>
   );
