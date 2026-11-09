@@ -30,10 +30,15 @@ export default async function BillingPage() {
         </div>
         {business.bundleStatus === "ACTIVE" && days !== null && days <= RENEWAL_REMINDER_WINDOW_DAYS && (
           <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            {days <= 0 ? `Your plan ended ${-days} day(s) ago. Tools stay on for ${GRACE_DAYS} days after the end date, then pause.` : `Your plan renews in ${days} day(s). Renewal is manual — pay below to add 30 days.`}
+            {days <= 0 ? `Your plan ended ${-days} day(s) ago. Tools stay on for ${GRACE_DAYS} days after the end date, then pause.` : (business.autopayStatus === "ON" ? `Your plan renews automatically in ${days} day(s).` : `Your plan ends in ${days} day(s). Turn on automatic payment or pay below to keep it running.`)}
           </div>
         )}
-        <BundleCheckout currentPlan={business.frontDeskPlan} status={business.bundleStatus} currency={currencyFor(business.country)} />
+        {business.autopayStatus === "FAILED" && (
+          <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            We couldn&apos;t charge your card. Turn automatic payment off and on again with a working card, or pay once below, to keep your tools running.
+          </div>
+        )}
+        <BundleCheckout currentPlan={business.frontDeskPlan} status={business.bundleStatus} currency={currencyFor(business.country)} autopay={business.autopayStatus} autopayPlan={business.autopayPlan} paidUntil={until ? formatDate(until, business.country) : null} />
         {payments.length > 0 && (
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
             <table className="w-full min-w-[480px] text-sm">
@@ -49,7 +54,7 @@ export default async function BillingPage() {
             </table>
           </div>
         )}
-        <p className="text-xs text-gray-400">Plans run 30 days at a time and renew manually — there is no automatic charge.</p>
+        <p className="text-xs text-gray-500">Automatic payment charges your card each month until you turn it off here. Turning it off stops future charges, and your plan runs to the end of what you&apos;ve paid for.</p>
       </div>
     );
   }

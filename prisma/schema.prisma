@@ -85,6 +85,11 @@ model Business {
   bundleStatus    String    @default("NONE")
   /// End of the paid bundle period. Tools keep working for a 3-day grace.
   bundlePaidUntil DateTime?
+  /// Automatic monthly payment. Status: OFF | PENDING | ON | ENDING | FAILED
+  autopayStatus          String    @default("OFF")
+  autopayPlan            String?
+  razorpaySubscriptionId String?   @unique
+  renewalReminderAt      DateTime?
 
   createdAt DateTime @default(now())
 
@@ -563,4 +568,10 @@ model RateLimit {
   key     String   @id
   count   Int
   resetAt DateTime
+}
+
+// Razorpay's plan id for each plan, currency and price.
+model RazorpayPlan {
+  key    String @id
+  planId String
 }

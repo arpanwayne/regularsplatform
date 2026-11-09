@@ -13,11 +13,12 @@ const DAY = 86400000;
  * Growth Manager on for plans that include it, and sets up every tool.
  * Paying again before the period ends extends it from the current end date.
  */
-export async function activateBundle(businessId: string, plan: FrontDeskPlan, opts: { days?: number; reason: string; now?: Date }) {
+export async function activateBundle(businessId: string, plan: FrontDeskPlan, opts: { days?: number; until?: Date; reason: string; now?: Date }) {
   const now = opts.now ?? new Date();
   const biz = await prisma.business.findUniqueOrThrow({ where: { id: businessId } });
   const from = biz.bundlePaidUntil && biz.bundlePaidUntil > now && biz.frontDeskPlan === plan ? biz.bundlePaidUntil : now;
-  const paidUntil = new Date(from.getTime() + (opts.days ?? PERIOD_DAYS) * DAY);
+  // Automatic payments follow the card's billing date, so months of different lengths can't drift.
+  const paidUntil = opts.until ?? new Date(from.getTime() + (opts.days ?? PERIOD_DAYS) * DAY);
 
   await prisma.business.update({
     where: { id: businessId },

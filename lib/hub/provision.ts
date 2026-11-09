@@ -152,7 +152,7 @@ export async function provisionBusiness(businessId: string, opts: { rotateKeys?:
 /** Cron: retry failed or never-finished set-ups with backoff (1h, 2h, 4h… capped). */
 export async function retryProvisioning(now = new Date()) {
   const due = await prisma.toolAccount.findMany({
-    where: { status: { in: ["FAILED", "PENDING"] }, attempts: { lt: MAX_ATTEMPTS }, business: { bundleStatus: "ACTIVE" } },
+    where: { status: { in: ["FAILED", "PENDING"] }, attempts: { lt: MAX_ATTEMPTS }, business: { bundleStatus: { in: ["ACTIVE", "LAPSED"] } } }, // a failed pause must be retried too
     select: { businessId: true, attempts: true, updatedAt: true },
   });
   const ready = due.filter((t) => now.getTime() - t.updatedAt.getTime() >= Math.min(2 ** t.attempts, 24) * 3600000 - 60000);
