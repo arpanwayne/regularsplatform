@@ -9,3 +9,4 @@ build/
 dev.db
 dev.db-journal
 next-env.d.ts
+tsconfig.tsbuildinfo

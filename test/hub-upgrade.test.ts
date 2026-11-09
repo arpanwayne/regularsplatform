@@ -19,7 +19,7 @@ test("dates follow the business's country and time zone, not the server's", () =
   const lateUtc = new Date("2026-11-09T22:00:00Z");
   assert.match(formatDate(lateUtc, "IN"), /10/); // already the 10th in India
   assert.match(formatDate(lateUtc, "CA"), /9/);
-  assert.match(formatDateTime(lateUtc, "CA", "America/Winnipeg"), /4:00/);
+  assert.match(formatDateTime(lateUtc, "IN", "Asia/Kolkata"), /3:30/); // explicit zone wins
 });
 
 test("unsigned webhooks are refused on a live server, allowed on a dev machine", async () => {
