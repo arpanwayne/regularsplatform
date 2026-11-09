@@ -96,8 +96,10 @@ export const gmb = {
     const base = `${gmbBase()}/api/locations/${s.gmbLocationId}/posts`;
     const gen = await call<{ title?: string; body?: string }>(`${base}/generate`, json({ post_type: p.postType, prompt_text: p.prompt }, t), );
     const post = await call<{ id: string }>(`${base}?ai_generated=true`, json({
-      post_type: p.postType, title: gen.title ?? null, body: gen.body ?? p.prompt,
+      post_type: p.postType, title: gen.title || p.prompt.slice(0, 58), body: gen.body ?? p.prompt,
       cta_type: p.ctaUrl ? "BOOK" : null, cta_url: p.ctaUrl ?? null,
+      // Google rejects an offer that has no dates.
+      ...(p.postType === "offer" ? { event_start: new Date().toISOString(), event_end: new Date(Date.now() + 14 * 86400000).toISOString() } : {}),
     }, t));
     return call<{ id: string; status: string; google_post_id?: string }>(`${base}/${post.id}/publish`, json({}, t));
   },

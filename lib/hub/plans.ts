@@ -51,7 +51,7 @@ export const TOOL_META: Record<Tool, {
   name: string;
   /** What the owner gets there, for the home screen. */
   blurb: string;
-  /** Owner can sign in to it (GMB Manager and Video Studio are run by our team). */
+  /** Owner can sign in to it with one click from the home screen. */
   ownerLogin: boolean;
   apiEnv: string;
   appEnv?: string;
@@ -70,12 +70,14 @@ export const TOOL_META: Record<Tool, {
     pages: { home: "/admin/dashboard" },
   },
   GMB: {
-    name: "Google profile", blurb: "Reviews and posts on your Google listing", ownerLogin: false,
-    apiEnv: "GMB_API_URL", secretEnv: "HUB_SECRET_GMB",
+    name: "Google profile", blurb: "Reviews and posts on your Google listing", ownerLogin: true,
+    apiEnv: "GMB_API_URL", appEnv: "GMB_APP_URL", secretEnv: "HUB_SECRET_GMB",
+    pages: { home: "/", reviews: "/reviews" },
   },
   VIDEO: {
-    name: "Video Studio", blurb: "Short promo reels for your social pages", ownerLogin: false,
-    apiEnv: "VIDEO_STUDIO_API_URL", secretEnv: "HUB_SECRET_VIDEO",
+    name: "Ad Studio", blurb: "Finished video ads and social posts", ownerLogin: true,
+    apiEnv: "VIDEO_STUDIO_API_URL", appEnv: "VIDEO_STUDIO_APP_URL", secretEnv: "HUB_SECRET_VIDEO",
+    pages: { home: "/ads", make: "/ads/new" },
   },
 };
 

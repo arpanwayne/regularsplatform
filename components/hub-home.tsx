@@ -49,7 +49,7 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
     { done: acc("WAYNERING")?.status === "ACTIVE", text: "AI receptionist account created" },
     { done: !!wr.phoneNumber, text: wr.phoneNumber ? `Calls answered on ${wr.phoneNumber}` : "Phone number connected (our team sets this up with you)" },
     ...(plan.tools.includes("FIELD_SERVICE") ? [{ done: acc("FIELD_SERVICE")?.status === "ACTIVE", text: "Field Service CRM account created" }] : []),
-    ...(plan.tools.includes("GMB") ? [{ done: !!gmb.connected, text: gmb.connected ? "Google listing connected" : "Google listing connected (our team sends you a one-click Google approval)" }] : []),
+    ...(plan.tools.includes("GMB") ? [{ done: !!gmb.connected, text: gmb.connected ? "Google listing connected" : "Connect your Google listing (open Google profile below)" }] : []),
     ...(plan.growthManager ? [{ done: !!s.ownerPhone, text: "Mobile number for the morning plan", href: "/dashboard/growth" }] : []),
   ];
   const allDone = steps.every((x) => x.done);
@@ -110,9 +110,9 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
           const links =
             t === "WAYNERING" ? [{ href: "/api/hub/open/wayneRing?page=calls", label: "Calls ↗", external: true }, { href: "/api/hub/open/wayneRing?page=receptionist", label: "Receptionist ↗", external: true }]
             : t === "FIELD_SERVICE" ? [{ href: "/api/hub/open/field-service", label: "Jobs & quotes ↗", external: true }]
-            : t === "GMB" ? [{ href: "/dashboard/growth", label: "Review replies & posts" }]
-            : [{ href: "/dashboard/growth", label: "Reel ideas" }];
-          const note = t === "GMB" && ready && !gmb.connected ? "Waiting for Google approval" : t === "WAYNERING" && ready && wr.phoneNumber ? wr.phoneNumber : TOOL_META[t].ownerLogin ? null : "Run for you by our team";
+            : t === "GMB" ? [{ href: "/api/hub/open/gmb", label: "Open Google profile ↗", external: true }, { href: "/dashboard/growth", label: "AI suggestions" }]
+            : [{ href: "/api/hub/open/video?page=make", label: "Make an ad ↗", external: true }, { href: "/dashboard/growth", label: "Reel ideas" }];
+          const note = t === "GMB" && ready && !gmb.connected ? "Open it to connect your Google listing" : t === "WAYNERING" && ready && wr.phoneNumber ? wr.phoneNumber : TOOL_META[t].ownerLogin ? null : "Run for you by our team";
           return <Tile key={t} name={TOOL_META[t].name} blurb={TOOL_META[t].blurb} status={st} note={note} links={ready || !TOOL_META[t].ownerLogin ? links : []} />;
         })}
       </div>

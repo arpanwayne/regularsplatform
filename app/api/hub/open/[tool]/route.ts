@@ -4,7 +4,7 @@ import { getCurrentBusiness, getCurrentUser } from "@/lib/session";
 import { TOOL_META, bundleLive, planTools, type Tool } from "@/lib/hub/plans";
 import { signHubToken, toolUrl } from "@/lib/hub/tokens";
 
-const SLUG: Record<string, Tool> = { wayneRing: "WAYNERING", "field-service": "FIELD_SERVICE" };
+const SLUG: Record<string, Tool> = { wayneRing: "WAYNERING", "field-service": "FIELD_SERVICE", gmb: "GMB", video: "VIDEO" };
 
 /**
  * One login: GET /api/hub/open/wayneRing?page=calls
