@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentBusiness, getCurrentUser } from "@/lib/session";
 import { DashboardNav } from "@/components/dashboard-nav";
+import { planTools } from "@/lib/hub/plans";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -17,7 +18,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <DashboardNav businessName={business.name} isSuperAdmin={user.role === "SUPER_ADMIN"} />
+      <DashboardNav
+        businessName={business.name}
+        isSuperAdmin={user.role === "SUPER_ADMIN"}
+        bundle={business.bundleStatus === "NONE" ? undefined : {
+          calls: planTools(business.frontDeskPlan).includes("WAYNERING"),
+          jobs: planTools(business.frontDeskPlan).includes("FIELD_SERVICE"),
+        }}
+      />
       <div className="mx-auto max-w-6xl px-6 py-8">
         {business.status === "SUSPENDED" && (
           <div className="mb-6 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">

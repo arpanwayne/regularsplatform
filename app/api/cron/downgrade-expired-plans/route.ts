@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sweepExpiredPlans } from "@/lib/billing";
+import { sweepLapsedBundles } from "@/lib/hub/bundle";
+import { retryProvisioning } from "@/lib/hub/provision";
 
 // Meant to be called on a schedule (e.g. Vercel Cron, once daily) so a
 // lapsed plan gets downgraded even for a business nobody happens to load
@@ -25,7 +27,11 @@ async function handle(req: NextRequest) {
   }
 
   const downgraded = await sweepExpiredPlans();
-  return NextResponse.json({ downgraded });
+  // Bundle A: pause tools for bundles past their grace period, and retry
+  // any tool set-up that failed earlier.
+  const lapsedBundles = await sweepLapsedBundles();
+  const retried = await retryProvisioning();
+  return NextResponse.json({ downgraded, lapsedBundles, retried });
 }
 
 export const GET = handle;

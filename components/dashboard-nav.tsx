@@ -17,9 +17,12 @@ const LINKS = [
 export function DashboardNav({
   businessName,
   isSuperAdmin,
+  bundle,
 }: {
   businessName: string;
   isSuperAdmin?: boolean;
+  /** Bundle A: one menu for every tool; tools in other apps open with single sign-on. */
+  bundle?: { calls: boolean; jobs: boolean };
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -34,9 +37,9 @@ export function DashboardNav({
     <header className="border-b border-gray-200 bg-white">
       <div className="mx-auto max-w-6xl px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-8">
-          <span className="font-semibold">Regulars</span>
-          <nav className="flex gap-1">
-            {LINKS.map((link) => (
+          <span className="font-semibold">{bundle ? "WayneRing" : "Regulars"}</span>
+          <nav className="flex flex-wrap gap-1">
+            {(bundle ? LINKS.filter((l) => l.href !== "/dashboard/calling-scripts").map((l) => (l.href === "/dashboard" ? { ...l, label: "Home" } : l)) : LINKS).map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -50,6 +53,8 @@ export function DashboardNav({
                 {link.label}
               </Link>
             ))}
+            {bundle?.calls && <a href="/api/hub/open/wayneRing?page=calls" className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">Calls ↗</a>}
+            {bundle?.jobs && <a href="/api/hub/open/field-service" className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">Jobs ↗</a>}
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm text-gray-500">

@@ -3,12 +3,15 @@ import { prisma } from "@/lib/prisma";
 import { StatCard } from "@/components/stat-card";
 import { SegmentBadge } from "@/components/segment-badge";
 import { RunSegmentationButton } from "@/components/run-segmentation-button";
+import { HubHome } from "@/components/hub-home";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardOverviewPage() {
+export default async function DashboardOverviewPage({ searchParams }: { searchParams: { hub?: string } }) {
   const business = await getCurrentBusiness();
   if (!business) return null;
+  // Bundle A: this page is the home screen for every tool.
+  const isBundle = business.bundleStatus !== "NONE";
 
   const [segmentCounts, totalCustomers, recentCallLogs, connectedLocationCount] = await Promise.all([
     prisma.customer.groupBy({
@@ -31,15 +34,17 @@ export default async function DashboardOverviewPage() {
 
   return (
     <div className="space-y-8">
+      {isBundle && <HubHome business={business} hubMessage={searchParams.hub} />}
+      {isBundle && <h2 className="border-t border-gray-200 pt-6 text-lg font-semibold">Your customers</h2>}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Overview</h1>
+          {!isBundle && <h1 className="text-xl font-semibold">Overview</h1>}
           <p className="text-sm text-gray-500">{business.name} · {business.sector}</p>
         </div>
         <RunSegmentationButton />
       </div>
 
-      {!hasWhatsappConfig && (
+      {!hasWhatsappConfig && !isBundle && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           WhatsApp abhi tak connect nahi hai — passive data capture start karne ke liye{" "}
           <a href="/dashboard/settings" className="font-medium underline">

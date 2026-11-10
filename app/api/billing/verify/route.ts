@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/session";
 import { verifyRazorpaySignature } from "@/lib/billing";
 import { logEvent } from "@/lib/logger";
+import { activateBundle } from "@/lib/hub/bundle";
+import { isBundlePlan } from "@/lib/hub/plans";
 
 const schema = z.object({
   razorpay_order_id: z.string(),
@@ -49,6 +51,19 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date();
+
+  // Bundle A: one payment turns on every tool in the plan.
+  if (payment.kind === "BUNDLE" && isBundlePlan(payment.plan)) {
+    if (payment.status === "PAID") return NextResponse.json({ ok: true, plan: payment.plan, alreadyPaid: true });
+    const claimed = await prisma.payment.updateMany({
+      where: { id: payment.id, status: "CREATED" },
+      data: { status: "PAID", razorpayPaymentId: razorpay_payment_id, paidAt: now },
+    });
+    if (claimed.count === 0) return NextResponse.json({ ok: true, plan: payment.plan, alreadyPaid: true });
+    const { paidUntil, tools } = await activateBundle(business.id, payment.plan, { reason: `payment ${razorpay_payment_id}`, now });
+    return NextResponse.json({ ok: true, plan: payment.plan, paidUntil, tools });
+  }
+
   await prisma.$transaction([
     prisma.payment.update({
       where: { id: payment.id },

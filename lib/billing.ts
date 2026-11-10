@@ -28,6 +28,25 @@ export async function createRazorpayOrder(params: {
   }
 
   const amountInPaise = PLAN_PRICE_INR[params.plan] * 100;
+  const order = await createRazorpayOrderFor({ amountInMinor: amountInPaise, currency: "INR", receipt: params.receipt });
+  return { orderId: order.orderId, amountInPaise, currency: "INR" };
+}
+
+/**
+ * Any amount in any currency Razorpay accepts for this account. Amounts are
+ * in the currency's smallest unit (paise, cents). Charging CAD needs
+ * Razorpay's international payments switched on for the account.
+ */
+export async function createRazorpayOrderFor(params: {
+  amountInMinor: number;
+  currency: string;
+  receipt: string;
+}): Promise<{ orderId: string; amountInMinor: number; currency: string }> {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !keySecret) {
+    throw new Error("Razorpay is not configured");
+  }
   const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
 
   const res = await fetch("https://api.razorpay.com/v1/orders", {
@@ -37,9 +56,9 @@ export async function createRazorpayOrder(params: {
       authorization: `Basic ${auth}`,
     },
     body: JSON.stringify({
-      amount: amountInPaise,
-      currency: "INR",
-      receipt: params.receipt,
+      amount: params.amountInMinor,
+      currency: params.currency,
+      receipt: params.receipt.slice(0, 40),
     }),
   });
 
@@ -49,7 +68,7 @@ export async function createRazorpayOrder(params: {
   }
 
   const data = await res.json();
-  return { orderId: data.id, amountInPaise, currency: "INR" };
+  return { orderId: data.id, amountInMinor: params.amountInMinor, currency: params.currency };
 }
 
 /**
