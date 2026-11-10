@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { runSegmentationForBusiness } from "@/lib/run-segmentation";
+import { sendReviewRequest } from "@/lib/front-desk";
 
 /**
  * Inbound events from another system (POST /api/v1/events).
@@ -169,6 +170,17 @@ export async function ingestEvents(business: BusinessWithLocations, rawEvents: u
   }
 
   if (changed) await runSegmentationForBusiness(business.id);
+
+  // Front Desk: "after the visit, a thank-you SMS asks for a Google review".
+  const fullBusiness = await prisma.business.findUnique({ where: { id: business.id } });
+  if (fullBusiness?.autoReviewRequest && fullBusiness.status === "ACTIVE") {
+    for (const [i, r] of results.entries()) {
+      const ev = rawEvents[i] as { type?: string };
+      if (ev?.type !== "VISIT" || r.status === "rejected" || r.status === "duplicate") continue;
+      const customer = await prisma.customer.findUnique({ where: { id: r.customerId }, include: { location: true } });
+      if (customer) await sendReviewRequest(fullBusiness, customer.location, customer).catch(() => null);
+    }
+  }
 
   const count = (s: string) => results.filter((r) => r.status === s).length;
   return {
