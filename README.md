@@ -304,3 +304,22 @@ Compliance: CASL needs consent (express, or implied from an existing business re
 identification and a working unsubscribe in every commercial message. The sender prefix and
 "Reply STOP to opt out" footer are added automatically; only import people who were real customers.
 Before high-volume sending, register toll-free numbers with carriers (Twilio toll-free verification).
+
+## AI Growth Manager (Bundle A brain)
+
+One loop per business, in `lib/growth/`:
+
+| Step | What happens | Code |
+| --- | --- | --- |
+| Watch | Every product reports what happened to `POST /api/v1/growth/events` (WayneRing calls, Field Service quotes/jobs/payments, visits, reviews) | `events.ts` |
+| Decide | Each morning at the owner's brief hour the planner finds actions (call back missed leads, chase quiet quotes, service-due reminders, win-backs, review requests, review replies, Google posts, promo Reels), applies guardrails and ranks them by expected value × this business's own win rate × the owner's goal | `planner.ts` |
+| Write | Claude writes the customer texts in English, Hinglish, Hindi or Punjabi (templates without an API key) | `copy.ts` |
+| Ask | The owner gets a numbered SMS brief and replies `1 3`, `ALL` or `SKIP`; or approves/edits on `/dashboard/growth` | `brief.ts` |
+| Act | Approved actions run with the right tool: WayneRing AI callback, SMS/WhatsApp, GMB Manager, Video Studio | `executor.ts`, `connectors.ts` |
+| Measure | A booking, accepted quote, job, payment or visit within 14 days credits the last action (revenue influenced) | `events.ts` |
+| Learn | Win rates per action type feed the next plan | `planner.ts` |
+
+Autonomy per action type: Suggest only / Ask me first (default) / Do it, then tell me (review requests by default).
+Guardrails: opt-outs, contact hours, max touches per customer per week, daily cap, one action per customer per plan, AI calls only to people with an existing relationship (enforced again in WayneRing).
+
+Cron: `/api/cron/growth` hourly (`vercel.json`). Settings: `/dashboard/growth`.

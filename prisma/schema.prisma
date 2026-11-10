@@ -87,6 +87,9 @@ model Business {
   payments       Payment[]
   systemLogs     SystemLog[]
   apiKeys        ApiKey[]
+  growthSettings GrowthSettings?
+  growthEvents   GrowthEvent[]
+  growthActions  GrowthAction[]
 
   @@index([ownerId])
 }
@@ -176,6 +179,8 @@ model Customer {
   messages Message[]
   visits   Visit[]
   callLogs CallLog[]
+  growthEvents  GrowthEvent[]
+  growthActions GrowthAction[]
 
   @@unique([locationId, phone])
   @@index([businessId, segment])
@@ -374,4 +379,139 @@ model ApiKey {
   createdAt  DateTime  @default(now())
 
   @@index([businessId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// AI Growth Manager (Nov 2026) — the "brain" of Bundle A (WayneRing Front
+// Desk + Regulars + GMB Manager + Video Studio + Field Service CRM).
+// One loop per business: WATCH (GrowthEvent timeline) → DECIDE (planner
+// proposes GrowthActions against the owner's goal) → ACT (executor: calls,
+// texts, Google posts, Reels) → MEASURE (attribution on later events) →
+// LEARN (per-type results feed the next plan's priorities).
+// See lib/growth/*.
+// ─────────────────────────────────────────────────────────────────────────
+
+/// One per business. Off until a super admin or the owner turns it on.
+model GrowthSettings {
+  id         String   @id @default(cuid())
+  businessId String   @unique
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  enabled  Boolean @default(false)
+  /// Goal: MORE_BOOKINGS | MORE_REPEAT_VISITS | MORE_REVIEWS — weights the planner.
+  goal     String  @default("MORE_BOOKINGS")
+  timezone String  @default("America/Toronto")
+  currency String  @default("CAD")
+  /// Typical job / visit value, used when an event has no amount.
+  avgJobValue     Float  @default(250)
+  /// MessageLanguage: en | hinglish | hi | pa — language the AI writes customer texts in.
+  messageLanguage String @default("en")
+
+  /// Local hour the owner gets the daily brief (0–23).
+  briefHour       Int @default(8)
+  /// Customers are only contacted between these local hours.
+  contactFromHour Int @default(9)
+  contactToHour   Int @default(20)
+  /// Guardrails.
+  maxTouchesPerWeek Int @default(2)
+  dailyActionCap    Int @default(30)
+  /// Days after a visit/job that a customer is "due" again (e.g. 180 for HVAC tune-ups). Null = off.
+  serviceIntervalDays Int?
+  quoteFollowupDays   Int   @default(3)
+  /// Quotes at or above this value get an AI call instead of a text (when WayneRing is connected).
+  callQuoteAbove      Float @default(500)
+
+  /// JSON { [actionType]: "SUGGEST" | "APPROVE" | "AUTO" } — overrides lib/growth/types.ts defaults.
+  autonomy String @default("{}")
+
+  /// Owner number for the brief and approvals (E.164). Null = first location's ownerNotifyPhone.
+  ownerPhone String?
+
+  // Connectors (all optional — an action whose tool isn't connected is skipped).
+  wayneRingBaseUrl     String?
+  /// wrcb_… issued in WayneRing (POST /api/inbound/assistants/:id/callback-key)
+  wayneRingCallbackKey String?
+  /// GMB Manager location id (service login comes from GMB_API_URL / GMB_SERVICE_EMAIL / GMB_SERVICE_PASSWORD).
+  gmbLocationId        String?
+  /// AI Video Studio client id (login from VIDEO_STUDIO_* env).
+  videoStudioClientId  String?
+
+  lastPlanDate   String? // YYYY-MM-DD (business timezone) of the last daily plan
+  lastReportWeek String? // ISO week of the last weekly report, e.g. 2026-W46
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// The timeline: everything that happened with a customer, from every product.
+model GrowthEvent {
+  id         String    @id @default(cuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  locationId String?
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  /// Type: CALL_ANSWERED | CALL_MISSED | CALL_SHORT | CALLBACK_ANSWERED | CALLBACK_UNANSWERED |
+  /// BOOKING | QUOTE_SENT | QUOTE_ACCEPTED | QUOTE_DECLINED | JOB_DONE | INVOICE_PAID |
+  /// VISIT | REVIEW_RECEIVED | MESSAGE_IN
+  type       String
+  occurredAt DateTime
+  value      Float?
+  /// The thing it is about in the source system (quote id, job id, review id).
+  ref        String?
+  externalId String?
+  /// Action id reported by the source (e.g. a WayneRing callback placed for a GrowthAction).
+  actionId           String?
+  /// Set by attribution: the GrowthAction this conversion is credited to.
+  attributedActionId String?
+  data       String? // JSON
+  source     String
+  createdAt  DateTime @default(now())
+
+  @@unique([businessId, externalId])
+  @@index([businessId, customerId, occurredAt])
+  @@index([businessId, type, occurredAt])
+}
+
+/// Something the brain wants to do (or did).
+model GrowthAction {
+  id         String    @id @default(cuid())
+  businessId String
+  business   Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  locationId String?
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  /// Type: see lib/growth/types.ts ACTION_TYPES
+  type     String
+  /// Status: PROPOSED | APPROVED | EXECUTING | DONE | SKIPPED | FAILED | EXPIRED
+  status   String @default("PROPOSED")
+  /// Autonomy at creation: SUGGEST | APPROVE | AUTO
+  autonomy String
+  title    String
+  /// Why the brain chose it — shown to the owner.
+  reason   String
+  payload  String @default("{}") // JSON: message text, call context, quote ref…
+  expectedValue Float @default(0)
+  priority      Float @default(0)
+  planDate  String  // YYYY-MM-DD in the business timezone
+  dedupeKey String
+  briefDate String?
+  briefItem Int?
+
+  result     String? // JSON from the tool
+  error      String?
+  executedAt DateTime?
+  /// Outcome: WON | null — set by attribution when a conversion follows.
+  outcome      String?
+  outcomeValue Float?
+  outcomeAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, dedupeKey])
+  @@index([businessId, status])
+  @@index([businessId, customerId, executedAt])
 }
