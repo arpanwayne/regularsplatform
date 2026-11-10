@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
 import { normalizePhone } from "@/lib/phone";
 import { keywordOf, sendOwnerSms, signedUrl, verifyTwilioSignature } from "@/lib/sms";
+import { handleOwnerReply } from "@/lib/growth/brief";
 
 const EMPTY_TWIML = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
 const twiml = () => new NextResponse(EMPTY_TWIML, { status: 200, headers: { "content-type": "text/xml" } });
@@ -35,6 +36,9 @@ export async function POST(req: NextRequest) {
 
   const phone = normalizePhone(params.From, business.country);
   if (!phone) return twiml();
+
+  // AI Growth Manager: the owner answering the daily brief ("1 3", "ALL", "SKIP").
+  if (await handleOwnerReply(location, params.From, body).catch(() => false)) return twiml();
 
   const kw = keywordOf(body);
   const now = new Date();

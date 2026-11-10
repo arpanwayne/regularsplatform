@@ -2,8 +2,8 @@
 // Strings (SQLite has no native enum type) — these types are the source of
 // truth for valid values, enforced at the API boundary via zod.
 
-export type Sector = "SALON" | "GYM" | "CLINIC" | "RETAIL" | "RESTAURANT";
-export const SECTORS: Sector[] = ["SALON", "GYM", "CLINIC", "RETAIL", "RESTAURANT"];
+export type Sector = "SALON" | "GYM" | "CLINIC" | "RETAIL" | "RESTAURANT" | "HOME_SERVICES" | "OTHER";
+export const SECTORS: Sector[] = ["SALON", "GYM", "CLINIC", "RETAIL", "RESTAURANT", "HOME_SERVICES", "OTHER"];
 
 export type Segment = "NEW" | "REGULAR" | "AT_RISK" | "HIGH_SPENDER" | "DORMANT";
 export const SEGMENTS: Segment[] = ["NEW", "REGULAR", "AT_RISK", "HIGH_SPENDER", "DORMANT"];
@@ -36,7 +36,7 @@ export type UsageEventType = "AI_SCRIPT_PERSONALIZATION" | "VOICE_CALL" | "SMS_S
 
 export type Channel = "WHATSAPP" | "SMS";
 export const CHANNELS: Channel[] = ["WHATSAPP", "SMS"];
-export type MessagePurpose = "MISSED_CALL" | "REVIEW_REQUEST" | "WINBACK" | "REPLY" | "OTHER";
+export type MessagePurpose = "MISSED_CALL" | "REVIEW_REQUEST" | "WINBACK" | "FOLLOW_UP" | "REPLY" | "OTHER";
 export type FrontDeskPlan = "ANSWER" | "ANSWER_RETURN" | "GROW";
 export const FRONT_DESK_PLANS: FrontDeskPlan[] = ["ANSWER", "ANSWER_RETURN", "GROW"];
 /** Included outgoing SMS per month for each Front Desk plan (from the product doc). */
@@ -46,7 +46,7 @@ export const FRONT_DESK_SMS_LIMIT: Record<FrontDeskPlan, number | null> = {
   GROW: 1000,
 };
 
-export type LogSource = "WEBHOOK" | "CALLING_SCRIPT" | "BILLING" | "AUTH" | "API" | "SMS";
+export type LogSource = "WEBHOOK" | "CALLING_SCRIPT" | "BILLING" | "AUTH" | "API" | "SMS" | "GROWTH";
 export type LogLevel = "INFO" | "WARN" | "ERROR";
 
 export type PaymentStatus = "CREATED" | "PAID" | "FAILED";

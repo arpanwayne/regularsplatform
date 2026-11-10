@@ -153,6 +153,8 @@ const LIBRARY: Record<Sector, ScriptTemplate[]> = {
   RESTAURANT: RESTAURANT_SCRIPTS,
   GYM: GENERIC_SCRIPTS,
   RETAIL: GENERIC_SCRIPTS,
+  HOME_SERVICES: GENERIC_SCRIPTS,
+  OTHER: GENERIC_SCRIPTS,
 };
 
 export function getTemplate(sector: Sector, segment: Segment): ScriptTemplate {

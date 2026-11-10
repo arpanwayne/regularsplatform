@@ -78,7 +78,7 @@ export function verifyTwilioSignature(url: string, params: Record<string, string
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-async function twilioSend(from: string, to: string, body: string) {
+export async function twilioSend(from: string, to: string, body: string) {
   const sid = process.env.TWILIO_ACCOUNT_SID!;
   const auth = Buffer.from(`${sid}:${process.env.TWILIO_AUTH_TOKEN}`).toString("base64");
   const form = new URLSearchParams({ From: from, To: to, Body: body });
