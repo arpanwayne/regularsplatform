@@ -1,3 +1,4 @@
+import { marketingConsentFilter } from "@/lib/consent";
 import { Prisma } from "@prisma/client";
 import type { Business, Customer, GrowthSettings, Location } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -8,6 +9,11 @@ import {
   ACTION_LABEL, ACTION_TYPES, BASE_WIN_RATE, CONVERSION_EVENTS, CUSTOMER_CONTACT, GOAL_WEIGHT, HANDLED_EVENTS,
   type ActionType, type GrowthGoal,
 } from "@/lib/growth/types";
+
+function mayMarket(c: { lastSeenAt: Date }, country: string | null | undefined, now: Date) {
+  const cutoff = marketingConsentFilter(country, now).lastSeenAt?.gte;
+  return !cutoff || c.lastSeenAt >= cutoff;
+}
 
 /**
  * DECIDE: turns the timeline into today's plan.
@@ -116,7 +122,7 @@ async function findCandidates(business: Business & { locations: Location[] }, s:
                lastSeenAt: { gte: new Date(now.getTime() - (s.serviceIntervalDays + 60) * DAY), lt: new Date(now.getTime() - (s.serviceIntervalDays - 7) * DAY) } },
       orderBy: { totalSpend: "desc" }, take: 30,
     });
-    for (const c of due) {
+    for (const c of due.filter((x) => mayMarket(x, business.country, now))) {
       out.push({
         type: "SERVICE_DUE", customer: c, locationId: c.locationId,
         title: `Remind ${who(c)} their service is due`,
@@ -130,7 +136,7 @@ async function findCandidates(business: Business & { locations: Location[] }, s:
 
   // d. Win-backs — at-risk / dormant, no win-back in 30 days.
   const quiet = await prisma.customer.findMany({
-    where: { businessId: business.id, segment: { in: ["AT_RISK", "DORMANT"] }, optedOut: false,
+    where: { businessId: business.id, segment: { in: ["AT_RISK", "DORMANT"] }, optedOut: false, ...marketingConsentFilter(business.country, now),
              OR: [{ lastWinbackAt: null }, { lastWinbackAt: { lt: new Date(now.getTime() - 30 * DAY) } }] },
     orderBy: { totalSpend: "desc" }, take: 30,
   });

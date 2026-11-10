@@ -109,7 +109,7 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
           const ready = st.label === "Ready";
           const links =
             t === "WAYNERING" ? [{ href: "/api/hub/open/wayneRing?page=calls", label: "Calls ↗", external: true }, { href: "/api/hub/open/wayneRing?page=receptionist", label: "Receptionist ↗", external: true }]
-            : t === "FIELD_SERVICE" ? [{ href: "/api/hub/open/field-service", label: "Jobs & quotes ↗", external: true }]
+            : t === "FIELD_SERVICE" ? [{ href: "/api/hub/open/field-service", label: "Schedule & jobs ↗", external: true }]
             : t === "GMB" ? [{ href: "/api/hub/open/gmb", label: "Open Google profile ↗", external: true }, { href: "/dashboard/growth", label: "AI suggestions" }]
             : [{ href: "/api/hub/open/video?page=make", label: "Make an ad ↗", external: true }, { href: "/dashboard/growth", label: "Reel ideas" }];
           const note = t === "GMB" && ready && !gmb.connected ? "Open it to connect your Google listing" : t === "WAYNERING" && ready && wr.phoneNumber ? wr.phoneNumber : TOOL_META[t].ownerLogin ? null : "Run for you by our team";

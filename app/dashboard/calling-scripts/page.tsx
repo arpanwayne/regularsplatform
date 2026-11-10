@@ -24,8 +24,7 @@ export default async function CallingScriptsPage() {
       <div>
         <h1 className="text-xl font-semibold">Calling scripts</h1>
         <p className="text-sm text-gray-500">
-          Default Hinglish {business.sector.toLowerCase()} scripts, ek per segment. Kisi bhi
-          customer ke liye personalized version Customers page se generate karo.
+          Default {business.sector.toLowerCase()} scripts, one per segment. Generate a personal version for a customer on the Customers page.
         </p>
       </div>
 
@@ -48,7 +47,7 @@ export default async function CallingScriptsPage() {
         <h2 className="font-medium mb-3">Recently generated</h2>
         {generated.length === 0 ? (
           <p className="text-sm text-gray-500">
-            Abhi tak koi personalized script generate nahi hua.
+            No personal scripts yet.
           </p>
         ) : (
           <div className="space-y-3">

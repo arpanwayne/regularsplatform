@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { getSettings, money } from "@/lib/growth/settings";
+import { formatDate } from "@/lib/format";
 import { getCurrentBusiness } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { SegmentBadge } from "@/components/segment-badge";
@@ -14,6 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function UnifiedCustomersPage() {
   const business = await getCurrentBusiness();
   if (!business) return null;
+  const settings = await getSettings(business);
 
   const customers = await prisma.customer.findMany({
     where: { businessId: business.id },
@@ -57,8 +60,7 @@ export default async function UnifiedCustomersPage() {
         <div>
           <h1 className="text-xl font-semibold">Unified customers (all locations)</h1>
           <p className="text-sm text-gray-500">
-            {multiLocationCustomers.length} customer{multiLocationCustomers.length === 1 ? "" : "s"} ne
-            ek se zyada location visit ki hai.
+            {multiLocationCustomers.length} customer{multiLocationCustomers.length === 1 ? " has" : "s have"} visited more than one location.
           </p>
         </div>
         <Link href="/dashboard/customers" className="text-sm font-medium text-brand-700 hover:text-brand-800">
@@ -67,14 +69,12 @@ export default async function UnifiedCustomersPage() {
       </div>
 
       <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-500">
-        Yeh segment sirf is page ke liye combined stats se calculate hota hai — calling scripts abhi
-        bhi per-location segment use karte hain (Customers page se), kyunki wahi actual outreach
-        location-specific hoti hai.
+        This segment is calculated from combined stats for this page only. Outreach still uses each location&apos;s own segment, because outreach comes from one location.
       </div>
 
       {unified.length === 0 ? (
         <div className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
-          Abhi tak koi customer capture nahi hua.
+          No customers yet.
         </div>
       ) : (
         <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
@@ -106,9 +106,9 @@ export default async function UnifiedCustomersPage() {
                     <SegmentBadge segment={u.unifiedSegment} />
                   </td>
                   <td className="px-4 py-3">{u.totalVisits}</td>
-                  <td className="px-4 py-3">₹{u.totalSpend.toLocaleString("en-IN")}</td>
+                  <td className="px-4 py-3">{money(settings, u.totalSpend)}</td>
                   <td className="px-4 py-3 text-gray-500">
-                    {u.lastSeenAt.toLocaleDateString("en-IN")}
+                    {formatDate(u.lastSeenAt, business.country, settings.timezone)}
                   </td>
                 </tr>
               ))}

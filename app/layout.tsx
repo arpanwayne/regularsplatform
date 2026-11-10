@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Regulars — WhatsApp Loyalty & Retention",
-  description:
-    "WhatsApp-native loyalty and retention platform for salons, gyms, clinics and retail. Zero-effort customer segmentation and AI re-engagement calling.",
+  title: "Your business, handled",
+  description: "Answer every call, follow up every customer, and see what's bringing in work.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

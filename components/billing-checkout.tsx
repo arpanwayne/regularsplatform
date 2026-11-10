@@ -29,17 +29,17 @@ export function BillingCheckout({ currentPlan }: { currentPlan: string }) {
     setLoadingPlan(null);
 
     if (!res.ok) {
-      setNotice(data?.error ?? "Kuch galat ho gaya, phir try karo.");
+      setNotice(data?.error ?? "Something went wrong. Please try again.");
       return;
     }
     if (!data.razorpayConfigured) {
       setNotice(
-        "Payments abhi platform pe configure nahi hain — apne admin se contact karo plan upgrade karne ke liye."
+        "Online payments aren't set up yet. Please contact support to upgrade."
       );
       return;
     }
     if (typeof window.Razorpay !== "function") {
-      setNotice("Checkout load nahi ho paya, page refresh karke try karo.");
+      setNotice("Checkout didn't load. Refresh the page and try again.");
       return;
     }
 
@@ -63,7 +63,7 @@ export function BillingCheckout({ currentPlan }: { currentPlan: string }) {
         if (verifyRes.ok) {
           router.refresh();
         } else {
-          setNotice("Payment ho gaya lekin verify nahi ho paya — apne admin se contact karo.");
+          setNotice("Your payment went through but we couldn't confirm it. Please contact support.");
         }
       },
     });

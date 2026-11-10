@@ -22,15 +22,14 @@ export default function ForgotPasswordPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6">
-      <h1 className="text-2xl font-semibold mb-2">Password bhool gaye?</h1>
+      <h1 className="text-2xl font-semibold mb-2">Forgot your password?</h1>
       <p className="text-sm text-gray-500 mb-6 max-w-sm text-center">
-        Apna email daalo, agar registered hai to reset link bhej diya jaayega.
+        Enter your email and we&apos;ll send you a reset link.
       </p>
 
       {submitted ? (
         <div className="max-w-sm rounded-md border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800">
-          Agar yeh email registered hai, to ek reset link bheja gaya hai. Email na mile to apne
-          platform admin se contact karo.
+          If that email has an account, a reset link is on its way. It works for one hour.
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">

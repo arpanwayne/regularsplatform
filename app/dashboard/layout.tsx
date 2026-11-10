@@ -29,8 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="mx-auto max-w-6xl px-6 py-8">
         {business.status === "SUSPENDED" && (
           <div className="mb-6 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            Yeh business account platform admin ne suspend kar diya hai — WhatsApp data capture
-            aur calling scripts abhi disabled hain. Apne admin se contact karo.
+            This account has been suspended, so messages and follow-ups are off. Please contact support.
           </div>
         )}
         {children}

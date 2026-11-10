@@ -20,7 +20,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash);
 }
 
-export type SessionPayload = { userId: string; email: string };
+export type SessionPayload = { userId: string; email: string; iat?: number };
 
 export async function createSessionToken(payload: SessionPayload): Promise<string> {
   return new SignJWT(payload)
@@ -36,7 +36,7 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
     if (typeof payload.userId !== "string" || typeof payload.email !== "string") {
       return null;
     }
-    return { userId: payload.userId, email: payload.email };
+    return { userId: payload.userId, email: payload.email, iat: payload.iat };
   } catch {
     return null;
   }

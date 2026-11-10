@@ -36,7 +36,7 @@ export function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="text-center">
-        <p className="text-sm text-red-600">Reset link invalid hai — koi token nahi mila.</p>
+        <p className="text-sm text-red-600">This reset link is incomplete. Please request a new one.</p>
         <Link href="/forgot-password" className="mt-3 inline-block text-brand-700 font-medium text-sm">
           Naya reset link mangao
         </Link>
@@ -45,7 +45,7 @@ export function ResetPasswordForm() {
   }
 
   if (done) {
-    return <p className="text-sm text-brand-700">Password reset ho gaya — login page pe le ja rahe hain…</p>;
+    return <p className="text-sm text-brand-700">Password changed. Taking you to sign in…</p>;
   }
 
   return (

@@ -1,3 +1,4 @@
+import { marketingConsentFilter } from "@/lib/consent";
 import type { Business, Customer, Location } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
@@ -114,6 +115,7 @@ export async function runWinback(business: Business, opts: { dryRun?: boolean; l
       segment: { in: ["AT_RISK", "DORMANT"] },
       optedOut: false,
       smsOptedOut: false,
+      ...marketingConsentFilter(business.country, now),
       OR: [{ lastWinbackAt: null }, { lastWinbackAt: { lt: new Date(now.getTime() - WINBACK_EVERY_MS) } }],
     },
     include: { location: true },

@@ -54,3 +54,17 @@ These depend on your actual Meta Business Manager setup and can't be verified fr
   just the opt-out flag.
 - Explicit double opt-in capture flow if you decide re-engagement messages need it.
 - Audit logging of what was sent to whom and when, for policy-dispute evidence.
+
+## Canada (CASL and PIPEDA)
+
+Enforced in code:
+
+- Win-backs and service reminders stop two years after a Canadian customer's last dealing with the business (`lib/consent.ts`). We hold no record of express consent, so we rely on implied consent from a past purchase, which lasts two years. An enquiry without a purchase only gives six months, and the code doesn't separate those yet.
+- Every text carries the sender's name and "Reply STOP to opt out".
+- A customer's data can be exported or removed from the Customers page. Someone who opted out keeps only their number and the opt-out, so a later import can't text them again.
+
+Still needs a person, ideally a Canadian lawyer:
+
+- CASL needs messages to identify the sender with contact details, which can be a link that works for 60 days. Confirm the current text format is enough.
+- Terms of service, a privacy policy, and a contract saying who is responsible for customer data (the business or us).
+- Where data is stored. Customer data sits on our servers, so disclose the location and any cross-border transfer.

@@ -26,8 +26,7 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-gray-600">
-        Har location ka apna WhatsApp Business number hota hai. Ek hi outlet ho to ek hi
-        location rakho — chain ho to yahan se aur locations add karo.
+        Each location has its own WhatsApp Business number. If you have one outlet, keep one location. Add more here if you have several.
       </p>
 
       {locations.map((loc) => (
@@ -131,7 +130,7 @@ function LocationCard({ location, canDelete }: { location: Location; canDelete: 
 
       <div className="space-y-2">
         <p className="text-xs text-gray-500">
-          Meta App Dashboard → WhatsApp → Configuration mein daalo:
+          Add these in Meta App Dashboard → WhatsApp → Configuration:
         </p>
         <CopyRow label="Callback URL" value={webhookUrl} />
         <CopyRow label="Verify token" value={location.whatsappVerifyToken} />

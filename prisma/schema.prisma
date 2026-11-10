@@ -23,6 +23,8 @@ model User {
   id           String     @id @default(cuid())
   email        String     @unique
   passwordHash String
+  // A password reset signs out every session issued before this moment.
+  sessionsValidFrom DateTime?
   name         String
   /// Role: OWNER | SUPER_ADMIN. Not self-assignable via signup — granted via
   /// prisma/promote-admin.ts by someone with server access.
@@ -83,6 +85,11 @@ model Business {
   bundleStatus    String    @default("NONE")
   /// End of the paid bundle period. Tools keep working for a 3-day grace.
   bundlePaidUntil DateTime?
+  /// Automatic monthly payment. Status: OFF | PENDING | ON | ENDING | FAILED
+  autopayStatus          String    @default("OFF")
+  autopayPlan            String?
+  razorpaySubscriptionId String?   @unique
+  renewalReminderAt      DateTime?
 
   createdAt DateTime @default(now())
 
@@ -554,4 +561,17 @@ model ToolAccount {
 
   @@unique([businessId, tool])
   @@index([status])
+}
+
+// Attempt counters for sign-in, signup and password reset.
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+}
+
+// Razorpay's plan id for each plan, currency and price.
+model RazorpayPlan {
+  key    String @id
+  planId String
 }
