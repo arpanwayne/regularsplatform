@@ -2,17 +2,19 @@ import { marketingConsentFilter } from "@/lib/consent";
 import type { Business, Customer, Location } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
-import { sendCustomerSms, type SendResult } from "@/lib/sms";
+import { sendCustomerSms } from "@/lib/sms";
+import { sendCustomerWhatsApp } from "@/lib/whatsapp-send";
+import type { WaTemplateKey } from "@/lib/whatsapp-templates";
 import type { MessagePurpose } from "@/lib/types";
 
 /**
  * WayneRing AI Front Desk — the "Return" half of the product loop:
- *   Recovered: missed call → booking-link SMS within a minute
+ *   Recovered: missed call → booking-link SMS (Canada) / WhatsApp (India) within a minute
  *   Reviewed:  after a visit → Google review request SMS
  *   Returned:  at-risk / dormant customers → win-back SMS (or WhatsApp)
  *
- * Every send goes through lib/sms.ts, which adds the sender name and STOP
- * footer and refuses opted-out customers.
+ * SMS goes through lib/sms.ts (sender name + STOP footer, opt-outs), WhatsApp
+ * through lib/whatsapp-send.ts (approved templates, opt-outs).
  */
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -38,36 +40,16 @@ export const TEMPLATES = {
   },
 };
 
-/** WhatsApp template send (business-initiated messages need an approved template). */
-async function sendWhatsAppTemplate(business: Business, location: Location, customer: Customer, purpose: MessagePurpose, vars: string[]) {
-  const template = purpose === "WINBACK" ? process.env.WHATSAPP_TEMPLATE_WINBACK : purpose === "REVIEW_REQUEST" ? process.env.WHATSAPP_TEMPLATE_REVIEW
-    : purpose === "FOLLOW_UP" ? process.env.WHATSAPP_TEMPLATE_FOLLOWUP : undefined;
-  if (!template || !location.whatsappPhoneNumberId || !location.whatsappAccessToken) return null; // not set up → caller falls back to SMS
-  if (customer.optedOut) return { ok: false, status: "OPTED_OUT" } as SendResult;
-  const res = await fetch(`https://graph.facebook.com/v21.0/${location.whatsappPhoneNumberId}/messages`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${location.whatsappAccessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({
-      messaging_product: "whatsapp", to: customer.phone, type: "template",
-      template: { name: template, language: { code: process.env.WHATSAPP_TEMPLATE_LANG || "en" },
-        components: [{ type: "body", parameters: vars.map((text) => ({ type: "text", text })) }] },
-    }),
-  });
-  const data = (await res.json().catch(() => ({}))) as { messages?: { id: string }[]; error?: { message?: string } };
-  const ok = res.ok && !!data.messages?.[0]?.id;
-  await prisma.message.create({
-    data: { businessId: business.id, locationId: location.id, customerId: customer.id, direction: "OUTBOUND", channel: "WHATSAPP",
-            purpose, status: ok ? "SENT" : "FAILED", providerSid: data.messages?.[0]?.id ?? null, text: `[template ${template}] ${vars.join(" | ")}` },
-  });
-  if (!ok) await logEvent({ businessId: business.id, source: "SMS", level: "ERROR", message: "WhatsApp template send failed", meta: { error: data.error?.message } });
-  return (ok ? { ok: true, status: "SENT", segments: 0 } : { ok: false, status: "FAILED", error: data.error?.message }) as SendResult;
-}
-
-/** Customer's channel: their own preference, else the business default. WhatsApp falls back to SMS when not set up. */
-export async function sendToCustomer(business: Business, location: Location, customer: Customer, purpose: MessagePurpose, body: string, waVars: string[]) {
+/**
+ * Sends to a customer on their channel: their own preference, else the
+ * business default. WhatsApp uses `templateKey` (an approved template) to
+ * start the conversation, or `body` as plain text when the customer wrote in
+ * the last 24h. Falls back to SMS when the location has no WhatsApp sender.
+ */
+export async function sendToCustomer(business: Business, location: Location, customer: Customer, purpose: MessagePurpose, body: string, templateKey: WaTemplateKey) {
   const channel = customer.preferredChannel ?? business.defaultChannel;
   if (channel === "WHATSAPP") {
-    const r = await sendWhatsAppTemplate(business, location, customer, purpose, waVars);
+    const r = await sendCustomerWhatsApp({ business, location, customer, purpose, templateKey, text: body });
     if (r) return r;
   }
   return sendCustomerSms({ business, location, customer, body, purpose });
@@ -86,8 +68,8 @@ export async function textBackMissedCall(business: Business, location: Location,
   if (customer.lastMissedCallTextAt && now.getTime() - customer.lastMissedCallTextAt.getTime() < MISSED_CALL_DEDUPE_MS) {
     return { ok: false as const, status: "DUPLICATE" as const };
   }
-  // A missed call is a reply to the customer's own call: always SMS (it can't wait for template approval).
-  const r = await sendCustomerSms({ business, location, customer, body: TEMPLATES.missedCall(customer, location), purpose: "MISSED_CALL" });
+  // Canada: SMS. India (WhatsApp default): the approved missed_call template.
+  const r = await sendToCustomer(business, location, customer, "MISSED_CALL", TEMPLATES.missedCall(customer, location), "missed_call");
   if (r.ok) await prisma.customer.update({ where: { id: customer.id }, data: { lastMissedCallTextAt: now } });
   return r;
 }
@@ -97,8 +79,7 @@ export async function sendReviewRequest(business: Business, location: Location, 
   if (customer.lastReviewRequestAt && now.getTime() - customer.lastReviewRequestAt.getTime() < REVIEW_REQUEST_EVERY_MS) {
     return { ok: false as const, status: "RECENTLY_ASKED" as const };
   }
-  const r = await sendToCustomer(business, location, customer, "REVIEW_REQUEST", TEMPLATES.reviewRequest(customer, location),
-                                 [firstName(customer.name) || "there", location.googleReviewUrl]);
+  const r = await sendToCustomer(business, location, customer, "REVIEW_REQUEST", TEMPLATES.reviewRequest(customer, location), "review_request");
   if (r.ok) await prisma.customer.update({ where: { id: customer.id }, data: { lastReviewRequestAt: now } });
   return r;
 }
@@ -125,8 +106,7 @@ export async function runWinback(business: Business, opts: { dryRun?: boolean; l
   if (opts.dryRun) return { eligible: eligible.length, sent: 0, failed: 0, dryRun: true };
   let sent = 0, failed = 0;
   for (const c of eligible) {
-    const r = await sendToCustomer(business, c.location, c, "WINBACK", TEMPLATES.winback(c, c.location),
-                                   [firstName(c.name) || "there", c.location.bookingUrl ?? ""]);
+    const r = await sendToCustomer(business, c.location, c, "WINBACK", TEMPLATES.winback(c, c.location), "winback");
     if (r.ok) { sent++; await prisma.customer.update({ where: { id: c.id }, data: { lastWinbackAt: now } }); }
     else failed++;
   }

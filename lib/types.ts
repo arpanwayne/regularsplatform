@@ -32,7 +32,7 @@ export const PLAN_PRICE_INR: Record<Plan, number> = {
   PRO: 5999,
 };
 
-export type UsageEventType = "AI_SCRIPT_PERSONALIZATION" | "VOICE_CALL" | "SMS_SENT";
+export type UsageEventType = "AI_SCRIPT_PERSONALIZATION" | "VOICE_CALL" | "SMS_SENT" | "WHATSAPP_SENT";
 
 export type Channel = "WHATSAPP" | "SMS";
 export const CHANNELS: Channel[] = ["WHATSAPP", "SMS"];
@@ -46,7 +46,7 @@ export const FRONT_DESK_SMS_LIMIT: Record<FrontDeskPlan, number | null> = {
   GROW: 1000,
 };
 
-export type LogSource = "PRIVACY" | "WEBHOOK" | "CALLING_SCRIPT" | "BILLING" | "AUTH" | "API" | "SMS" | "GROWTH";
+export type LogSource = "PRIVACY" | "WEBHOOK" | "CALLING_SCRIPT" | "BILLING" | "AUTH" | "API" | "SMS" | "GROWTH" | "WHATSAPP";
 export type LogLevel = "INFO" | "WARN" | "ERROR";
 
 export type PaymentStatus = "CREATED" | "PAID" | "FAILED";

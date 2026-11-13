@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Location } from "@prisma/client";
 
-export function LocationsManager({ locations }: { locations: Location[] }) {
+type LocationRow = Location & { hasWhatsappToken?: boolean };
+
+export function LocationsManager({ locations, sharedNumber }: { locations: LocationRow[]; sharedNumber?: string | null }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
@@ -26,11 +28,16 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-gray-600">
-        Each location has its own WhatsApp Business number. If you have one outlet, keep one location. Add more here if you have several.
+        Each location can connect its own WhatsApp Business number. If you have one outlet, keep one location. Add more here if you have several.
       </p>
+      {sharedNumber && (
+        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
+          Locations without their own number send WhatsApp messages from <b>{sharedNumber}</b> (shared number). Every message names your business, so nothing else needs setting up.
+        </p>
+      )}
 
       {locations.map((loc) => (
-        <LocationCard key={loc.id} location={loc} canDelete={locations.length > 1} />
+        <LocationCard key={loc.id} location={loc} canDelete={locations.length > 1} sharedNumber={sharedNumber} />
       ))}
 
       <div className="rounded-lg border border-dashed border-gray-300 p-4">
@@ -55,7 +62,7 @@ export function LocationsManager({ locations }: { locations: Location[] }) {
   );
 }
 
-function LocationCard({ location, canDelete }: { location: Location; canDelete: boolean }) {
+function LocationCard({ location, canDelete, sharedNumber }: { location: LocationRow; canDelete: boolean; sharedNumber?: string | null }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -67,13 +74,13 @@ function LocationCard({ location, canDelete }: { location: Location; canDelete: 
     setSaving(true);
     setSaved(false);
     const form = new FormData(e.currentTarget);
+    const phoneId = String(form.get("whatsappPhoneNumberId") ?? "").trim();
+    const token = String(form.get("whatsappAccessToken") ?? "").trim();
     const res = await fetch(`/api/locations/${location.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        whatsappPhoneNumberId: form.get("whatsappPhoneNumberId"),
-        whatsappAccessToken: form.get("whatsappAccessToken"),
-      }),
+      // Empty token field = keep the saved one.
+      body: JSON.stringify({ ...(phoneId ? { whatsappPhoneNumberId: phoneId } : {}), ...(token ? { whatsappAccessToken: token } : {}) }),
     });
     setSaving(false);
     if (res.ok) {
@@ -128,9 +135,18 @@ function LocationCard({ location, canDelete }: { location: Location; canDelete: 
         </div>
       </div>
 
+      <p className="text-sm">
+        WhatsApp:{" "}
+        {location.whatsappPhoneNumberId && location.hasWhatsappToken
+          ? <span className="font-medium text-green-700">own number connected</span>
+          : sharedNumber
+            ? <span className="font-medium text-green-700">using the shared number {sharedNumber}</span>
+            : <span className="font-medium text-amber-700">not connected</span>}
+      </p>
+
       <div className="space-y-2">
         <p className="text-xs text-gray-500">
-          Add these in Meta App Dashboard → WhatsApp → Configuration:
+          Only if you connect your own number — add these in Meta App Dashboard → WhatsApp → Configuration:
         </p>
         <CopyRow label="Callback URL" value={webhookUrl} />
         <CopyRow label="Verify token" value={location.whatsappVerifyToken} />
@@ -151,9 +167,9 @@ function LocationCard({ location, canDelete }: { location: Location; canDelete: 
           <input
             name="whatsappAccessToken"
             type="password"
-            defaultValue={location.whatsappAccessToken ?? ""}
+            defaultValue=""
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            placeholder="System user permanent access token"
+            placeholder={location.hasWhatsappToken ? "Saved — leave empty to keep it" : "System user permanent access token"}
           />
         </div>
         <button

@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/admin/usage", label: "Usage" },
   { href: "/admin/api-keys", label: "API keys" },
   { href: "/admin/logs", label: "Logs" },
+  { href: "/admin/whatsapp-templates", label: "WhatsApp" },
   { href: "/admin/compliance", label: "Compliance" },
 ];
 

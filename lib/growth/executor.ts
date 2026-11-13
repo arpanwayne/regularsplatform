@@ -6,6 +6,7 @@ import { templateCopy } from "@/lib/growth/copy";
 import { getSettings, parseJson, withinContactHours } from "@/lib/growth/settings";
 import { CUSTOMER_CONTACT, type ActionType } from "@/lib/growth/types";
 import type { MessagePurpose } from "@/lib/types";
+import type { WaTemplateKey } from "@/lib/whatsapp-templates";
 
 /**
  * ACT: runs one APPROVED action with the right tool.
@@ -25,6 +26,10 @@ type Payload = {
   channel?: "CALL" | "TEXT"; purpose?: string; relationship?: "caller" | "customer"; context?: string; message?: string;
   reviewId?: string; reply?: string; postType?: "update" | "offer"; prompt?: string; ctaUrl?: string | null;
   name?: string; brief?: string; overlay?: string; quoteValue?: number;
+};
+
+const WA_TEMPLATE: Partial<Record<ActionType, WaTemplateKey>> = {
+  WIN_BACK: "winback", SERVICE_DUE: "service_due", QUOTE_FOLLOW_UP: "quote_followup", MISSED_LEAD_CALLBACK: "missed_lead",
 };
 
 const TEXT_PURPOSE: Partial<Record<ActionType, MessagePurpose>> = {
@@ -67,7 +72,7 @@ export async function executeAction(actionId: string, now = new Date()): Promise
   };
   const sendText = async () => {
     const text = p.message || templateCopy({ id: action.id, type, firstName: (c?.name ?? "").split(" ")[0], context: "", bookingUrl: location.bookingUrl });
-    const r = await sendToCustomer(business, location, c!, TEXT_PURPOSE[type] ?? "FOLLOW_UP", text, [(c?.name ?? "").split(" ")[0] || "there", location.bookingUrl ?? ""]);
+    const r = await sendToCustomer(business, location, c!, TEXT_PURPOSE[type] ?? "FOLLOW_UP", text, WA_TEMPLATE[type] ?? "winback");
     return r;
   };
 

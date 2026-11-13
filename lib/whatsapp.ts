@@ -18,6 +18,15 @@ export type WhatsAppWebhookPayload = {
           timestamp: string;
           type: string;
           text?: { body?: string };
+          button?: { text?: string; payload?: string };
+          interactive?: { button_reply?: { id?: string; title?: string } };
+        }>;
+        // Delivery receipts for messages we sent.
+        statuses?: Array<{
+          id: string;
+          status: "sent" | "delivered" | "read" | "failed" | string;
+          recipient_id?: string;
+          errors?: Array<{ code?: number; title?: string }>;
         }>;
       };
     }>;

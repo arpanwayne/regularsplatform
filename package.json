@@ -10,7 +10,8 @@
     "test": "tsx --test test/*.test.ts",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
-    "admin:promote": "tsx prisma/promote-admin.ts"
+    "admin:promote": "tsx prisma/promote-admin.ts",
+    "wa:templates": "tsx scripts/whatsapp-templates.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",
