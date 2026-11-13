@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Business, Location } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { classifyMessageType, isOptOutMessage, isQualifyingVisit, verifyWebhookSignature, WhatsAppWebhookPayload } from "@/lib/whatsapp";
 import { runSegmentationForBusiness } from "@/lib/run-segmentation";
 import { logEvent } from "@/lib/logger";
+import { handleOwnerReply } from "@/lib/growth/brief";
+import { sendOwnerSms, senderName } from "@/lib/sms";
+import { canSendWhatsApp, sendOwnerWhatsApp } from "@/lib/whatsapp-send";
+import { sharedCountries } from "@/lib/whatsapp-sender";
 
 // GET — Meta's webhook verification handshake. Each Location gets its own
 // whatsappVerifyToken (shown on the Settings page); we also accept the
-// global WHATSAPP_WEBHOOK_VERIFY_TOKEN for a first-time setup before any
-// location has configured its own.
+// global WHATSAPP_WEBHOOK_VERIFY_TOKEN, which is the one to use for the
+// shared Loopdesk number and for a first-time setup.
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const mode = searchParams.get("hub.mode");
@@ -18,7 +23,7 @@ export async function GET(req: NextRequest) {
     return new NextResponse("Bad Request", { status: 400 });
   }
 
-  if (token === process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN) {
+  if (process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN && token === process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN) {
     return new NextResponse(challenge, { status: 200 });
   }
 
@@ -30,12 +35,52 @@ export async function GET(req: NextRequest) {
   return new NextResponse("Forbidden", { status: 403 });
 }
 
-// POST — inbound WhatsApp events. This is the "passive data capture" path:
-// every customer message that lands here silently builds/updates that
-// customer's profile, with zero setup from the business owner beyond
-// pointing that location's WABA webhook at this URL. A phone number ID
-// belongs to exactly one Location (each location connects its own WhatsApp
-// number), and a Location belongs to exactly one Business.
+type LocWithBusiness = Location & { business: Business };
+
+const STATUS: Record<string, string> = { sent: "SENT", delivered: "DELIVERED", read: "READ", failed: "FAILED" };
+
+/**
+ * Inbound on the shared number (+91 90414 36801): many businesses send from
+ * it, so work out which one this person is talking to.
+ *  1. the owner of a business on the shared number (brief replies)
+ *  2. the business that last messaged this customer from the shared number
+ *  3. the shared-number business this phone is already a customer of
+ */
+async function routeShared(from: string): Promise<{ location: LocWithBusiness; owner: boolean } | null> {
+  const countries = sharedCountries();
+  const phones = [from, `+${from}`];
+  const onShared = { whatsappPhoneNumberId: null } as const;
+
+  const settings = await prisma.growthSettings.findFirst({
+    where: { ownerPhone: { in: phones }, business: { country: { in: countries } } },
+    include: { business: { include: { locations: { where: onShared, orderBy: { createdAt: "asc" }, take: 1 } } } },
+  });
+  const ownerLoc = settings?.business.locations[0]
+    ?? (await prisma.location.findFirst({ where: { ...onShared, ownerNotifyPhone: { in: phones }, business: { country: { in: countries } } } }));
+  if (ownerLoc) {
+    const location = await prisma.location.findUnique({ where: { id: ownerLoc.id }, include: { business: true } });
+    if (location) return { location, owner: true };
+  }
+
+  const lastOut = await prisma.message.findFirst({
+    where: { channel: "WHATSAPP", direction: "OUTBOUND", customer: { phone: from }, location: onShared },
+    orderBy: { createdAt: "desc" },
+    select: { location: { include: { business: true } } },
+  });
+  if (lastOut) return { location: lastOut.location, owner: false };
+
+  const known = await prisma.customer.findFirst({
+    where: { phone: from, location: onShared, business: { country: { in: countries } } },
+    orderBy: { lastSeenAt: "desc" },
+    select: { location: { include: { business: true } } },
+  });
+  return known ? { location: known.location, owner: false } : null;
+}
+
+// POST — inbound WhatsApp events:
+//  - delivery receipts (sent / delivered / read / failed) update our messages
+//  - a business owner's reply to the morning brief ("1 3", "ALL", "SKIP")
+//  - customer messages: passive data capture + the two-way inbox
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-hub-signature-256");
@@ -53,40 +98,60 @@ export async function POST(req: NextRequest) {
   }
 
   const affectedBusinessIds = new Set<string>();
+  const sharedId = process.env.WHATSAPP_SHARED_PHONE_NUMBER_ID;
 
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
       const { value } = change;
       const phoneNumberId = value.metadata?.phone_number_id;
-      if (!phoneNumberId || !value.messages?.length) continue;
+      if (!phoneNumberId) continue;
 
-      const location = await prisma.location.findUnique({
+      // Delivery receipts for messages we sent.
+      for (const st of value.statuses ?? []) {
+        const status = STATUS[st.status];
+        if (!status) continue;
+        await prisma.message.updateMany({ where: { providerSid: st.id, channel: "WHATSAPP", direction: "OUTBOUND" }, data: { status } });
+        if (status === "FAILED") {
+          await logEvent({ source: "WHATSAPP", level: "WARN", message: "WhatsApp message failed to deliver", meta: { id: st.id, errors: st.errors } });
+        }
+      }
+      if (!value.messages?.length) continue;
+
+      const ownLocation = await prisma.location.findUnique({
         where: { whatsappPhoneNumberId: phoneNumberId },
         include: { business: true },
       });
-      // Unrecognized phone_number_id (e.g. location hasn't finished setup
-      // yet) — ack with 200 so Meta doesn't retry, but do nothing.
-      if (!location) {
-        await logEvent({
-          source: "WEBHOOK",
-          level: "WARN",
-          message: `Webhook event for unrecognized phone_number_id ${phoneNumberId}`,
-        });
+      const isShared = !ownLocation && !!sharedId && phoneNumberId === sharedId;
+      if (!ownLocation && !isShared) {
+        // Location hasn't finished setup yet — ack with 200 so Meta doesn't retry.
+        await logEvent({ source: "WEBHOOK", level: "WARN", message: `Webhook event for unrecognized phone_number_id ${phoneNumberId}` });
         continue;
       }
-      const business = location.business;
-      // Suspended at either level (super admin suspends the whole
-      // business, or the owner/admin suspends just this location) — stop
-      // ingesting without erroring the webhook itself.
-      if (business.status === "SUSPENDED" || location.status === "SUSPENDED") continue;
 
-      const contactsByWaId = new Map(
-        (value.contacts ?? []).map((c) => [c.wa_id, c.profile?.name])
-      );
+      const contactsByWaId = new Map((value.contacts ?? []).map((c) => [c.wa_id, c.profile?.name]));
 
-      try {
-        for (const message of value.messages) {
-          const text = message.text?.body;
+      for (const message of value.messages) {
+        const text = message.text?.body ?? message.button?.text ?? message.interactive?.button_reply?.title;
+        let location: LocWithBusiness | null = ownLocation;
+        let fromOwner = false;
+        if (isShared) {
+          const routed = await routeShared(message.from);
+          location = routed?.location ?? null;
+          fromOwner = !!routed?.owner;
+          if (!location) {
+            await logEvent({ source: "WHATSAPP", level: "WARN", message: "Message on the shared number from someone no business has contacted", meta: { from: message.from } });
+            continue;
+          }
+        }
+        if (!location) continue;
+        const business = location.business;
+        if (business.status === "SUSPENDED" || location.status === "SUSPENDED") continue;
+
+        try {
+          // The owner answering the daily brief.
+          if (text && (await handleOwnerReply(location, message.from, text).catch(() => false))) continue;
+          if (fromOwner) continue; // owner chatting to the shared number, not a customer
+
           const messageType = classifyMessageType(text);
           const optOut = isOptOutMessage(text);
           const now = new Date();
@@ -116,17 +181,26 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          await prisma.message.create({
+          const stored = await prisma.message.create({
             data: {
               businessId: business.id,
               locationId: location.id,
               customerId: customer.id,
               direction: "INBOUND",
+              channel: "WHATSAPP",
+              purpose: "REPLY",
+              status: "RECEIVED",
+              providerSid: message.id,
               type: messageType,
-              text: text ?? null,
+              text: text ?? (message.type !== "text" ? `[${message.type}]` : null),
+              readAt: optOut ? now : null,
               rawPayload: JSON.stringify(message),
             },
+          }).catch((err) => {
+            if (String(err?.code) === "P2002") return null; // Meta retried this event — already stored
+            throw err;
           });
+          if (!stored) continue;
 
           if (isQualifyingVisit(messageType)) {
             await prisma.visit.create({
@@ -140,16 +214,29 @@ export async function POST(req: NextRequest) {
             });
           }
 
+          // Tell the owner (opt-in: Settings → "Forward customer replies to").
+          if (!optOut && location.ownerNotifyPhone) {
+            const who = customer.name ? `${customer.name} (+${customer.phone})` : `+${customer.phone}`;
+            const name = senderName(location, business);
+            if (business.defaultChannel === "WHATSAPP" && canSendWhatsApp(business, location)) {
+              await sendOwnerWhatsApp(business, location, location.ownerNotifyPhone, {
+                templateKey: "owner_new_message", params: [name, who, text ?? `[${message.type}]`],
+              });
+            } else {
+              await sendOwnerSms(business, location, `${name} inbox — ${who}: ${text ?? `[${message.type}]`}`);
+            }
+          }
+
           affectedBusinessIds.add(business.id);
+        } catch (err) {
+          await logEvent({
+            businessId: business.id,
+            source: "WEBHOOK",
+            level: "ERROR",
+            message: "Failed processing an inbound WhatsApp message",
+            meta: { locationId: location.id, error: err instanceof Error ? err.message : String(err) },
+          });
         }
-      } catch (err) {
-        await logEvent({
-          businessId: business.id,
-          source: "WEBHOOK",
-          level: "ERROR",
-          message: "Failed processing an inbound WhatsApp message",
-          meta: { locationId: location.id, error: err instanceof Error ? err.message : String(err) },
-        });
       }
     }
   }

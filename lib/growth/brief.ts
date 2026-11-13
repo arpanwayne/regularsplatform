@@ -6,10 +6,12 @@ import { countSegments, smsConfigured, twilioSend } from "@/lib/sms";
 import { executeAction } from "@/lib/growth/executor";
 import { DAY, getSettings, isoWeek, localParts, money } from "@/lib/growth/settings";
 import { ACTION_LABEL, type ActionType } from "@/lib/growth/types";
+import { canSendWhatsApp, sendOwnerWhatsApp } from "@/lib/whatsapp-send";
+import type { WaTemplateKey } from "@/lib/whatsapp-templates";
 
 /**
- * The owner's side of the loop, over SMS (WhatsApp works the same once a
- * WhatsApp owner channel is added):
+ * The owner's side of the loop, over SMS (Canada) or WhatsApp (India —
+ * owner_brief / owner_weekly templates, replies arrive on the WhatsApp webhook):
  *
  *   8 am brief   "Maple HVAC · Growth Manager, Tue
  *                 This week so far: 3 jobs won, about $2,450.
@@ -70,9 +72,20 @@ export function composeBrief(p: { name: string; weekday: string; items: Item[]; 
   return lines.join("\n");
 }
 
-async function sendToOwner(business: Business & { locations: Location[] }, s: GrowthSettings, body: string) {
+type OwnerTemplate = { templateKey: WaTemplateKey; params: string[] };
+
+/**
+ * Message to the owner. WhatsApp-first businesses (India) get it on WhatsApp
+ * — `wa` is the approved template used when we're outside the 24h window —
+ * everyone else by SMS.
+ */
+async function sendToOwner(business: Business & { locations: Location[] }, s: GrowthSettings, body: string, wa?: OwnerTemplate) {
   const to = ownerPhoneFor(s, business);
-  const from = firstLoc(business)?.smsFromNumber || process.env.GROWTH_SMS_FROM;
+  const loc = firstLoc(business);
+  if (to && business.defaultChannel === "WHATSAPP" && canSendWhatsApp(business, loc)) {
+    return sendOwnerWhatsApp(business, loc, to, { text: body, ...(wa ?? {}) });
+  }
+  const from = loc?.smsFromNumber || process.env.GROWTH_SMS_FROM;
   if (!to || !from || !smsConfigured()) {
     await logEvent({ businessId: business.id, source: "GROWTH", level: "INFO", message: "Owner message not sent (dry-run or no owner number)", meta: { body } });
     return false;
@@ -87,6 +100,13 @@ async function sendToOwner(business: Business & { locations: Location[] }, s: Gr
   }
 }
 
+/** The brief as one line, for the WhatsApp template variable (no new lines allowed there). */
+export function briefLine(items: Item[], autoCount: number) {
+  const parts = items.length ? items.map((it) => `${it.n}) ${it.label}`) : ["Nothing needs your OK today."];
+  if (autoCount) parts.push(`Doing automatically: ${autoCount} action${autoCount === 1 ? "" : "s"}.`);
+  return parts.join(" ");
+}
+
 /** Numbers today's APPROVE-level proposals, saves the numbering, and texts the owner. */
 export async function sendDailyBrief(businessId: string, now = new Date()) {
   const business = await prisma.business.findUniqueOrThrow({ where: { id: businessId }, include: { locations: true } });
@@ -98,8 +118,10 @@ export async function sendDailyBrief(businessId: string, now = new Date()) {
     await prisma.growthAction.updateMany({ where: { id: { in: it.actions.map((a) => a.id) } }, data: { briefDate: date, briefItem: it.n } });
   }
   const autoCount = await prisma.growthAction.count({ where: { businessId, planDate: date, autonomy: "AUTO" } });
-  const body = composeBrief({ name: firstLoc(business)?.smsSenderName || business.name, weekday, items, autoCount, stats: await weekStats(businessId, now), s });
-  const sent = await sendToOwner(business, s, body);
+  const name = firstLoc(business)?.smsSenderName || business.name;
+  const body = composeBrief({ name, weekday, items, autoCount, stats: await weekStats(businessId, now), s });
+  // Every morning is outside the 24h window, so on WhatsApp this goes as the owner_brief template.
+  const sent = await sendToOwner(business, s, body, { templateKey: "owner_brief", params: [name, weekday, briefLine(items, autoCount)] });
   return { body, sent, items: items.map((i) => ({ n: i.n, type: i.type, count: i.actions.length })) };
 }
 
@@ -160,12 +182,13 @@ export async function sendWeeklyReport(businessId: string, now = new Date()) {
   const byType = await prisma.growthAction.groupBy({ by: ["type"], where: { businessId, status: "DONE", executedAt: { gte: new Date(now.getTime() - 7 * DAY) } }, _count: { _all: true } });
   const top = byType.sort((a, b) => b._count._all - a._count._all).slice(0, 3)
     .map((r) => { const l = ACTION_LABEL[r.type as ActionType]; if (!l) return null; const t = r._count._all === 1 ? l.one : l.many(r._count._all); return t.charAt(0).toLowerCase() + t.slice(1); }).filter(Boolean);
+  const name = firstLoc(business)?.smsSenderName || business.name;
   const body = [
-    `${firstLoc(business)?.smsSenderName || business.name} · your week with the Growth Manager`,
+    `${name} · your week with the Growth Manager`,
     `I took ${st.done} action${st.done === 1 ? "" : "s"}${top.length ? `: ${top.join(", ")}` : ""}.`,
     st.wins ? `${st.wins} customer${st.wins === 1 ? "" : "s"} booked or came back after, about ${money(s, st.value)} in revenue influenced.` : "No bookings traced back to them yet; I'll keep going.",
   ].join("\n");
-  await sendToOwner(business, s, body);
+  await sendToOwner(business, s, body, { templateKey: "owner_weekly", params: [name, body.split("\n").slice(1).join(" ")] });
   await prisma.growthSettings.update({ where: { businessId }, data: { lastReportWeek: week } });
   return body;
 }

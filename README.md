@@ -305,6 +305,29 @@ identification and a working unsubscribe in every commercial message. The sender
 "Reply STOP to opt out" footer are added automatically; only import people who were real customers.
 Before high-volume sending, register toll-free numbers with carriers (Twilio toll-free verification).
 
+## WhatsApp sending + templates (India, Nov 2026)
+
+India clients message customers on WhatsApp, Canada on SMS (`Business.defaultChannel`).
+
+- **Which number sends.** A location's own WhatsApp number if it connected one in Settings; otherwise,
+  for businesses in `WHATSAPP_SHARED_COUNTRIES` (default `IN`), the shared Loopdesk number
+  **+91 90414 36801** (`WHATSAPP_SHARED_*` env). Every template names the business. Replies to the shared
+  number are routed to the business that last messaged that person (or the owner, for brief replies) —
+  see `routeShared` in `app/api/webhook/whatsapp/route.ts`. Logic: `lib/whatsapp-sender.ts`.
+- **Templates.** All of them live in `lib/whatsapp-templates.ts`: missed call, missed-lead callback, quote
+  follow-up, service due, win-back, review request (customers; English, Hinglish, Hindi, Punjabi) and the
+  owner's morning brief, weekly report and new-message alert (English, Hinglish). Submit them to Meta from
+  **/admin/whatsapp-templates** or `npm run wa:templates`; the page shows Meta's approval status.
+- **24-hour rule.** Business-started messages use a template. Within 24h of the customer's last message, the
+  inbox reply / AI-written text goes out as written instead (`lib/whatsapp-send.ts`).
+- **What's on WhatsApp now:** missed-call message, review requests, win-backs, all Growth Manager texts, the
+  owner's brief + weekly report + approvals ("1 3" / ALL / SKIP replies on WhatsApp), new-message alerts to
+  the owner, two-way inbox, delivery receipts (sent / delivered / read / failed).
+
+Go-live checklist: set `WHATSAPP_APP_SECRET` (webhooks are refused without it in production), the
+`WHATSAPP_SHARED_*` values, point the shared number's webhook at `/api/webhook/whatsapp` with
+`WHATSAPP_WEBHOOK_VERIFY_TOKEN` (subscribe to `messages`), submit templates, wait for approval.
+
 ## AI Growth Manager (Bundle A brain)
 
 One loop per business, in `lib/growth/`:

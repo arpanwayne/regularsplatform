@@ -227,7 +227,7 @@ model Message {
   channel     String    @default("WHATSAPP")
   /// Purpose: MISSED_CALL | REVIEW_REQUEST | WINBACK | REPLY | OTHER
   purpose     String?
-  /// Status: QUEUED | SENT | DELIVERED | FAILED | UNDELIVERED | RECEIVED | NOT_SENT
+  /// Status: QUEUED | SENT | DELIVERED | READ | FAILED | UNDELIVERED | RECEIVED | NOT_SENT
   status      String?
   providerSid String?   @unique
   segments    Int?
@@ -304,7 +304,7 @@ model UsageEvent {
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  /// Type: AI_SCRIPT_PERSONALIZATION | VOICE_CALL
+  /// Type: AI_SCRIPT_PERSONALIZATION | VOICE_CALL | SMS_SENT | WHATSAPP_SENT
   type String
 
   // AI_SCRIPT_PERSONALIZATION: token counts from the Claude API response,
