@@ -172,9 +172,21 @@ export const WA_TEMPLATE_DEFS: Def[] = [
 
 export const templatePrefix = () => (process.env.WHATSAPP_TEMPLATE_PREFIX || "loopdesk").toLowerCase().replace(/[^a-z0-9_]/g, "_");
 
+/**
+ * Names already taken on Meta by an older template with a different body.
+ * "loopdesk_winback" (English) was created by hand in Nov 2026 with 2
+ * variables; ours has 3, so sending under that name fails. Meta won't let a
+ * name be reused for weeks after deleting it, so English uses a new name.
+ * Other languages of winback keep "loopdesk_winback".
+ */
+const NAME_OVERRIDES: Partial<Record<`${WaTemplateKey}:${WaLang}`, string>> = {
+  "winback:en": "winback_v2",
+};
+
 /** Meta template name: lowercase letters, digits, underscores. */
 export function templateName(key: WaTemplateKey, lang: WaLang) {
-  return `${templatePrefix()}_${key}${lang === "hinglish" ? "_hinglish" : ""}`;
+  const base = NAME_OVERRIDES[`${key}:${lang}`] ?? key;
+  return `${templatePrefix()}_${base}${lang === "hinglish" ? "_hinglish" : ""}`;
 }
 
 /** WhatsApp language code for one of our languages. */
