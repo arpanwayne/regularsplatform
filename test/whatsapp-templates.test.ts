@@ -29,6 +29,10 @@ test("template names are unique per language and valid for Meta", () => {
   for (const t of all) assert.match(t.name, /^[a-z0-9_]{1,512}$/);
   assert.equal(templateName("winback", "hinglish"), "loopdesk_winback_hinglish");
   assert.equal(all.find((t) => t.name === "loopdesk_winback_hinglish")?.language, "en");
+  // English winback avoids the older 2-variable "loopdesk_winback" on Meta.
+  assert.equal(templateName("winback", "en"), "loopdesk_winback_v2");
+  assert.equal(templateName("winback", "hi"), "loopdesk_winback");
+  assert.equal(templateName("missed_call", "en"), "loopdesk_missed_call");
 });
 
 test("variable values are made safe for WhatsApp", () => {
