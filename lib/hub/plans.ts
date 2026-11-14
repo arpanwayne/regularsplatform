@@ -1,5 +1,6 @@
 import type { FrontDeskPlan } from "@/lib/types";
 import { FRONT_DESK_SMS_LIMIT } from "@/lib/types";
+import { TOOL_NAMES } from "@/lib/brand";
 
 /**
  * Bundle A as one product: one signup, one bill, one login.
@@ -34,12 +35,12 @@ export const BUNDLE_PLANS: Record<FrontDeskPlan, BundlePlan> = {
   ANSWER_RETURN: {
     id: "ANSWER_RETURN", name: "Answer + Return", tagline: "Turn calls into repeat customers",
     price: { CAD: 249, INR: 7999 }, tools: ["WAYNERING"], growthManager: true,
-    features: ["Everything in Answer", "Missed-call text-back, review requests, win-backs", "AI Growth Manager with a morning plan"],
+    features: ["Everything in Answer", "Missed-call text-back, review requests, win-backs", `${TOOL_NAMES.growth} with a morning plan`],
   },
   GROW: {
     id: "GROW", name: "Grow", tagline: "The whole growth team",
     price: { CAD: 549, INR: 17999 }, tools: ["WAYNERING", "FIELD_SERVICE", "GMB", "VIDEO"], growthManager: true,
-    features: ["Everything in Answer + Return", "Field Service CRM: quotes, jobs, invoices", "Google profile: review replies and posts", "Promo reels from Video Studio"],
+    features: ["Everything in Answer + Return", `${TOOL_NAMES.jobs}: quotes, jobs, invoices`, `${TOOL_NAMES.google}: review replies and posts`, `Promo reels from ${TOOL_NAMES.ads}`],
   },
 };
 
@@ -60,22 +61,22 @@ export const TOOL_META: Record<Tool, {
   pages?: Record<string, string>;
 }> = {
   WAYNERING: {
-    name: "WayneRing", blurb: "Calls, recordings and your AI receptionist", ownerLogin: true,
+    name: TOOL_NAMES.calls, blurb: "Calls, recordings and your AI receptionist", ownerLogin: true,
     apiEnv: "WAYNERING_API_URL", appEnv: "WAYNERING_APP_URL", secretEnv: "HUB_SECRET_WAYNERING",
     pages: { home: "/portal", calls: "/portal/inbound/calls", receptionist: "/portal/inbound/receptionist", numbers: "/portal/inbound/numbers" },
   },
   FIELD_SERVICE: {
-    name: "Field Service CRM", blurb: "Quotes, jobs, technicians and invoices", ownerLogin: true,
+    name: TOOL_NAMES.jobs, blurb: "Quotes, jobs, technicians and invoices", ownerLogin: true,
     apiEnv: "FIELD_SERVICE_API_URL", appEnv: "FIELD_SERVICE_APP_URL", secretEnv: "HUB_SECRET_FIELD_SERVICE",
     pages: { home: "/admin/dashboard" },
   },
   GMB: {
-    name: "Google profile", blurb: "Reviews and posts on your Google listing", ownerLogin: true,
+    name: TOOL_NAMES.google, blurb: "Reviews and posts on your Google listing", ownerLogin: true,
     apiEnv: "GMB_API_URL", appEnv: "GMB_APP_URL", secretEnv: "HUB_SECRET_GMB",
     pages: { home: "/", reviews: "/reviews" },
   },
   VIDEO: {
-    name: "Ad Studio", blurb: "Finished video ads and social posts", ownerLogin: true,
+    name: TOOL_NAMES.ads, blurb: "Finished video ads and social posts", ownerLogin: true,
     apiEnv: "VIDEO_STUDIO_API_URL", appEnv: "VIDEO_STUDIO_APP_URL", secretEnv: "HUB_SECRET_VIDEO",
     pages: { home: "/ads", make: "/ads/new" },
   },

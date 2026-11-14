@@ -5,6 +5,7 @@ import { StatCard } from "@/components/stat-card";
 import { DAY, getSettings, money } from "@/lib/growth/settings";
 import { accountData } from "@/lib/hub/provision";
 import { BUNDLE_PLANS, TOOL_META, isBundlePlan, type Tool } from "@/lib/hub/plans";
+import { TOOL_NAMES } from "@/lib/brand";
 
 const HUB_MSG: Record<string, string> = {
   "not-in-plan": "That tool isn't part of your plan. Upgrade on the Billing page to add it.",
@@ -48,8 +49,8 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
     { done: live, text: "Plan paid", href: "/dashboard/billing" },
     { done: acc("WAYNERING")?.status === "ACTIVE", text: "AI receptionist account created" },
     { done: !!wr.phoneNumber, text: wr.phoneNumber ? `Calls answered on ${wr.phoneNumber}` : "Phone number connected (our team sets this up with you)" },
-    ...(plan.tools.includes("FIELD_SERVICE") ? [{ done: acc("FIELD_SERVICE")?.status === "ACTIVE", text: "Field Service CRM account created" }] : []),
-    ...(plan.tools.includes("GMB") ? [{ done: !!gmb.connected, text: gmb.connected ? "Google listing connected" : "Connect your Google listing (open Google profile below)" }] : []),
+    ...(plan.tools.includes("FIELD_SERVICE") ? [{ done: acc("FIELD_SERVICE")?.status === "ACTIVE", text: `${TOOL_NAMES.jobs} account created` }] : []),
+    ...(plan.tools.includes("GMB") ? [{ done: !!gmb.connected, text: gmb.connected ? "Google listing connected" : `Connect your Google listing (open ${TOOL_NAMES.google} below)` }] : []),
     ...(plan.growthManager ? [{ done: !!s.ownerPhone, text: "Mobile number for the morning plan", href: "/dashboard/growth" }] : []),
   ];
   const allDone = steps.every((x) => x.done);
@@ -77,7 +78,7 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Calls answered, 7 days" value={count("CALL_ANSWERED", "CALLBACK_ANSWERED")} hint={`${count("CALL_MISSED")} missed`} />
-        {plan.growthManager ? <StatCard label="Waiting for your OK" value={waiting} hint="Approve in Growth AI or reply to the morning text" /> : <StatCard label="Messages in, 7 days" value={count("MESSAGE_IN")} />}
+        {plan.growthManager ? <StatCard label="Waiting for your OK" value={waiting} hint={`Approve in ${TOOL_NAMES.growth} or reply to the morning text`} /> : <StatCard label="Messages in, 7 days" value={count("MESSAGE_IN")} />}
         {plan.growthManager ? <StatCard label="Revenue influenced, 7 days" value={money(s, won.reduce((t, r) => t + (r.outcomeValue ?? 0), 0))} hint={`${won.length} wins`} /> : <StatCard label="Bookings, 7 days" value={count("BOOKING")} />}
         {plan.tools.includes("FIELD_SERVICE") ? <StatCard label="Jobs done, 7 days" value={count("JOB_DONE")} hint={`${count("QUOTE_ACCEPTED")} quotes accepted`} /> : <StatCard label="New Google reviews, 7 days" value={count("REVIEW_RECEIVED")} />}
       </div>
@@ -98,8 +99,8 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {plan.growthManager && (
-          <Tile name="Growth AI" blurb="Today's plan: who to call back, remind and win back" status={{ label: s.enabled ? "On" : "Off", tone: s.enabled ? "bg-green-50 text-green-800" : "bg-gray-100 text-gray-600" }}
-            links={[{ href: "/dashboard/growth", label: waiting ? `Review ${waiting} action${waiting === 1 ? "" : "s"}` : "Open Growth AI" }]} />
+          <Tile name={TOOL_NAMES.growth} blurb="Today's plan: who to call back, remind and win back" status={{ label: s.enabled ? "On" : "Off", tone: s.enabled ? "bg-green-50 text-green-800" : "bg-gray-100 text-gray-600" }}
+            links={[{ href: "/dashboard/growth", label: waiting ? `Review ${waiting} action${waiting === 1 ? "" : "s"}` : `Open ${TOOL_NAMES.growth}` }]} />
         )}
         <Tile name="Customers & inbox" blurb="Everyone who called, texted or booked, on one timeline" status={{ label: "Ready", tone: "bg-green-50 text-green-800" }}
           links={[{ href: "/dashboard/customers", label: "Customers" }, { href: "/dashboard/inbox", label: "Inbox" }]} />
@@ -110,7 +111,7 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
           const links =
             t === "WAYNERING" ? [{ href: "/api/hub/open/wayneRing?page=calls", label: "Calls ↗", external: true }, { href: "/api/hub/open/wayneRing?page=receptionist", label: "Receptionist ↗", external: true }]
             : t === "FIELD_SERVICE" ? [{ href: "/api/hub/open/field-service", label: "Schedule & jobs ↗", external: true }]
-            : t === "GMB" ? [{ href: "/api/hub/open/gmb", label: "Open Google profile ↗", external: true }, { href: "/dashboard/growth", label: "AI suggestions" }]
+            : t === "GMB" ? [{ href: "/api/hub/open/gmb", label: `Open ${TOOL_NAMES.google} ↗`, external: true }, { href: "/dashboard/growth", label: "AI suggestions" }]
             : [{ href: "/api/hub/open/video?page=make", label: "Make an ad ↗", external: true }, { href: "/dashboard/growth", label: "Reel ideas" }];
           const note = t === "GMB" && ready && !gmb.connected ? "Open it to connect your Google listing" : t === "WAYNERING" && ready && wr.phoneNumber ? wr.phoneNumber : TOOL_META[t].ownerLogin ? null : "Run for you by our team";
           return <Tile key={t} name={TOOL_META[t].name} blurb={TOOL_META[t].blurb} status={st} note={note} links={ready || !TOOL_META[t].ownerLogin ? links : []} />;

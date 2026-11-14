@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import clsx from "clsx";
 import { BUNDLE_PLANS, BUNDLE_PLAN_IDS, formatPrice, currencyFor } from "@/lib/hub/plans";
 import type { FrontDeskPlan } from "@/lib/types";
+import { BUNDLE_NAME } from "@/lib/brand";
 
 const SECTOR_OPTIONS: [string, string][] = [
   ["HOME_SERVICES", "Home services (HVAC, plumbing, electrical…)"], ["CLINIC", "Clinic"], ["SALON", "Salon / spa"],
@@ -87,7 +88,7 @@ export function BundleSignupForm({ initialPlan, initialCountry }: { initialPlan:
         <button type="submit" disabled={loading} className="rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-700 disabled:opacity-60">
           {loading ? "Creating your account…" : `Continue to payment · ${formatPrice(BUNDLE_PLANS[plan].price[currency], currency)}/month`}
         </button>
-        <p className="text-xs text-gray-500">One account, one bill. Your calls, CRM and Google profile are set up for you after payment.</p>
+        <p className="text-xs text-gray-500">One account, one bill. Your calls, jobs and Google profile are set up for you in {BUNDLE_NAME} after payment.</p>
       </div>
     </form>
   );
