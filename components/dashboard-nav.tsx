@@ -40,7 +40,7 @@ export function DashboardNav({
         <div className="order-last flex w-full items-center gap-8 lg:order-none lg:w-auto">
           <span className="hidden font-semibold lg:inline">{bundle ? BUNDLE_NAME : "Regulars"}</span>
           <nav className="-mx-1 flex gap-1 overflow-x-auto whitespace-nowrap lg:mx-0 lg:flex-wrap">
-            {(bundle ? LINKS.filter((l) => l.href !== "/dashboard/calling-scripts").map((l) => (l.href === "/dashboard" ? { ...l, label: "Home" } : l)) : LINKS).map((link) => (
+            {(bundle ? LINKS.filter((l) => l.href !== "/dashboard/calling-scripts").map((l) => (l.href === "/dashboard" ? { ...l, label: "Home" } : l.href === "/dashboard/growth" ? { ...l, label: "Growth Manager" } : l)) : LINKS).map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
