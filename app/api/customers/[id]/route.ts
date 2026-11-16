@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/session";
 import { logEvent } from "@/lib/logger";
+import { z } from "zod";
+import { normalizePhone } from "@/lib/phone";
 
 // Privacy requests (PIPEDA and similar): a customer can ask for a copy of what
 // a business holds about them, or for it to be removed.
@@ -48,4 +50,36 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   }
   await logEvent({ businessId: business.id, source: "PRIVACY", level: "INFO", message: "Customer data removed on request" });
   return NextResponse.json({ ok: true, keptOptOut: customer.optedOut || customer.smsOptedOut });
+}
+
+const editSchema = z.object({
+  name: z.string().trim().max(80).nullable().optional(),
+  phone: z.string().trim().min(5).max(25).optional(),
+});
+
+/** PATCH /api/customers/:id { name?, phone? } — the owner corrects a customer's name or number. */
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const found = await find(params.id);
+  if (found.error) return found.error;
+  const { business, customer } = found;
+  if (business.status === "SUSPENDED") return NextResponse.json({ error: "Business is suspended" }, { status: 403 });
+  const parsed = editSchema.safeParse(await req.json().catch(() => ({})));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid name or number" }, { status: 400 });
+
+  const data: { name?: string | null; phone?: string } = {};
+  if (parsed.data.name !== undefined) data.name = parsed.data.name || null;
+  if (parsed.data.phone !== undefined) {
+    const phone = normalizePhone(parsed.data.phone, business.country);
+    if (!phone) return NextResponse.json({ error: "That doesn't look like a phone number. Include the country code, e.g. +91 98765 43210." }, { status: 400 });
+    if (phone !== customer.phone) {
+      const clash = await prisma.customer.findUnique({ where: { locationId_phone: { locationId: customer.locationId, phone } }, select: { id: true } });
+      if (clash) return NextResponse.json({ error: "Another customer at this location already has this number." }, { status: 409 });
+      data.phone = phone;
+    }
+  }
+  const updated = await prisma.customer.update({ where: { id: customer.id }, data });
+  if (data.phone) {
+    await logEvent({ businessId: business.id, source: "API", level: "INFO", message: "Customer number changed by owner", meta: { customerId: customer.id } });
+  }
+  return NextResponse.json({ ok: true, customer: { id: updated.id, name: updated.name, phone: updated.phone } });
 }

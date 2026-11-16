@@ -347,6 +347,18 @@ Guardrails: opt-outs, contact hours, max touches per customer per week, daily ca
 
 Cron: `/api/cron/growth` hourly (`vercel.json`). Settings: `/dashboard/growth`.
 
+On the EC2 server `vercel.json` does nothing, so add the crons to the server's crontab (`crontab -e`),
+with the same `CRON_SECRET` as in `.env`. Without the growth line, the morning brief never goes out:
+
+```
+5 * * * * curl -s -H "Authorization: Bearer CRON_SECRET_HERE" https://regulars.wayneesolutions.com/api/cron/growth > /dev/null
+0 15 * * * curl -s -H "Authorization: Bearer CRON_SECRET_HERE" https://regulars.wayneesolutions.com/api/cron/winback > /dev/null
+0 3 * * * curl -s -X POST -H "Authorization: Bearer CRON_SECRET_HERE" https://regulars.wayneesolutions.com/api/cron/downgrade-expired-plans > /dev/null
+```
+
+"Plan now" on `/dashboard/growth` does not count as the day's scheduled run, so the brief still goes at the brief hour.
+Each brief writes a line to Admin → Logs ("Morning brief sent" or "NOT sent").
+
 ## One platform (Bundle A) — Regulars is the hub
 
 Bundle A is sold as one product. Regulars handles signup, the bill, the

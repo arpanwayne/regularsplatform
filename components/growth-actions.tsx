@@ -28,6 +28,8 @@ export function PlanNowButton({ disabled }: { disabled?: boolean }) {
 export function GrowthActionCard(p: {
   id: string; status: string; title: string; reason: string; kind: string; channel: string | null;
   text: string | null; quote: string | null; value: string | null; autonomy: string;
+  /** Set when the text is a fixed WhatsApp template (can't be edited). */
+  textNote?: string | null;
 }) {
   const router = useRouter();
   const [text, setText] = useState(p.text ?? "");
@@ -66,15 +68,16 @@ export function GrowthActionCard(p: {
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} maxLength={600}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" aria-label="Message text" />
         ) : (
-          <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800">{text}</p>
+          <p className="whitespace-pre-wrap rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800">{text}</p>
         )
       )}
+      {p.textNote && <p className="text-xs text-gray-500">{p.textNote}</p>}
       {p.status === "PROPOSED" && (
         <div className="mt-auto flex flex-wrap items-center gap-2">
           <button disabled={busy} onClick={() => decide("approve")} className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
             {busy ? "Working…" : p.channel === "CALL" ? "Approve call" : "Approve"}
           </button>
-          {p.text != null && !editing && <button onClick={() => setEditing(true)} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">Edit text</button>}
+          {p.text != null && !p.textNote && !editing && <button onClick={() => setEditing(true)} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">Edit text</button>}
           <button disabled={busy} onClick={() => decide("skip")} className="rounded-md px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100">Skip</button>
           {msg && <span className="text-sm text-gray-600">{msg}</span>}
         </div>

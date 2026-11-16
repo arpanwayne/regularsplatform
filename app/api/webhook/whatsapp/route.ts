@@ -112,7 +112,15 @@ export async function POST(req: NextRequest) {
         if (!status) continue;
         await prisma.message.updateMany({ where: { providerSid: st.id, channel: "WHATSAPP", direction: "OUTBOUND" }, data: { status } });
         if (status === "FAILED") {
-          await logEvent({ source: "WHATSAPP", level: "WARN", message: "WhatsApp message failed to deliver", meta: { id: st.id, errors: st.errors } });
+          // Keep Meta's reason on the message so the inbox can show it (e.g. 131049).
+          const err = st.errors?.[0];
+          const msg = await prisma.message.findFirst({ where: { providerSid: st.id, channel: "WHATSAPP", direction: "OUTBOUND" }, select: { id: true, businessId: true, rawPayload: true } });
+          if (msg) {
+            let raw: Record<string, unknown> = {};
+            try { raw = msg.rawPayload ? JSON.parse(msg.rawPayload) : {}; } catch { /* keep empty */ }
+            await prisma.message.update({ where: { id: msg.id }, data: { rawPayload: JSON.stringify({ ...raw, deliveryError: { code: err?.code ?? null, title: err?.title ?? null } }) } });
+          }
+          await logEvent({ businessId: msg?.businessId, source: "WHATSAPP", level: "WARN", message: `WhatsApp message failed to deliver${err?.code ? ` (Meta ${err.code})` : ""}`, meta: { id: st.id, errors: st.errors } });
         }
       }
       if (!value.messages?.length) continue;

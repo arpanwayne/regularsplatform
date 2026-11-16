@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/session";
-import { parseCsv } from "@/lib/csv";
+import { parseCsv, parseListDate } from "@/lib/csv";
 import { normalizePhone } from "@/lib/phone";
 import { runSegmentationForBusiness } from "@/lib/run-segmentation";
 
@@ -38,9 +38,9 @@ export async function POST(req: NextRequest) {
     if (!phone) { if (errors.length < 20) errors.push(`Row ${i + 2}: invalid phone`); continue; }
     const name = pick(row, "name", "full_name", "customer", "customer_name") || null;
     const lastVisitRaw = pick(row, "last_visit", "last_visit_date", "last_seen", "date");
-    const lastVisit = lastVisitRaw ? new Date(lastVisitRaw) : null;
-    if (lastVisit && Number.isNaN(lastVisit.getTime())) { if (errors.length < 20) errors.push(`Row ${i + 2}: can't read last_visit "${lastVisitRaw}"`); }
-    const when = lastVisit && !Number.isNaN(lastVisit.getTime()) && lastVisit <= new Date() ? lastVisit : null;
+    const lastVisit = lastVisitRaw ? parseListDate(lastVisitRaw, business.country) : null;
+    if (lastVisitRaw && !lastVisit) { if (errors.length < 20) errors.push(`Row ${i + 2}: can't read last_visit "${lastVisitRaw}" (use 15/10/2026 or 2026-10-15)`); }
+    const when = lastVisit && lastVisit <= new Date() ? lastVisit : null;
     const visits = parseInt(pick(row, "visits", "visit_count"), 10);
     const spend = parseFloat(pick(row, "total_spend", "spend", "amount").replace(/[^0-9.]/g, ""));
     const ch = pick(row, "channel", "preferred_channel").toUpperCase();
@@ -48,11 +48,24 @@ export async function POST(req: NextRequest) {
 
     const existing = await prisma.customer.findUnique({ where: { locationId_phone: { locationId: location.id, phone } } });
     if (existing) {
+      // The owner's list is the source of truth for name and last visit. The
+      // last visit only stays later than the list says when there's real
+      // activity (a message or recorded visit) after that date.
+      let lastSeenAt: Date | undefined;
+      if (when) {
+        const [visit, inbound] = await Promise.all([
+          prisma.visit.findFirst({ where: { customerId: existing.id }, orderBy: { occurredAt: "desc" }, select: { occurredAt: true } }),
+          prisma.message.findFirst({ where: { customerId: existing.id, direction: "INBOUND" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+        ]);
+        const activity = Math.max(visit?.occurredAt.getTime() ?? 0, inbound?.createdAt.getTime() ?? 0);
+        lastSeenAt = new Date(Math.max(when.getTime(), activity));
+      }
       await prisma.customer.update({
         where: { id: existing.id },
         data: {
-          name: existing.name ?? name,
-          ...(when && when > existing.lastSeenAt ? { lastSeenAt: when } : {}),
+          ...(name ? { name } : {}),
+          ...(lastSeenAt ? { lastSeenAt } : {}),
+          ...(when && when < existing.firstSeenAt ? { firstSeenAt: when } : {}),
           ...(Number.isFinite(visits) && visits > existing.visitCount ? { visitCount: visits } : {}),
           ...(Number.isFinite(spend) && spend > existing.totalSpend ? { totalSpend: spend } : {}),
           ...(channel ? { preferredChannel: channel } : {}),

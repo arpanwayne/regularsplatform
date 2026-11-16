@@ -7,6 +7,10 @@ import { GrowthSettingsForm } from "@/components/growth-settings";
 import { DAY, autonomyMap, getSettings, money, parseJson } from "@/lib/growth/settings";
 import { gmb, videoStudio, wayneRing } from "@/lib/growth/connectors";
 import { ACTION_LABEL, type ActionType } from "@/lib/growth/types";
+import { WA_TEMPLATE } from "@/lib/growth/executor";
+import { customerParams } from "@/lib/whatsapp-send";
+import { whatsappSenderFor, windowOpen } from "@/lib/whatsapp-sender";
+import { renderTemplate, resolveLang } from "@/lib/whatsapp-templates";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +32,29 @@ export default async function GrowthPage() {
     prisma.growthAction.count({ where: { businessId: business.id, status: "DONE", executedAt: { gte: since } } }),
     prisma.growthAction.findMany({ where: { businessId: business.id, outcome: "WON", outcomeAt: { gte: new Date(now.getTime() - 30 * DAY) } }, select: { outcomeValue: true } }),
   ]);
+  // What the customer will actually get. Outside WhatsApp's 24-hour window the
+  // approved template goes out (in the business's language), not the AI text,
+  // so the card shows that instead of a preview that never gets sent.
+  const locations = await prisma.location.findMany({ where: { businessId: business.id } });
+  const textIds = proposed.filter((a) => a.customer).map((a) => a.customer!.id);
+  const lastIn = textIds.length
+    ? await prisma.message.groupBy({ by: ["customerId"], where: { customerId: { in: textIds }, channel: "WHATSAPP", direction: "INBOUND" }, _max: { createdAt: true } })
+    : [];
+  const lastInBy = new Map(lastIn.map((r) => [r.customerId, r._max.createdAt]));
+  function sentAs(a: (typeof proposed)[number], channel: string | undefined): { text: string; note: string } | null {
+    const key = WA_TEMPLATE[a.type as ActionType];
+    const c = a.customer;
+    if (!key || !c || channel !== "TEXT") return null;
+    if ((c.preferredChannel ?? business!.defaultChannel) !== "WHATSAPP") return null;
+    const loc = locations.find((l) => l.id === c.locationId) ?? locations[0];
+    if (!loc || !whatsappSenderFor(loc, business!) || windowOpen(lastInBy.get(c.id) ?? null, now)) return null;
+    const lang = resolveLang(key, s.messageLanguage);
+    return {
+      text: renderTemplate(key, lang, customerParams(key, lang, c, loc, business!)),
+      note: "Goes as the approved WhatsApp template (the customer hasn't written in the last 24 hours), so this is the exact text they'll get.",
+    };
+  }
+
   const sum = (rows: { outcomeValue: number | null }[]) => rows.reduce((t, r) => t + (r.outcomeValue ?? 0), 0);
   const tools = { wayneRing: wayneRing.available(s), gmb: gmb.available(s), videoStudio: videoStudio.available(s) };
 
@@ -61,10 +88,11 @@ export default async function GrowthPage() {
           <div className="grid gap-3 md:grid-cols-2">
             {proposed.map((a) => {
               const p = parseJson<{ message?: string; reply?: string; channel?: string; comment?: string }>(a.payload, {});
+              const tpl = a.type === "REVIEW_REPLY" ? null : sentAs(a, p.channel);
               return (
                 <GrowthActionCard key={a.id} id={a.id} status={a.status} title={a.title} reason={a.reason}
                   kind={ACTION_LABEL[a.type as ActionType]?.one ?? a.type} channel={p.channel ?? null}
-                  text={a.type === "REVIEW_REPLY" ? p.reply ?? null : p.message ?? null} quote={a.type === "REVIEW_REPLY" ? p.comment ?? null : null}
+                  text={a.type === "REVIEW_REPLY" ? p.reply ?? null : tpl?.text ?? p.message ?? null} textNote={tpl?.note ?? null} quote={a.type === "REVIEW_REPLY" ? p.comment ?? null : null}
                   value={a.expectedValue > 0 ? money(s, a.expectedValue) : null} autonomy={a.autonomy} />
               );
             })}

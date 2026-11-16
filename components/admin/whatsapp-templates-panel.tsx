@@ -25,6 +25,33 @@ export function WhatsAppTemplatesPanel({ accounts }: { accounts: { id: string; l
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [results, setResults] = useState<Result[] | null>(null);
+  const [testTo, setTestTo] = useState("");
+  const [testing, setTesting] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<Record<string, { ok: boolean; text: string }>>({});
+  // Marketing templates sent per test number this session (Meta lets one person get ~1 a day).
+  const [marketingSent, setMarketingSent] = useState<Record<string, number>>({});
+
+  async function sendTest(r: Row) {
+    const id = r.name + r.language;
+    const num = testTo.replace(/[^\d+]/g, "");
+    if ((r.metaCategory ?? r.category) === "MARKETING" && (marketingSent[num] ?? 0) >= 1
+      && !window.confirm(`${testTo} already got a marketing test today. WhatsApp will probably hold this one back (Meta 131049). Send anyway?`)) return;
+    setTesting(id);
+    const res = await fetch("/api/admin/whatsapp-templates/test", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ key: r.key, lang: r.lang, to: testTo, ...(locationId ? { locationId } : {}) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setTesting(null);
+    if (res.ok && (r.metaCategory ?? r.category) === "MARKETING") setMarketingSent((m) => ({ ...m, [num]: (m[num] ?? 0) + 1 }));
+    setTestResult((t) => ({
+      ...t,
+      [id]: res.ok
+        ? { ok: true, text: "Sent. Check the phone. If it doesn't arrive in a minute, Admin → Logs shows why." }
+        : { ok: false, text: data.error ?? "Couldn't send" },
+    }));
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,6 +109,18 @@ export function WhatsAppTemplatesPanel({ accounts }: { accounts: { id: string; l
         </button>
       </div>
 
+      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-4">
+        <label className="text-sm">
+          <span className="mb-1 block text-gray-600">Test number (with country code)</span>
+          <input value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="+91 98765 43210" inputMode="tel" className="w-56 rounded-md border border-gray-300 px-3 py-2 text-sm" />
+        </label>
+        <p className="max-w-xl text-xs text-gray-500">
+          &ldquo;Send test&rdquo; sends that template with its example values to this number. Utility templates can all go to one
+          number. Marketing templates: one per number per day, or WhatsApp holds them back (Meta 131049), so use a different
+          team number for each.
+        </p>
+      </div>
+
       {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       {results && (
         <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">
@@ -94,7 +133,7 @@ export function WhatsAppTemplatesPanel({ accounts }: { accounts: { id: string; l
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
-            <tr><th className="px-3 py-2">Template</th><th className="px-3 py-2">Lang</th><th className="px-3 py-2">Category</th><th className="px-3 py-2">Text</th><th className="px-3 py-2">Meta</th></tr>
+            <tr><th className="px-3 py-2">Template</th><th className="px-3 py-2">Lang</th><th className="px-3 py-2">Category</th><th className="px-3 py-2">Text</th><th className="px-3 py-2">Meta</th><th className="px-3 py-2">Test</th></tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {rows.map((r) => (
@@ -108,6 +147,21 @@ export function WhatsAppTemplatesPanel({ accounts }: { accounts: { id: string; l
                     {r.metaStatus ?? "Not submitted"}
                   </span>
                   {r.rejectedReason && <span className="mt-1 block text-xs text-red-700">{r.rejectedReason}</span>}
+                </td>
+                <td className="px-3 py-2">
+                  <button
+                    onClick={() => sendTest(r)}
+                    disabled={!testTo.trim() || testing === r.name + r.language || r.metaStatus !== "APPROVED"}
+                    title={r.metaStatus !== "APPROVED" ? "Only approved templates can be sent" : !testTo.trim() ? "Enter a test number above" : undefined}
+                    className="whitespace-nowrap rounded-md border border-gray-300 px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {testing === r.name + r.language ? "Sending…" : "Send test"}
+                  </button>
+                  {testResult[r.name + r.language] && (
+                    <span className={`mt-1 block max-w-[14rem] text-xs ${testResult[r.name + r.language].ok ? "text-green-700" : "text-red-700"}`}>
+                      {testResult[r.name + r.language].text}
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}

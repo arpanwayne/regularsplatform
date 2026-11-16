@@ -4,6 +4,7 @@ import { planForBusiness } from "@/lib/growth/planner";
 import { executeApproved } from "@/lib/growth/executor";
 import { sendDailyBrief, sendWeeklyReport } from "@/lib/growth/brief";
 import { getSettings, localParts } from "@/lib/growth/settings";
+import { logEvent } from "@/lib/logger";
 
 /**
  * One tick of the loop for one business (the hourly cron calls this):
@@ -22,6 +23,8 @@ export async function tick(businessId: string, now = new Date()) {
     const plan = await planForBusiness(businessId, now);
     out.planned = plan.created.length;
     out.brief = (await sendDailyBrief(businessId, now)).sent;
+    // Visible in Admin → Logs, so "did the brief go?" has an answer.
+    await logEvent({ businessId, source: "GROWTH", level: out.brief ? "INFO" : "WARN", message: out.brief ? `Morning brief sent (${date} ${String(hour).padStart(2, "0")}:00 ${s.timezone})` : "Morning brief NOT sent: no owner number, WhatsApp/SMS not set up, or the send failed (see the log just before this)" });
   }
   out.executed = (await executeApproved(businessId, now)).filter((r) => r.status === "DONE").length;
   if (weekday === "Mon" && hour >= s.briefHour) out.report = !!(await sendWeeklyReport(businessId, now));
