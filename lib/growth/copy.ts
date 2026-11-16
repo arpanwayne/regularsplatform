@@ -25,7 +25,19 @@ export type CopyRequest = {
 
 const MODEL = process.env.GROWTH_MODEL || "claude-haiku-4-5-20251001";
 
-export function templateCopy(r: CopyRequest): string {
+/** Fixed fallback text in the business's language (used when the AI writer is off or fails). */
+export function templateCopy(r: CopyRequest, language = "en"): string {
+  if (language === "hinglish" || language === "hi" || language === "pa") {
+    const hi = r.firstName ? `Namaste ${r.firstName} ji, ` : "Namaste ji, ";
+    const book = r.bookingUrl ? ` Booking yahan karein: ${r.bookingUrl}` : " Bas is message ka reply kar dijiye.";
+    switch (r.type) {
+      case "MISSED_LEAD_CALLBACK": return `${hi}aapka call miss ho gaya, sorry. Kya abhi bhi madad chahiye? Hum aaj hi time de sakte hain.${book}`;
+      case "QUOTE_FOLLOW_UP": return `${hi}humne jo quote bheja tha, us par koi sawal ho to batayiye. Date fix karni ho to bhi bata dijiye.${book}`;
+      case "SERVICE_DUE": return `${hi}aapki agli service ka time ho gaya hai. Kya hum booking kar dein?${book}`;
+      case "WIN_BACK": return `${hi}kaafi time ho gaya aapse mile hue. Aapko phir se dekhna achha lagega.${book}`;
+      default: return `${hi}humein chunne ke liye dhanyavaad!`;
+    }
+  }
   const hi = r.firstName ? `Hi ${r.firstName}, ` : "Hi, ";
   const book = r.bookingUrl ? ` Book here: ${r.bookingUrl}` : " Just reply to this text.";
   switch (r.type) {
@@ -45,7 +57,7 @@ const LANG: Record<string, string> = {
 };
 
 export async function writeCopy(p: { businessId: string; businessName: string; language: string; requests: CopyRequest[] }): Promise<Record<string, string>> {
-  const out: Record<string, string> = Object.fromEntries(p.requests.map((r) => [r.id, templateCopy(r)]));
+  const out: Record<string, string> = Object.fromEntries(p.requests.map((r) => [r.id, templateCopy(r, p.language)]));
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key || !p.requests.length) return out;
 

@@ -4,7 +4,7 @@ import { logEvent } from "@/lib/logger";
 import { senderName, type SendResult } from "@/lib/sms";
 import type { MessagePurpose } from "@/lib/types";
 import {
-  fallbackName, metaLanguage, nextStep, renderTemplate, resolveLang, sanitizeParam, templateName,
+  fallbackName, getDef, metaLanguage, nextStep, renderTemplate, resolveLang, sanitizeParam, templateName, WA_LANGS, WA_TEMPLATE_DEFS,
   type WaLang, type WaTemplateKey,
 } from "@/lib/whatsapp-templates";
 import { whatsappSenderFor, windowOpen, type WaSender } from "@/lib/whatsapp-sender";
@@ -68,6 +68,32 @@ export function customerParams(key: WaTemplateKey, lang: WaLang, customer: Pick<
   return [first, senderName(location, business), third];
 }
 
+/** Names of every MARKETING-category template (all languages). */
+export function marketingTemplateNames() {
+  const names = new Set<string>();
+  for (const d of WA_TEMPLATE_DEFS) {
+    if (d.category !== "MARKETING") continue;
+    for (const l of WA_LANGS) if (d.bodies[l]) names.add(templateName(d.key, l));
+  }
+  return names;
+}
+
+/** Max marketing templates one customer gets from us in 24 hours (Meta 131049 guard). */
+export const MARKETING_PER_DAY = Number(process.env.WHATSAPP_MARKETING_PER_DAY || 1);
+
+/** True when this customer already got MARKETING_PER_DAY marketing templates in the last 24 hours. */
+export async function marketingLimitReached(customerId: string, now = new Date()) {
+  const recent = await prisma.message.findMany({
+    where: { customerId, channel: "WHATSAPP", direction: "OUTBOUND", status: { not: "FAILED" }, createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
+    select: { rawPayload: true },
+  });
+  const names = marketingTemplateNames();
+  const count = recent.filter((m) => {
+    try { return names.has(String(JSON.parse(m.rawPayload ?? "{}").template ?? "")); } catch { return false; }
+  }).length;
+  return count >= MARKETING_PER_DAY;
+}
+
 export function canSendWhatsApp(business: Business, location: Location | null | undefined) {
   return !!whatsappSenderFor(location, business);
 }
@@ -96,6 +122,9 @@ export async function sendCustomerWhatsApp(p: {
     message = textMessage(p.text);
     shown = p.text;
   } else if (p.templateKey) {
+    if (getDef(p.templateKey).category === "MARKETING" && (await marketingLimitReached(customer.id, p.now))) {
+      return { ok: false, status: "FAILED", error: `DAILY_LIMIT: This customer already got a marketing message in the last 24 hours. WhatsApp blocks more (Meta 131049), so this one waits.` };
+    }
     const lang = resolveLang(p.templateKey, await businessLanguage(business));
     const params = p.params ?? customerParams(p.templateKey, lang, customer, location, business);
     message = templateMessage(p.templateKey, lang, params);
@@ -111,7 +140,7 @@ export async function sendCustomerWhatsApp(p: {
       businessId: business.id, locationId: location.id, customerId: customer.id,
       direction: "OUTBOUND", channel: "WHATSAPP", purpose, status: r.ok ? "SENT" : "FAILED",
       providerSid: r.id, text: shown,
-      rawPayload: JSON.stringify({ template: tpl, shared: sender.shared, error: r.error ?? null }),
+      rawPayload: JSON.stringify({ template: tpl, shared: sender.shared, error: r.error ?? null, errorCode: r.code ?? null }),
     },
   });
   if (r.ok) {

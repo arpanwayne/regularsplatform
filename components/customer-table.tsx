@@ -29,6 +29,34 @@ export function CustomerTable({
     else window.alert("That couldn't be removed. Please try again.");
   }
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  function startEdit(c: CustomerWithLocation) {
+    setEditingId(c.id);
+    setEditName(c.name ?? "");
+    setEditPhone(`+${c.phone}`);
+    setEditError(null);
+  }
+
+  async function saveEdit(id: string) {
+    setSaving(true);
+    setEditError(null);
+    const res = await fetch(`/api/customers/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: editName.trim() || null, phone: editPhone }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) { setEditError(data.error || "Couldn't save. Please try again."); return; }
+    setEditingId(null);
+    router.refresh();
+  }
+
   const [openScriptFor, setOpenScriptFor] = useState<string | null>(null);
   const [scripts, setScripts] = useState<Record<string, { title: string; content: string }>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -73,8 +101,24 @@ export function CustomerTable({
             <Fragment key={c.id}>
               <tr>
                 <td className="px-4 py-3">
-                  <p className="font-medium">{c.name || "Unnamed"}</p>
-                  <p className="text-gray-500">{c.phone}</p>
+                  {editingId === c.id ? (
+                    <div className="space-y-1">
+                      <input value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={80} placeholder="Name"
+                        aria-label="Customer name" className="w-44 rounded-md border border-gray-300 px-2 py-1 text-sm" />
+                      <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} maxLength={25} placeholder="+91 98765 43210"
+                        aria-label="Phone number" inputMode="tel" className="block w-44 rounded-md border border-gray-300 px-2 py-1 text-sm" />
+                      {editError && <p className="max-w-[16rem] text-xs text-red-600">{editError}</p>}
+                      <div className="flex gap-2">
+                        <button type="button" disabled={saving} onClick={() => saveEdit(c.id)} className="rounded-md bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+                        <button type="button" onClick={() => setEditingId(null)} className="text-xs text-gray-600 underline">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="font-medium">{c.name || "Unnamed"}</p>
+                      <p className="text-gray-500">+{c.phone}</p>
+                    </>
+                  )}
                 </td>
                 {showLocation && (
                   <td className="px-4 py-3 text-gray-600">{c.location?.name ?? "—"}</td>
@@ -92,6 +136,7 @@ export function CustomerTable({
                   {formatDate(c.lastSeenAt, country)}
                 </td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
+                  <button type="button" onClick={() => startEdit(c)} className="mr-3 text-xs text-brand-700 underline">Edit</button>
                   <a href={`/api/customers/${c.id}`} className="mr-3 text-xs text-gray-500 underline">Export</a>
                   <button type="button" onClick={() => removeData(c.id, c.name || c.phone)} className="mr-3 text-xs text-red-600 underline">Remove</button>
                   {!bundle && <button

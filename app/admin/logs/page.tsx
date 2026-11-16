@@ -68,7 +68,7 @@ export default async function AdminLogsPage({
               {logs.map((log) => (
                 <tr key={log.id}>
                   <td className="px-4 py-2 text-gray-500 whitespace-nowrap">
-                    {new Date(log.createdAt).toLocaleString("en-IN")}
+                    {new Date(log.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
                   </td>
                   <td className="px-4 py-2">
                     <span

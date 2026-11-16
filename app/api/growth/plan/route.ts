@@ -10,7 +10,7 @@ export async function POST() {
   if (!business) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (business.status === "SUSPENDED") return NextResponse.json({ error: "Business is suspended" }, { status: 403 });
   await runSegmentationForBusiness(business.id);
-  const plan = await planForBusiness(business.id);
+  const plan = await planForBusiness(business.id, new Date(), { manual: true });
   const executed = await executeApproved(business.id);
   return NextResponse.json({ planned: plan.created.length, considered: plan.considered, executed: executed.filter((e) => e.status === "DONE").length });
 }

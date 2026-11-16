@@ -28,7 +28,7 @@ type Payload = {
   name?: string; brief?: string; overlay?: string; quoteValue?: number;
 };
 
-const WA_TEMPLATE: Partial<Record<ActionType, WaTemplateKey>> = {
+export const WA_TEMPLATE: Partial<Record<ActionType, WaTemplateKey>> = {
   WIN_BACK: "winback", SERVICE_DUE: "service_due", QUOTE_FOLLOW_UP: "quote_followup", MISSED_LEAD_CALLBACK: "missed_lead",
 };
 
@@ -71,7 +71,7 @@ export async function executeAction(actionId: string, now = new Date()): Promise
     return { id: action.id, status: back ? ("DEFERRED" as const) : ("FAILED" as const), detail: error };
   };
   const sendText = async () => {
-    const text = p.message || templateCopy({ id: action.id, type, firstName: (c?.name ?? "").split(" ")[0], context: "", bookingUrl: location.bookingUrl });
+    const text = p.message || templateCopy({ id: action.id, type, firstName: (c?.name ?? "").split(" ")[0], context: "", bookingUrl: location.bookingUrl }, s.messageLanguage);
     const r = await sendToCustomer(business, location, c!, TEXT_PURPOSE[type] ?? "FOLLOW_UP", text, WA_TEMPLATE[type] ?? "winback");
     return r;
   };
@@ -96,7 +96,8 @@ export async function executeAction(actionId: string, now = new Date()): Promise
           }
         }
         const r = await sendText();
-        if (!r.ok) return await fail(`Text not sent: ${r.status}`);
+        if (!r.ok && r.error?.startsWith("DAILY_LIMIT")) return await fail("Waits until tomorrow: 1 marketing WhatsApp per customer per day", "APPROVED");
+        if (!r.ok) return await fail(`Text not sent: ${r.status}${r.error ? ` (${r.error.slice(0, 200)})` : ""}`);
         if (type === "WIN_BACK") await prisma.customer.update({ where: { id: c!.id }, data: { lastWinbackAt: now } });
         return await done({ tool: "text", ...r });
       }

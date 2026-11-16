@@ -225,7 +225,12 @@ async function touchesThisWeek(businessId: string, customerIds: string[], now: D
   return counts;
 }
 
-export async function planForBusiness(businessId: string, now = new Date()) {
+/**
+ * `manual` = the owner pressed "Plan now". That must not count as today's
+ * scheduled run, or the morning brief would be skipped for the day
+ * (lastPlanDate is what the hourly tick checks before sending it).
+ */
+export async function planForBusiness(businessId: string, now = new Date(), opts: { manual?: boolean } = {}) {
   const business = await prisma.business.findUniqueOrThrow({ where: { id: businessId }, include: { locations: true } });
   const s = await getSettings(business);
   const today = localParts(now, s.timezone).date;
@@ -295,6 +300,6 @@ export async function planForBusiness(businessId: string, now = new Date()) {
       if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) throw err;
     }
   }
-  await prisma.growthSettings.update({ where: { businessId }, data: { lastPlanDate: today } });
+  if (!opts.manual) await prisma.growthSettings.update({ where: { businessId }, data: { lastPlanDate: today } });
   return { today, created, considered: cands.length, labels: ACTION_LABEL };
 }

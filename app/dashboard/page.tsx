@@ -5,6 +5,7 @@ import { SegmentBadge } from "@/components/segment-badge";
 import { RunSegmentationButton } from "@/components/run-segmentation-button";
 import { HubHome } from "@/components/hub-home";
 import { formatDateTime } from "@/lib/format";
+import { sharedSender, usesSharedNumber } from "@/lib/whatsapp-sender";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,8 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
     }),
     prisma.location.count({ where: { businessId: business.id, whatsappPhoneNumberId: { not: null } } }),
   ]);
-  const hasWhatsappConfig = connectedLocationCount > 0;
+  // Connected = a location has its own number, or the business sends from the shared number.
+  const hasWhatsappConfig = connectedLocationCount > 0 || (usesSharedNumber(business) && !!sharedSender());
 
   const countBySegment = Object.fromEntries(segmentCounts.map((s) => [s.segment, s._count]));
 

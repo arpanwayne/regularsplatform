@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { smsConfigured, smsUsageThisMonth } from "@/lib/sms";
 import { InboxReply } from "@/components/inbox-reply";
 import { canSendWhatsApp, whatsappUsageThisMonth } from "@/lib/whatsapp-send";
-import { sharedDisplayNumber, whatsappSenderFor, windowOpen } from "@/lib/whatsapp-sender";
+import { failureReason, sharedDisplayNumber, whatsappSenderFor, windowOpen } from "@/lib/whatsapp-sender";
+import { formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,8 @@ export default async function InboxPage({ searchParams }: { searchParams: { c?: 
     prisma.location.findFirst({ where: { businessId: business.id }, orderBy: { createdAt: "asc" } }),
   ]);
   const waSender = whatsappSenderFor(firstLocation, business);
+  // Times in the business's own time zone (IST for India), not the server's UTC.
+  const tz = (await prisma.growthSettings.findUnique({ where: { businessId: business.id }, select: { timezone: true } }))?.timezone ?? null;
   const usesSms = business.defaultChannel === "SMS";
   const byId = new Map(customers.map((c) => [c.id, c]));
   const unreadBy = new Map(unread.map((u) => [u.customerId, u._count._all]));
@@ -118,9 +121,12 @@ export default async function InboxPage({ searchParams }: { searchParams: { c?: 
                     <div className="whitespace-pre-wrap">{m.text}</div>
                     <div className="mt-0.5 text-[11px] opacity-60">
                       {m.channel === "WHATSAPP" ? "WhatsApp · " : "SMS · "}
-                      {m.createdAt.toLocaleString(business.country === "IN" ? "en-IN" : "en-CA", { dateStyle: "medium", timeStyle: "short" })}
+                      {formatDateTime(m.createdAt, business.country, tz)}
                       {m.direction === "OUTBOUND" && m.status && ` · ${m.status.toLowerCase().replace("_", " ")}`}
                     </div>
+                    {m.direction === "OUTBOUND" && m.status === "FAILED" && m.channel === "WHATSAPP" && (
+                      <div className="mt-1 rounded bg-white/90 px-2 py-1 text-[11px] text-red-700">{failureReason(m.rawPayload) ?? "Not delivered"}</div>
+                    )}
                   </div>
                 </div>
               ))}
