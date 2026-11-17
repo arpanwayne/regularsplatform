@@ -71,6 +71,9 @@ model Business {
   defaultChannel    String  @default("WHATSAPP")
   /// Send a Google review request SMS automatically after each VISIT event.
   autoReviewRequest Boolean @default(false)
+  /// Instagram DMs → booking add-on (sold on top of the plan, switched on by
+  /// a super admin in Admin → Businesses). See lib/instagram.ts.
+  instagramAddon    Boolean @default(false)
   /// FrontDeskPlan: ANSWER | ANSWER_RETURN | GROW (null = not a Front Desk client).
   frontDeskPlan     String?
   /// Included outgoing SMS segments per calendar month (null = no limit set).
@@ -141,6 +144,17 @@ model Location {
   /// Customer SMS replies are forwarded here (E.164) as well as shown in the inbox.
   ownerNotifyPhone String?
 
+  // Instagram DMs → booking (Loopdesk add-on, Nov 2026). Each location can
+  // connect one Instagram professional account. Inbound DMs are matched to a
+  // Location by instagramAccountId, like WhatsApp is by phoneNumberId.
+  instagramAccountId   String? @unique
+  instagramAccessToken String?
+  instagramUsername    String?
+  /// Reply to "can I book?" DMs with the booking link automatically.
+  instagramAutoBooking Boolean @default(true)
+  /// Long-lived Instagram tokens last 60 days; the hourly cron refreshes them weekly.
+  instagramTokenRefreshedAt DateTime?
+
   /// Status: ACTIVE | SUSPENDED. Independent of Business.status — a chain
   /// can suspend one branch without affecting the others.
   status String @default("ACTIVE")
@@ -189,6 +203,12 @@ model Customer {
   smsOptedOutAt DateTime?
   /// PreferredChannel: WHATSAPP | SMS — null = the business default.
   preferredChannel String?
+  /// Instagram-scoped user id (IGSID) when this person wrote to us on
+  /// Instagram. Someone who only ever wrote on Instagram has no phone yet:
+  /// their phone is stored as "ig:<IGSID>" and nothing ever texts it
+  /// (see lib/instagram.ts isInstagramOnly).
+  instagramId       String?
+  instagramUsername String?
   lastMissedCallTextAt DateTime?
   lastReviewRequestAt  DateTime?
   lastWinbackAt        DateTime?
@@ -200,6 +220,7 @@ model Customer {
   growthActions GrowthAction[]
 
   @@unique([locationId, phone])
+  @@index([locationId, instagramId])
   @@index([businessId, segment])
   @@index([locationId])
 }
@@ -223,9 +244,9 @@ model Message {
   rawPayload String? // raw WhatsApp webhook JSON, for audit/debugging
   createdAt  DateTime @default(now())
 
-  /// Channel: WHATSAPP | SMS
+  /// Channel: WHATSAPP | SMS | INSTAGRAM
   channel     String    @default("WHATSAPP")
-  /// Purpose: MISSED_CALL | REVIEW_REQUEST | WINBACK | REPLY | OTHER
+  /// Purpose: MISSED_CALL | REVIEW_REQUEST | WINBACK | REPLY | BOOKING_LINK | OTHER
   purpose     String?
   /// Status: QUEUED | SENT | DELIVERED | READ | FAILED | UNDELIVERED | RECEIVED | NOT_SENT
   status      String?

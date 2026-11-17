@@ -18,6 +18,8 @@ const updateSchema = z.object({
   frontDeskPlan: z.enum(FRONT_DESK_PLANS as [string, ...string[]]).nullable().optional(),
   smsMonthlyLimit: z.number().int().min(0).nullable().optional(),
   smsOverageRateCad: z.number().min(0).max(1).optional(),
+  // Instagram DMs → booking add-on (sold on top of the plan).
+  instagramAddon: z.boolean().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {

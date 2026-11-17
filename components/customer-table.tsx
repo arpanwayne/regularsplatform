@@ -5,6 +5,7 @@ import type { Customer } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { SegmentBadge } from "@/components/segment-badge";
 import { formatDate } from "@/lib/format";
+import { isInstagramOnly } from "@/lib/instagram-shared";
 
 type CustomerWithLocation = Customer & { location?: { name: string } };
 
@@ -38,7 +39,7 @@ export function CustomerTable({
   function startEdit(c: CustomerWithLocation) {
     setEditingId(c.id);
     setEditName(c.name ?? "");
-    setEditPhone(`+${c.phone}`);
+    setEditPhone(isInstagramOnly(c) ? "" : `+${c.phone}`); // Instagram-only: the owner can add a real number
     setEditError(null);
   }
 
@@ -48,7 +49,8 @@ export function CustomerTable({
     const res = await fetch(`/api/customers/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: editName.trim() || null, phone: editPhone }),
+      // An Instagram-only customer may have no number yet: leave phone out unless one was typed.
+      body: JSON.stringify({ name: editName.trim() || null, ...(editPhone.trim() ? { phone: editPhone } : {}) }),
     });
     const data = await res.json().catch(() => ({}));
     setSaving(false);
@@ -116,7 +118,9 @@ export function CustomerTable({
                   ) : (
                     <>
                       <p className="font-medium">{c.name || "Unnamed"}</p>
-                      <p className="text-gray-500">+{c.phone}</p>
+                      <p className="text-gray-500">
+                        {isInstagramOnly(c) ? <>Instagram{c.instagramUsername ? ` · @${c.instagramUsername}` : ""}</> : `+${c.phone}`}
+                      </p>
                     </>
                   )}
                 </td>

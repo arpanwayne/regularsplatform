@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Location } from "@prisma/client";
 
-type LocationRow = Location & { hasWhatsappToken?: boolean };
+type LocationRow = Location & { hasWhatsappToken?: boolean; hasInstagramToken?: boolean };
 
-export function LocationsManager({ locations, sharedNumber }: { locations: LocationRow[]; sharedNumber?: string | null }) {
+export function LocationsManager({ locations, sharedNumber, instagram = false }: { locations: LocationRow[]; sharedNumber?: string | null; instagram?: boolean }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
@@ -37,7 +37,7 @@ export function LocationsManager({ locations, sharedNumber }: { locations: Locat
       )}
 
       {locations.map((loc) => (
-        <LocationCard key={loc.id} location={loc} canDelete={locations.length > 1} sharedNumber={sharedNumber} />
+        <LocationCard key={loc.id} location={loc} canDelete={locations.length > 1} sharedNumber={sharedNumber} instagram={instagram} />
       ))}
 
       <div className="rounded-lg border border-dashed border-gray-300 p-4">
@@ -62,7 +62,7 @@ export function LocationsManager({ locations, sharedNumber }: { locations: Locat
   );
 }
 
-function LocationCard({ location, canDelete, sharedNumber }: { location: LocationRow; canDelete: boolean; sharedNumber?: string | null }) {
+function LocationCard({ location, canDelete, sharedNumber, instagram }: { location: LocationRow; canDelete: boolean; sharedNumber?: string | null; instagram?: boolean }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -181,7 +181,109 @@ function LocationCard({ location, canDelete, sharedNumber }: { location: Locatio
         </button>
         {saved && <span className="ml-3 text-sm text-brand-700">Saved</span>}
       </form>
+
+      {instagram && <InstagramConnect location={location} />}
     </section>
+  );
+}
+
+/**
+ * Instagram DMs → booking (Loopdesk add-on). The owner pastes the
+ * professional account ID and an Instagram access token from the Meta App
+ * Dashboard; DMs then show up in the inbox and "can I book?" gets the
+ * booking link automatically.
+ */
+function InstagramConnect({ location }: { location: LocationRow }) {
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const webhookUrl =
+    typeof window !== "undefined" ? `${window.location.origin}/api/webhook/instagram` : "/api/webhook/instagram";
+  const connected = !!location.instagramAccountId && !!location.hasInstagramToken;
+
+  async function save(body: Record<string, unknown>) {
+    setSaving(true);
+    setMsg(null);
+    const res = await fetch(`/api/locations/${location.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSaving(false);
+    if (!res.ok) {
+      const err = typeof data.error === "string" ? data.error : Object.values(data.error?.fieldErrors ?? {}).flat().join(" ") || "Couldn't save.";
+      setMsg({ ok: false, text: err });
+      return;
+    }
+    setMsg({ ok: true, text: "Saved" });
+    router.refresh();
+  }
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const id = String(form.get("instagramAccountId") ?? "").trim();
+    const token = String(form.get("instagramAccessToken") ?? "").trim();
+    const username = String(form.get("instagramUsername") ?? "").trim();
+    save({
+      ...(id ? { instagramAccountId: id } : {}),
+      ...(token ? { instagramAccessToken: token } : {}), // empty = keep the saved one
+      instagramUsername: username || null,
+      instagramAutoBooking: form.get("instagramAutoBooking") === "on",
+    });
+  }
+
+  return (
+    <div className="space-y-3 border-t border-gray-100 pt-4">
+      <p className="text-sm">
+        Instagram DMs:{" "}
+        {connected
+          ? <span className="font-medium text-green-700">connected{location.instagramUsername ? ` (@${location.instagramUsername})` : ""}</span>
+          : <span className="font-medium text-amber-700">not connected</span>}
+      </p>
+      <p className="text-xs text-gray-500">
+        DMs to this Instagram account show up in your inbox. When someone asks to book, they get your booking link
+        {location.bookingUrl ? "" : " (add a booking link under Front Desk below first)"}. In the Meta App Dashboard →
+        Instagram → Webhooks, use:
+      </p>
+      <CopyRow label="Callback URL" value={webhookUrl} />
+      <p className="text-xs text-gray-500">Verify token: the INSTAGRAM_WEBHOOK_VERIFY_TOKEN your admin set. Subscribe to <b>messages</b>.</p>
+
+      <form onSubmit={handleSubmit} className="space-y-3 max-w-md">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Instagram account ID</label>
+          <input name="instagramAccountId" defaultValue={location.instagramAccountId ?? ""}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="e.g. 17841400000000000" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Instagram username</label>
+          <input name="instagramUsername" defaultValue={location.instagramUsername ?? ""}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="e.g. mapleh_vac" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Instagram access token</label>
+          <input name="instagramAccessToken" type="password" defaultValue=""
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            placeholder={location.hasInstagramToken ? "Saved — leave empty to keep it" : "Long-lived Instagram token (instagram_business_manage_messages)"} />
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="instagramAutoBooking" defaultChecked={location.instagramAutoBooking} />
+          Send my booking link automatically when someone asks to book
+        </label>
+        <div className="flex items-center gap-3">
+          <button type="submit" disabled={saving}
+            className="rounded-md bg-brand-600 px-4 py-2 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-60">
+            {saving ? "Saving…" : "Save Instagram"}
+          </button>
+          {connected && (
+            <button type="button" disabled={saving} onClick={() => confirm("Disconnect Instagram from this location?") && save({ instagramAccountId: null })}
+              className="text-sm text-red-700 underline">Disconnect</button>
+          )}
+          {msg && <span className={`text-sm ${msg.ok ? "text-brand-700" : "text-red-600"}`}>{msg.text}</span>}
+        </div>
+      </form>
+    </div>
   );
 }
 

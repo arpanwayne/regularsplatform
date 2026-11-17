@@ -14,6 +14,11 @@ const updateSchema = z.object({
   bookingUrl: z.string().url().nullable().optional(),
   googleReviewUrl: z.string().url().nullable().optional(),
   ownerNotifyPhone: z.string().regex(/^\+\d{10,15}$/, "Use international format, e.g. +14165550123").nullable().optional(),
+  // Instagram DMs → booking (add-on). null disconnects the account.
+  instagramAccountId: z.string().trim().regex(/^\d{5,25}$/, "Instagram account ID is a number, e.g. 17841400000000000").nullable().optional(),
+  instagramAccessToken: z.string().trim().min(20).optional(),
+  instagramUsername: z.string().trim().max(60).transform((u) => u.replace(/^@/, "")).nullable().optional(),
+  instagramAutoBooking: z.boolean().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -34,12 +39,23 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  const data = {
+    ...parsed.data,
+    // A freshly pasted token starts its 60 days now.
+    ...(parsed.data.instagramAccessToken ? { instagramTokenRefreshedAt: new Date() } : {}),
+    ...(parsed.data.instagramAccountId === null ? { instagramAccessToken: null, instagramUsername: null, instagramTokenRefreshedAt: null } : {}),
+  };
+  if (data.instagramAccountId) {
+    const taken = await prisma.location.findFirst({ where: { instagramAccountId: data.instagramAccountId, NOT: { id: location.id } }, select: { id: true } });
+    if (taken) return NextResponse.json({ error: "This Instagram account is already connected to another location." }, { status: 409 });
+  }
   const updated = await prisma.location.update({
     where: { id: location.id },
-    data: parsed.data,
+    data,
   });
 
-  return NextResponse.json({ location: updated });
+  // Never send saved tokens back to the browser.
+  return NextResponse.json({ location: { ...updated, whatsappAccessToken: null, instagramAccessToken: null } });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
