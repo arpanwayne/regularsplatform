@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { signedUrl, verifyTwilioSignature } from "@/lib/sms";
+import { onMessageDeliveryFailed } from "@/lib/growth/delivery";
 
 const KNOWN = ["QUEUED", "SENDING", "SENT", "DELIVERED", "UNDELIVERED", "FAILED"];
 
@@ -14,6 +15,12 @@ export async function POST(req: NextRequest) {
   const sid = params.MessageSid, status = (params.MessageStatus || "").toUpperCase();
   if (sid && KNOWN.includes(status)) {
     await prisma.message.updateMany({ where: { providerSid: sid }, data: { status } });
+    if (status === "UNDELIVERED" || status === "FAILED") {
+      // Growth AI shows "Failed" instead of "Done" for texts that never arrived (bug B1).
+      const msg = await prisma.message.findFirst({ where: { providerSid: sid }, select: { id: true } });
+      const code = params.ErrorCode ? Number(params.ErrorCode) : null;
+      if (msg) await onMessageDeliveryFailed({ messageId: msg.id, code, reason: `the carrier didn't deliver this text${code ? ` (Twilio ${code})` : ""}.` });
+    }
   }
   return new NextResponse(null, { status: 204 });
 }

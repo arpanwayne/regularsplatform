@@ -19,12 +19,16 @@ export default async function AdminOverviewPage() {
     prisma.customer.count(),
     prisma.customer.groupBy({ by: ["segment"], _count: true }),
     prisma.callLog.groupBy({ by: ["status"], _count: true }),
-    prisma.payment.aggregate({ where: { status: "PAID" }, _sum: { amountInPaise: true } }),
+    // Per currency: CAD bundle payments used to be added to rupees.
+    prisma.payment.groupBy({ by: ["currency"], where: { status: "PAID" }, _sum: { amountInPaise: true } }),
   ]);
 
   const segments = Object.fromEntries(segmentCounts.map((s) => [s.segment, s._count]));
   const callLogs = Object.fromEntries(callLogCounts.map((c) => [c.status, c._count]));
-  const totalRevenueInr = (paidPayments._sum.amountInPaise ?? 0) / 100;
+  const revenue = paidPayments
+    .filter((p) => (p._sum.amountInPaise ?? 0) > 0)
+    .map((p) => ((p._sum.amountInPaise ?? 0) / 100).toLocaleString(p.currency === "INR" ? "en-IN" : "en-CA", { style: "currency", currency: p.currency, maximumFractionDigits: 0 }))
+    .join(" + ") || "₹0";
 
   return (
     <div className="space-y-8">
@@ -45,7 +49,7 @@ export default async function AdminOverviewPage() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label="Total revenue (paid)" value={`₹${totalRevenueInr.toLocaleString("en-IN")}`} />
+        <StatCard label="Total revenue (paid)" value={revenue} hint="Online payments plus offline payments recorded on Bundles → Activate" />
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white">

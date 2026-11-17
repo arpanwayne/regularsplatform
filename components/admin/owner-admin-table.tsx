@@ -6,6 +6,7 @@ export type AdminOwnerRow = {
   id: string;
   name: string;
   email: string;
+  role?: string;
   businesses: { id: string; name: string; sector: string; status: string }[];
 };
 
@@ -58,7 +59,9 @@ export function OwnerAdminTable({ owners }: { owners: AdminOwnerRow[] }) {
                 {o.businesses.map((b) => b.name).join(", ") || "—"}
               </td>
               <td className="px-4 py-3 text-right">
-                {tempPasswords[o.id] ? (
+                {o.role && o.role !== "OWNER" ? (
+                  <span className="text-xs text-gray-400">Admin account</span>
+                ) : tempPasswords[o.id] ? (
                   <div className="text-xs">
                     <p className="text-gray-500">Naya temporary password (ek hi baar dikhega):</p>
                     <code className="rounded bg-gray-100 px-2 py-1">{tempPasswords[o.id]}</code>

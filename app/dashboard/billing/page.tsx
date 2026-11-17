@@ -71,7 +71,7 @@ export default async function BillingPage() {
         <p className="text-sm text-gray-500">
           {business.planExpiresAt
             ? `Your plan is paid until ${formatDate(business.planExpiresAt, business.country)}.`
-            : "You're on the free Starter plan."}
+            : "You're on the Starter plan."}
         </p>
       </div>
 

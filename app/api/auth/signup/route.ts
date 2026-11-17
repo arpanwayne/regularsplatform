@@ -5,7 +5,7 @@ import { allow, clientIp } from "@/lib/rate-limit";
 import { createSessionToken, hashPassword, SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/auth";
 import { SECTORS } from "@/lib/types";
 import { BUNDLE_PLAN_IDS } from "@/lib/hub/plans";
-import { normalizePhone, toE164 } from "@/lib/phone";
+import { isPlaceholderPhone, normalizePhone, toE164 } from "@/lib/phone";
 
 const signupSchema = z.object({
   name: z.string().min(1),
@@ -37,8 +37,8 @@ export async function POST(req: NextRequest) {
 
   const digits = phone?.trim() ? normalizePhone(phone, country ?? "IN") : null;
   const ownerPhone = digits ? toE164(digits) : null;
-  if (bundlePlan && phone?.trim() && !digits) {
-    return NextResponse.json({ error: "That mobile number doesn't look right" }, { status: 400 });
+  if (bundlePlan && phone?.trim() && (!digits || isPlaceholderPhone(digits))) {
+    return NextResponse.json({ error: "That mobile number doesn't look right. Use your real mobile — your morning plan is sent to it." }, { status: 400 });
   }
   const india = (country ?? "IN") === "IN";
 

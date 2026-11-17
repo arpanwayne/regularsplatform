@@ -6,8 +6,10 @@ import { runSegmentationForBusiness } from "@/lib/run-segmentation";
 import { logEvent } from "@/lib/logger";
 import { handleOwnerReply } from "@/lib/growth/brief";
 import { sendOwnerSms, senderName } from "@/lib/sms";
-import { canSendWhatsApp, sendOwnerWhatsApp } from "@/lib/whatsapp-send";
-import { sharedCountries } from "@/lib/whatsapp-sender";
+import { ownerWhatsAppSender, sendOwnerWhatsApp } from "@/lib/whatsapp-send";
+import { sharedCountries, waErrorText } from "@/lib/whatsapp-sender";
+import { onMessageDeliveryFailed } from "@/lib/growth/delivery";
+import { smsConfigured } from "@/lib/sms";
 
 // GET — Meta's webhook verification handshake. Each Location gets its own
 // whatsappVerifyToken (shown on the Settings page); we also accept the
@@ -38,6 +40,15 @@ export async function GET(req: NextRequest) {
 type LocWithBusiness = Location & { business: Business };
 
 const STATUS: Record<string, string> = { sent: "SENT", delivered: "DELIVERED", read: "READ", failed: "FAILED" };
+/**
+ * Meta can deliver receipts out of order (a late "sent" after "delivered").
+ * A status only moves forward; FAILED is final.
+ */
+const RANK: Record<string, number> = { SENT: 1, DELIVERED: 2, READ: 3, FAILED: 9 };
+const lowerThan = (status: string) => Object.keys(RANK).filter((k) => RANK[k] < RANK[status] && k !== "FAILED");
+
+/** Meta's "Test" button on the webhook settings page sends this made-up number id. */
+const META_SAMPLE_PHONE_NUMBER_IDS = ["123456123"];
 
 /**
  * Inbound on the shared number (+91 90414 36801): many businesses send from
@@ -51,12 +62,14 @@ async function routeShared(from: string): Promise<{ location: LocWithBusiness; o
   const phones = [from, `+${from}`];
   const onShared = { whatsappPhoneNumberId: null } as const;
 
+  // Owners in any country can get their brief from the shared number
+  // (lib/whatsapp-send.ts ownerWhatsAppSender), so their replies route here too.
   const settings = await prisma.growthSettings.findFirst({
-    where: { ownerPhone: { in: phones }, business: { country: { in: countries } } },
+    where: { ownerPhone: { in: phones }, enabled: true },
     include: { business: { include: { locations: { where: onShared, orderBy: { createdAt: "asc" }, take: 1 } } } },
   });
   const ownerLoc = settings?.business.locations[0]
-    ?? (await prisma.location.findFirst({ where: { ...onShared, ownerNotifyPhone: { in: phones }, business: { country: { in: countries } } } }));
+    ?? (await prisma.location.findFirst({ where: { ...onShared, ownerNotifyPhone: { in: phones } } }));
   if (ownerLoc) {
     const location = await prisma.location.findUnique({ where: { id: ownerLoc.id }, include: { business: true } });
     if (location) return { location, owner: true };
@@ -110,7 +123,10 @@ export async function POST(req: NextRequest) {
       for (const st of value.statuses ?? []) {
         const status = STATUS[st.status];
         if (!status) continue;
-        await prisma.message.updateMany({ where: { providerSid: st.id, channel: "WHATSAPP", direction: "OUTBOUND" }, data: { status } });
+        await prisma.message.updateMany({
+          where: { providerSid: st.id, channel: "WHATSAPP", direction: "OUTBOUND", status: { in: [...lowerThan(status), "QUEUED", "SENDING"] } },
+          data: { status },
+        });
         if (status === "FAILED") {
           // Keep Meta's reason on the message so the inbox can show it (e.g. 131049).
           const err = st.errors?.[0];
@@ -119,6 +135,8 @@ export async function POST(req: NextRequest) {
             let raw: Record<string, unknown> = {};
             try { raw = msg.rawPayload ? JSON.parse(msg.rawPayload) : {}; } catch { /* keep empty */ }
             await prisma.message.update({ where: { id: msg.id }, data: { rawPayload: JSON.stringify({ ...raw, deliveryError: { code: err?.code ?? null, title: err?.title ?? null } }) } });
+            // The Growth AI page must show "Failed", not "Done" (bug B1); 131049 is retried once tomorrow (bug B4).
+            await onMessageDeliveryFailed({ messageId: msg.id, code: err?.code ?? null, reason: waErrorText(err?.code, err?.title) });
           }
           await logEvent({ businessId: msg?.businessId, source: "WHATSAPP", level: "WARN", message: `WhatsApp message failed to deliver${err?.code ? ` (Meta ${err.code})` : ""}`, meta: { id: st.id, errors: st.errors } });
         }
@@ -132,7 +150,12 @@ export async function POST(req: NextRequest) {
       const isShared = !ownLocation && !!sharedId && phoneNumberId === sharedId;
       if (!ownLocation && !isShared) {
         // Location hasn't finished setup yet — ack with 200 so Meta doesn't retry.
-        await logEvent({ source: "WEBHOOK", level: "WARN", message: `Webhook event for unrecognized phone_number_id ${phoneNumberId}` });
+        if (META_SAMPLE_PHONE_NUMBER_IDS.includes(phoneNumberId)) {
+          // Not a misconfiguration (bug B13): someone pressed "Test" in the Meta App Dashboard.
+          await logEvent({ source: "WEBHOOK", level: "INFO", message: "Meta dashboard test event received (sample phone_number_id 123456123) — webhook is reachable" });
+        } else {
+          await logEvent({ source: "WEBHOOK", level: "WARN", message: `Webhook event for unrecognized phone_number_id ${phoneNumberId}`, meta: { hint: "Not the shared number (WHATSAPP_SHARED_PHONE_NUMBER_ID) and no location has this id in Settings." } });
+        }
         continue;
       }
 
@@ -179,7 +202,9 @@ export async function POST(req: NextRequest) {
               optedOutAt: optOut ? now : null,
             },
             update: {
-              name: contactsByWaId.get(message.from) ?? undefined,
+              // Never overwrite the name the business saved with the
+              // WhatsApp profile name ("AK" became "arpansaini", bug B18).
+              // The profile name only fills an empty name, below.
               lastSeenAt: now,
               ...(isQualifyingVisit(messageType) ? { visitCount: { increment: 1 } } : {}),
               // Opt-outs are one-directional here: once set, only the
@@ -188,6 +213,12 @@ export async function POST(req: NextRequest) {
               ...(optOut ? { optedOut: true, optedOutAt: now } : {}),
             },
           });
+
+          const profileName = contactsByWaId.get(message.from)?.trim();
+          if (!customer.name && profileName) {
+            await prisma.customer.update({ where: { id: customer.id }, data: { name: profileName } });
+            customer.name = profileName;
+          }
 
           const stored = await prisma.message.create({
             data: {
@@ -226,7 +257,10 @@ export async function POST(req: NextRequest) {
           if (!optOut && location.ownerNotifyPhone) {
             const who = customer.name ? `${customer.name} (+${customer.phone})` : `+${customer.phone}`;
             const name = senderName(location, business);
-            if (business.defaultChannel === "WHATSAPP" && canSendWhatsApp(business, location)) {
+            // WhatsApp whenever we can reach the owner there (the shared number works for
+            // owners in any country), SMS only when that's what's set up.
+            const smsReady = !!location.smsFromNumber && smsConfigured();
+            if (ownerWhatsAppSender(location, business) && !(business.defaultChannel === "SMS" && smsReady)) {
               await sendOwnerWhatsApp(business, location, location.ownerNotifyPhone, {
                 templateKey: "owner_new_message", params: [name, who, text ?? `[${message.type}]`],
               });

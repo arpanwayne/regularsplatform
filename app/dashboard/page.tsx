@@ -57,8 +57,10 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      {/* Every segment has a card, so the cards add up to the total (bug B11: "New" was missing). */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard label="Total customers" value={totalCustomers} />
+        <StatCard label="New" value={countBySegment.NEW ?? 0} />
         <StatCard label="Regular" value={countBySegment.REGULAR ?? 0} />
         <StatCard label="At-risk" value={countBySegment.AT_RISK ?? 0} />
         <StatCard label="High spender" value={countBySegment.HIGH_SPENDER ?? 0} />

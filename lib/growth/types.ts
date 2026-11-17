@@ -29,13 +29,18 @@ export type ActionType = (typeof ACTION_TYPES)[number];
 export type Autonomy = "SUGGEST" | "APPROVE" | "AUTO";
 export const AUTONOMY_LEVELS: Autonomy[] = ["SUGGEST", "APPROVE", "AUTO"];
 
-/** Safe defaults: the brain asks before anything a customer sees, except review requests right after a visit. */
+/**
+ * Safe defaults: the brain asks before anything a customer sees. The
+ * handover says every action stays on "Ask me first" for the first month
+ * (bug B17 — review requests used to default to "Do it, then tell me").
+ * Owners move actions to AUTO themselves once they trust them.
+ */
 export const DEFAULT_AUTONOMY: Record<ActionType, Autonomy> = {
   MISSED_LEAD_CALLBACK: "APPROVE",
   QUOTE_FOLLOW_UP: "APPROVE",
   SERVICE_DUE: "APPROVE",
   WIN_BACK: "APPROVE",
-  REVIEW_REQUEST: "AUTO",
+  REVIEW_REQUEST: "APPROVE",
   REVIEW_REPLY: "APPROVE",
   GOOGLE_POST: "APPROVE",
   PROMO_REEL: "SUGGEST",

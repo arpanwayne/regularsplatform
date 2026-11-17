@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/session";
 import { getSettings } from "@/lib/growth/settings";
 import { ACTION_TYPES, AUTONOMY_LEVELS, GOALS } from "@/lib/growth/types";
+import { isPlaceholderPhone } from "@/lib/phone";
+import { GROWTH_UPGRADE_MESSAGE, growthAllowed } from "@/lib/growth/access";
 
 const schema = z.object({
   enabled: z.boolean().optional(),
@@ -21,7 +23,9 @@ const schema = z.object({
   quoteFollowupDays: z.number().int().min(1).max(30).optional(),
   callQuoteAbove: z.number().min(0).optional(),
   autonomy: z.record(z.enum(ACTION_TYPES), z.enum(AUTONOMY_LEVELS as [string, ...string[]])).optional(),
-  ownerPhone: z.string().regex(/^\+\d{8,15}$/, "Use +countrycode format").nullable().optional(),
+  ownerPhone: z.string().regex(/^\+\d{8,15}$/, "Use +countrycode format")
+    .refine((v) => !isPlaceholderPhone(v), "That looks like a placeholder number. Enter the owner's real mobile — the morning plan is sent to it.")
+    .nullable().optional(),
   wayneRingBaseUrl: z.string().url().nullable().optional(),
   wayneRingCallbackKey: z.string().startsWith("wrcb_").nullable().optional(),
   gmbLocationId: z.string().max(100).nullable().optional(),
@@ -34,6 +38,7 @@ export async function PATCH(req: NextRequest) {
   if (!business) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  if (parsed.data.enabled && !growthAllowed(business)) return NextResponse.json({ error: GROWTH_UPGRADE_MESSAGE }, { status: 403 });
   await getSettings(business);
   const { autonomy, ...rest } = parsed.data;
   const updated = await prisma.growthSettings.update({

@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PLANS } from "@/lib/types";
+import { PLANS, SECTORS } from "@/lib/types";
 
 export type AdminBusinessRow = {
   id: string;
@@ -63,7 +63,16 @@ export function BusinessAdminTable({ businesses }: { businesses: AdminBusinessRo
               <tr>
                 <td className="px-4 py-3">
                   <p className="font-medium">{b.name}</p>
-                  <p className="text-gray-500">{b.sector}</p>
+                  <select
+                    value={b.sector}
+                    disabled={savingId === b.id}
+                    onChange={(e) => patch(b.id, { sector: e.target.value })}
+                    className="mt-1 rounded border border-gray-200 px-1 py-0.5 text-xs text-gray-600"
+                    aria-label="Business type"
+                    title="Business type — the Google profile tool writes posts for this type"
+                  >
+                    {SECTORS.map((sct) => <option key={sct} value={sct}>{sct.replace("_", " ").toLowerCase()}</option>)}
+                  </select>
                 </td>
                 <td className="px-4 py-3">
                   <p>{b.owner.name}</p>

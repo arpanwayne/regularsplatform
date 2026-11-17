@@ -28,3 +28,19 @@ export function normalizePhone(raw: string | null | undefined, country = "IN"): 
 export function toE164(digits: string) {
   return digits.startsWith("+") ? digits : `+${digits}`;
 }
+
+/**
+ * True for numbers people type to get past a form: 9876543210, 1234567890,
+ * 5555555555, 0000000000 and the like (with or without a country code).
+ * The morning plan must never be "set up" on one of these (bug B14).
+ */
+export function isPlaceholderPhone(raw: string | null | undefined): boolean {
+  const d = String(raw ?? "").replace(/\D/g, "");
+  if (!d) return false;
+  const local = d.length > 10 ? d.slice(-10) : d;
+  if (/^(\d)\1+$/.test(local)) return true;                       // 0000000000, 5555555555
+  if ("01234567890123456789".includes(local)) return true;        // 1234567890, 0123456789
+  if ("98765432109876543210".includes(local)) return true;        // 9876543210
+  if (d.length === 11 && d.startsWith("1") && /^\d{3}55501\d\d$/.test(local)) return true; // North American fiction range 555-01xx
+  return false;
+}

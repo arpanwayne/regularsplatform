@@ -44,6 +44,17 @@ const first = (n?: string | null) => (n ?? "").trim().split(/\s+/)[0] || "";
 const who = (c?: Customer | null) => (c?.name ? c.name : c ? `+${c.phone}` : "");
 const daysAgo = (d: Date, now: Date) => Math.max(0, Math.round((now.getTime() - d.getTime()) / DAY));
 
+/**
+ * Plain reason on a win-back card. "Last seen 63 days ago after 0 visits"
+ * read oddly (bug B10): with no visits on record the customer was only
+ * added to the list, so say that.
+ */
+export function winBackReason(c: Pick<Customer, "segment" | "visitCount" | "lastSeenAt"> & { firstSeenAt?: Date | null }, now: Date) {
+  const label = c.segment === "DORMANT" ? "Dormant" : "At risk";
+  if (!c.visitCount) return `${label}: added ${daysAgo(c.firstSeenAt ?? c.lastSeenAt, now)} days ago, never visited.`;
+  return `${label}: last seen ${daysAgo(c.lastSeenAt, now)} days ago after ${c.visitCount} visit${c.visitCount === 1 ? "" : "s"}.`;
+}
+
 /** LEARN: this business's win rate per action type, smoothed toward the base rate. */
 export async function learnedWinRates(businessId: string, now = new Date()) {
   const done = await prisma.growthAction.findMany({
@@ -145,10 +156,11 @@ async function findCandidates(business: Business & { locations: Location[] }, s:
     out.push({
       type: "WIN_BACK", customer: c, locationId: c.locationId,
       title: `Win back ${who(c)}`,
-      reason: `${c.segment === "DORMANT" ? "Dormant" : "At risk"}: last seen ${daysAgo(c.lastSeenAt, now)} days ago after ${c.visitCount} visit${c.visitCount === 1 ? "" : "s"}.`,
+      reason: winBackReason(c, now),
       value: c.visitCount ? Math.max(s.avgJobValue * 0.5, c.totalSpend / c.visitCount) : s.avgJobValue * 0.5,
       dedupeKey: `WINBACK:${c.id}:${month}`,
-      payload: { channel: "TEXT", purpose: "WINBACK", relationship: "customer", context: `${c.visitCount} past visits, last one ${daysAgo(c.lastSeenAt, now)} days ago.` },
+      payload: { channel: "TEXT", purpose: "WINBACK", relationship: "customer",
+                 context: c.visitCount ? `${c.visitCount} past visits, last one ${daysAgo(c.lastSeenAt, now)} days ago.` : `On the customer list for ${daysAgo(c.firstSeenAt ?? c.lastSeenAt, now)} days, no visit recorded yet.` },
     });
   }
 
@@ -262,10 +274,14 @@ export async function planForBusiness(businessId: string, now = new Date(), opts
     .map((c) => ({ c, ev: c.value * rates[c.type], prio: c.value * rates[c.type] * (goalW[c.type] ?? 1) }))
     .sort((a, b) => b.prio - a.prio);
 
-  // One action per customer per plan; respect today's cap.
-  const already = await prisma.growthAction.count({ where: { businessId, planDate: today } });
+  // One action per customer per day; respect today's cap. Customers who
+  // already have an action today (an earlier "Plan now" press, or this
+  // morning's plan) are taken — otherwise pressing "Plan now" twice sent
+  // one person a win-back and a service reminder a minute apart (bug B5).
+  const todays = await prisma.growthAction.findMany({ where: { businessId, planDate: today }, select: { customerId: true, status: true } });
+  const already = todays.length;
   const room = Math.max(0, s.dailyActionCap - already);
-  const perCustomer = new Set<string>();
+  const perCustomer = new Set<string>(todays.filter((a) => a.customerId && a.status !== "EXPIRED").map((a) => a.customerId as string));
   const chosen: typeof scored = [];
   for (const x of scored) {
     if (chosen.length >= room) break;

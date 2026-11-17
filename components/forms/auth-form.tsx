@@ -40,8 +40,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
       setError(typeof data?.error === "string" ? data.error : "Something went wrong");
       return;
     }
-    router.push("/dashboard");
-    router.refresh();
+    // Full page load, not router.push: Next keeps recently seen pages in a
+    // client cache, so signing in as another account in the same tab showed
+    // the previous account's Growth AI / Settings / Billing (bug B0).
+    window.location.assign("/dashboard");
   }
 
   return (
