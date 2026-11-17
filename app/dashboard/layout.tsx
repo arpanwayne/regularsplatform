@@ -6,14 +6,15 @@ import { planTools } from "@/lib/hub/plans";
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
   if (!user) {
-    redirect("/login");
+    // Not /login: a stale cookie would bounce back here from the middleware.
+    redirect("/api/auth/clear-session");
   }
 
   const business = await getCurrentBusiness();
   if (!business) {
     // A super admin has no Business of their own — send them to their
     // actual home page instead of erroring on a missing business.
-    redirect(user.role === "SUPER_ADMIN" ? "/admin" : "/login");
+    redirect(user.role === "SUPER_ADMIN" ? "/admin" : "/api/auth/clear-session");
   }
 
   return (
