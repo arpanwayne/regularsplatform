@@ -11,6 +11,7 @@ export type AdminBusinessRow = {
   status: string;
   plan: string;
   planExpiresAt: string | Date | null;
+  instagramAddon: boolean;
   connectedLocations: number;
   atRiskAfterDaysOverride: number | null;
   dormantAfterDaysOverride: number | null;
@@ -106,6 +107,11 @@ export function BusinessAdminTable({ businesses }: { businesses: AdminBusinessRo
                       till {new Date(b.planExpiresAt).toLocaleDateString("en-IN")}
                     </p>
                   )}
+                  <label className="mt-1 flex items-center gap-1 text-xs text-gray-600" title="Instagram DMs → booking add-on">
+                    <input type="checkbox" checked={b.instagramAddon} disabled={savingId === b.id}
+                      onChange={(e) => patch(b.id, { instagramAddon: e.target.checked })} />
+                    Instagram DMs
+                  </label>
                 </td>
                 <td className="px-4 py-3">
                   <span

@@ -5,6 +5,7 @@ import { getCurrentBusiness } from "@/lib/session";
 import { triggerVoiceCall } from "@/lib/calling-provider";
 import { recordUsageEvent } from "@/lib/usage";
 import { logEvent } from "@/lib/logger";
+import { isInstagramOnly } from "@/lib/instagram-shared";
 
 const schema = z.object({ scriptId: z.string(), customerId: z.string() });
 
@@ -34,6 +35,9 @@ export async function POST(req: NextRequest) {
       { error: "Customer has opted out of WhatsApp/calling outreach" },
       { status: 409 }
     );
+  }
+  if (isInstagramOnly(customer)) {
+    return NextResponse.json({ error: "This customer has only messaged on Instagram — there is no phone number to call." }, { status: 409 });
   }
 
   let status: "TRIGGERED" | "PENDING" | "FAILED" = "PENDING";

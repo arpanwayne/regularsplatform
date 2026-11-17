@@ -8,6 +8,7 @@ import {
   type WaLang, type WaTemplateKey,
 } from "@/lib/whatsapp-templates";
 import { sharedSender, whatsappSenderFor, windowOpen, type WaSender } from "@/lib/whatsapp-sender";
+import { isInstagramOnly } from "@/lib/instagram-shared";
 
 /**
  * Outgoing WhatsApp (Cloud API). Every business-started message uses an
@@ -146,6 +147,8 @@ export async function sendCustomerWhatsApp(p: {
   if (!sender) return null;
   if (business.status === "SUSPENDED" || location.status === "SUSPENDED") return { ok: false, status: "SUSPENDED" };
   if (customer.optedOut) return { ok: false, status: "OPTED_OUT" };
+  // Someone who only wrote on Instagram has no WhatsApp number.
+  if (isInstagramOnly(customer)) return { ok: false, status: "NO_NUMBER", error: "NO_PHONE: This customer has only messaged on Instagram — there is no WhatsApp number." };
 
   const open = windowOpen(await lastInboundWhatsApp(customer.id), p.now);
   let r: GraphResult, shown: string, tpl: string | null = null, sentLang: WaLang | null = null;

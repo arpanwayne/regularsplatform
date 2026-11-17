@@ -6,15 +6,16 @@ import { InboxReply } from "@/components/inbox-reply";
 import { canSendWhatsApp, whatsappUsageThisMonth } from "@/lib/whatsapp-send";
 import { failureReason, sharedDisplayNumber, whatsappSenderFor, windowOpen } from "@/lib/whatsapp-sender";
 import { formatDateTime } from "@/lib/format";
+import { customerLabel, instagramAllowed, instagramWindowOpen } from "@/lib/instagram";
 
 export const dynamic = "force-dynamic";
 
 const PURPOSE_LABEL: Record<string, string> = {
-  MISSED_CALL: "Missed-call message", REVIEW_REQUEST: "Review request", WINBACK: "Win-back", FOLLOW_UP: "Follow-up", REPLY: "", OTHER: "",
+  MISSED_CALL: "Missed-call message", REVIEW_REQUEST: "Review request", WINBACK: "Win-back", FOLLOW_UP: "Follow-up", BOOKING_LINK: "Booking link (sent automatically)", REPLY: "", OTHER: "",
 };
 
 /**
- * Two-way inbox (WhatsApp + SMS): every customer message lands here (and is
+ * Two-way inbox (WhatsApp + SMS + Instagram DMs): every customer message lands here (and is
  * forwarded to the owner's phone if set). The owner replies from the thread
  * view, on the channel the customer last wrote on.
  */
@@ -32,7 +33,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { c?: 
   const seen = new Set<string>();
   const latest = recent.filter((m) => (seen.has(m.customerId) ? false : (seen.add(m.customerId), true))).slice(0, 100);
   const [customers, unread, usage, waSent, firstLocation] = await Promise.all([
-    prisma.customer.findMany({ where: { id: { in: latest.map((m) => m.customerId) } }, select: { id: true, name: true, phone: true, smsOptedOut: true, optedOut: true, preferredChannel: true, locationId: true } }),
+    prisma.customer.findMany({ where: { id: { in: latest.map((m) => m.customerId) } }, select: { id: true, name: true, phone: true, instagramUsername: true, smsOptedOut: true, optedOut: true, preferredChannel: true, locationId: true } }),
     prisma.message.groupBy({ by: ["customerId"], where: { businessId: business.id, direction: "INBOUND", readAt: null }, _count: { _all: true } }),
     smsUsageThisMonth(business),
     whatsappUsageThisMonth(business.id),
@@ -56,8 +57,13 @@ export default async function InboxPage({ searchParams }: { searchParams: { c?: 
   const lastIn = [...thread].reverse().find((m) => m.direction === "INBOUND");
   const activeChannel = lastIn?.channel ?? active?.preferredChannel ?? business.defaultChannel;
   const activeLocation = active ? await prisma.location.findUnique({ where: { id: active.locationId } }) : null;
-  const replyOnWhatsApp = activeChannel === "WHATSAPP" && canSendWhatsApp(business, activeLocation);
-  const waWindowOpen = windowOpen(lastIn?.channel === "WHATSAPP" ? lastIn.createdAt : null);
+  const replyOnInstagram = activeChannel === "INSTAGRAM";
+  const replyOnWhatsApp = !replyOnInstagram && activeChannel === "WHATSAPP" && canSendWhatsApp(business, activeLocation);
+  const waWindowOpen = replyOnInstagram
+    ? instagramWindowOpen(lastIn?.createdAt ?? null)
+    : windowOpen(lastIn?.channel === "WHATSAPP" ? lastIn.createdAt : null);
+  const replyChannel = replyOnInstagram ? "INSTAGRAM" : replyOnWhatsApp ? "WHATSAPP" : "SMS";
+  const igOn = instagramAllowed(business) && !!firstLocation?.instagramAccountId;
 
   return (
     <div className="space-y-4">
@@ -70,6 +76,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { c?: 
               ? <span className="ml-2 rounded bg-green-100 px-2 py-0.5 text-green-800">{waSender.shared ? `Sending from ${sharedDisplayNumber()}` : "Sending from your WhatsApp number"}</span>
               : <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-amber-800">WhatsApp not connected</span>}
           </span>
+          {igOn && <span className="rounded bg-pink-100 px-2 py-0.5 text-pink-800">Instagram DMs on</span>}
           {(usesSms || usage.used > 0) && (
             <span>
               SMS this month: <b>{usage.used}</b>
@@ -96,7 +103,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { c?: 
                   <Link href={`/dashboard/inbox?c=${m.customerId}`}
                     className={`block px-4 py-3 hover:bg-gray-50 ${m.customerId === activeId ? "bg-brand-50" : ""}`}>
                     <div className="flex items-center justify-between gap-2">
-                      <span className={`truncate text-sm ${n ? "font-semibold" : "font-medium"}`}>{c?.name || `+${c?.phone}`}</span>
+                      <span className={`truncate text-sm ${n ? "font-semibold" : "font-medium"}`}>{c ? customerLabel(c) : ""}</span>
                       {n > 0 && <span className="rounded-full bg-brand-600 px-2 text-xs font-semibold text-white">{n}</span>}
                     </div>
                     <p className="truncate text-xs text-gray-500">{m.direction === "OUTBOUND" ? "You: " : ""}{m.text}</p>
@@ -109,8 +116,12 @@ export default async function InboxPage({ searchParams }: { searchParams: { c?: 
           <section className="flex flex-col">
             {active && (
               <header className="border-b border-gray-200 px-5 py-3">
-                <div className="font-medium">{active.name || `+${active.phone}`}</div>
-                <div className="text-xs text-gray-500">+{active.phone} · {replyOnWhatsApp ? "WhatsApp" : "SMS"}{active.smsOptedOut && " · opted out of texts (replied STOP)"}{active.optedOut && " · opted out of WhatsApp"}</div>
+                <div className="font-medium">{customerLabel(active)}</div>
+                <div className="text-xs text-gray-500">
+                  {replyOnInstagram
+                    ? <>Instagram{active.instagramUsername ? ` · @${active.instagramUsername}` : ""}</>
+                    : <>+{active.phone} · {replyOnWhatsApp ? "WhatsApp" : "SMS"}{active.smsOptedOut && " · opted out of texts (replied STOP)"}{active.optedOut && " · opted out of WhatsApp"}</>}
+                </div>
               </header>
             )}
             <div className="flex-1 space-y-2 overflow-y-auto px-5 py-4">
@@ -120,7 +131,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { c?: 
                     {m.purpose && PURPOSE_LABEL[m.purpose] && <div className="mb-0.5 text-[11px] opacity-75">{PURPOSE_LABEL[m.purpose]}</div>}
                     <div className="whitespace-pre-wrap">{m.text}</div>
                     <div className="mt-0.5 text-[11px] opacity-60">
-                      {m.channel === "WHATSAPP" ? "WhatsApp · " : "SMS · "}
+                      {m.channel === "WHATSAPP" ? "WhatsApp · " : m.channel === "INSTAGRAM" ? "Instagram · " : "SMS · "}
                       {formatDateTime(m.createdAt, business.country, tz)}
                       {m.direction === "OUTBOUND" && m.status && ` · ${m.status.toLowerCase().replace("_", " ")}`}
                     </div>
@@ -134,9 +145,9 @@ export default async function InboxPage({ searchParams }: { searchParams: { c?: 
             {active && (
               <InboxReply
                 customerId={active.id}
-                channel={replyOnWhatsApp ? "WHATSAPP" : "SMS"}
+                channel={replyChannel}
                 windowOpen={waWindowOpen}
-                disabled={replyOnWhatsApp ? active.optedOut : active.smsOptedOut}
+                disabled={replyOnInstagram ? false : replyOnWhatsApp ? active.optedOut : active.smsOptedOut}
               />
             )}
           </section>

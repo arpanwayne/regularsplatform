@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { gmb, videoStudio, wayneRing } from "@/lib/growth/connectors";
 import { writeCopy, type CopyRequest } from "@/lib/growth/copy";
 import { DAY, autonomyFor, getSettings, isoWeek, localParts, money, parseJson } from "@/lib/growth/settings";
+import { HAS_REAL_PHONE } from "@/lib/instagram-shared";
 import {
   ACTION_LABEL, ACTION_TYPES, BASE_WIN_RATE, CONVERSION_EVENTS, CUSTOMER_CONTACT, GOAL_WEIGHT, HANDLED_EVENTS,
   type ActionType, type GrowthGoal,
@@ -129,7 +130,7 @@ async function findCandidates(business: Business & { locations: Location[] }, s:
   // c. Service due — last visit/job one service interval ago.
   if (s.serviceIntervalDays) {
     const due = await prisma.customer.findMany({
-      where: { businessId: business.id, optedOut: false, visitCount: { gte: 1 },
+      where: { businessId: business.id, optedOut: false, visitCount: { gte: 1 }, ...HAS_REAL_PHONE,
                lastSeenAt: { gte: new Date(now.getTime() - (s.serviceIntervalDays + 60) * DAY), lt: new Date(now.getTime() - (s.serviceIntervalDays - 7) * DAY) } },
       orderBy: { totalSpend: "desc" }, take: 30,
     });
@@ -147,7 +148,7 @@ async function findCandidates(business: Business & { locations: Location[] }, s:
 
   // d. Win-backs — at-risk / dormant, no win-back in 30 days.
   const quiet = await prisma.customer.findMany({
-    where: { businessId: business.id, segment: { in: ["AT_RISK", "DORMANT"] }, optedOut: false, ...marketingConsentFilter(business.country, now),
+    where: { businessId: business.id, segment: { in: ["AT_RISK", "DORMANT"] }, optedOut: false, ...HAS_REAL_PHONE, ...marketingConsentFilter(business.country, now),
              OR: [{ lastWinbackAt: null }, { lastWinbackAt: { lt: new Date(now.getTime() - 30 * DAY) } }] },
     orderBy: { totalSpend: "desc" }, take: 30,
   });

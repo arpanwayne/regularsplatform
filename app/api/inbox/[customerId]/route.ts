@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/session";
 import { sendCustomerSms } from "@/lib/sms";
 import { canSendWhatsApp, sendCustomerWhatsApp } from "@/lib/whatsapp-send";
+import { sendCustomerInstagram } from "@/lib/instagram";
 
 async function load(customerId: string) {
   const business = await getCurrentBusiness();
@@ -34,7 +35,7 @@ async function replyChannel(customer: { id: string; preferredChannel: string | n
   return last?.channel ?? customer.preferredChannel ?? defaultChannel;
 }
 
-/** POST /api/inbox/:customerId  { text } — owner replies from the dashboard (WhatsApp or SMS). */
+/** POST /api/inbox/:customerId  { text } — owner replies from the dashboard (WhatsApp, SMS or Instagram). */
 export async function POST(req: NextRequest, { params }: { params: { customerId: string } }) {
   const r = await load(params.customerId);
   if ("error" in r) return r.error;
@@ -42,6 +43,10 @@ export async function POST(req: NextRequest, { params }: { params: { customerId:
   if (!parsed.success) return NextResponse.json({ error: "Message text is required (max 1000 characters)" }, { status: 400 });
   const { business, customer } = r;
   const channel = await replyChannel(customer, business.defaultChannel);
+  if (channel === "INSTAGRAM") {
+    const ig = await sendCustomerInstagram({ business, location: customer.location, customer, purpose: "REPLY", text: parsed.data.text });
+    return NextResponse.json(ig, { status: ig.ok ? 200 : 409 });
+  }
   const wa = channel === "WHATSAPP" && canSendWhatsApp(business, customer.location)
     ? await sendCustomerWhatsApp({ business, location: customer.location, customer, purpose: "REPLY", text: parsed.data.text })
     : null;

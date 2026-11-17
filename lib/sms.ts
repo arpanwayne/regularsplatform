@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
 import { toE164 } from "@/lib/phone";
 import type { MessagePurpose } from "@/lib/types";
+import { isInstagramOnly } from "@/lib/instagram-shared";
 
 /**
  * SMS channel (Twilio) — added for WayneRing AI Front Desk, where Canadian
@@ -112,6 +113,8 @@ export async function sendCustomerSms(params: {
   const { business, location, customer, purpose } = params;
   if (business.status === "SUSPENDED" || location.status === "SUSPENDED") return { ok: false, status: "SUSPENDED" };
   if (customer.optedOut || customer.smsOptedOut) return { ok: false, status: "OPTED_OUT" };
+  // Someone who only wrote on Instagram has no phone number to text.
+  if (isInstagramOnly(customer)) return { ok: false, status: "NO_NUMBER", error: "NO_PHONE: This customer has only messaged on Instagram — there is no phone number to text." };
   if (!location.smsFromNumber) {
     await logEvent({ businessId: business.id, source: "SMS", level: "WARN", message: `No texting number on location "${location.name}" — SMS not sent`, meta: { purpose } });
     return { ok: false, status: "NO_NUMBER" };

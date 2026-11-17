@@ -6,6 +6,7 @@ import { sendCustomerSms } from "@/lib/sms";
 import { sendCustomerWhatsApp } from "@/lib/whatsapp-send";
 import type { WaTemplateKey } from "@/lib/whatsapp-templates";
 import type { MessagePurpose } from "@/lib/types";
+import { HAS_REAL_PHONE } from "@/lib/instagram-shared";
 
 /**
  * WayneRing AI Front Desk — the "Return" half of the product loop:
@@ -105,6 +106,7 @@ export async function runWinback(business: Business, opts: { dryRun?: boolean; l
       segment: { in: ["AT_RISK", "DORMANT"] },
       optedOut: false,
       smsOptedOut: false,
+      ...HAS_REAL_PHONE, // Instagram-only customers can't be texted (and Instagram allows no cold DMs)
       ...marketingConsentFilter(business.country, now),
       OR: [{ lastWinbackAt: null }, { lastWinbackAt: { lt: new Date(now.getTime() - WINBACK_EVERY_MS) } }],
     },
