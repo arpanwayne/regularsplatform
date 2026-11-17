@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/session";
+import { subscribeInstagramWebhooks } from "@/lib/instagram";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -54,8 +55,15 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data,
   });
 
+  // New account or token: subscribe the app to its DMs, or Meta sends nothing.
+  let instagramWarning: string | null = null;
+  if ((parsed.data.instagramAccountId || parsed.data.instagramAccessToken) && updated.instagramAccountId && updated.instagramAccessToken) {
+    const err = await subscribeInstagramWebhooks(updated);
+    if (err) instagramWarning = `Saved, but Meta didn't subscribe this account to messages: ${err}`;
+  }
+
   // Never send saved tokens back to the browser.
-  return NextResponse.json({ location: { ...updated, whatsappAccessToken: null, instagramAccessToken: null } });
+  return NextResponse.json({ location: { ...updated, whatsappAccessToken: null, instagramAccessToken: null }, instagramWarning });
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {

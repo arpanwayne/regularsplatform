@@ -15,13 +15,25 @@ export * from "@/lib/instagram-shared";
  * book ("can I book for Saturday?", "appointment milega?") gets the
  * location's booking link straight away.
  *
- * Uses the Instagram API with Instagram Login (graph.instagram.com). Meta
+ * Works with both Meta set-ups (INSTAGRAM_LOGIN):
+ *  - "unified" (default): Instagram API with Unified Login — the only one
+ *    Meta offers new apps since late Oct 2026. graph.facebook.com, a
+ *    Business Integration System User token (doesn't expire), permission
+ *    instagram_manage_messages.
+ *  - "instagram": Instagram API with Instagram Login (older apps).
+ *    graph.instagram.com, an Instagram user token (60 days, refreshed).
+ * Same webhook payload and app-secret signature in both. Meta
  * only allows a reply within 24 hours of the person's last message, and
  * never a cold/marketing DM, so Instagram customers are never part of
  * win-backs, reminders or SMS.
  */
 
-export const IG_GRAPH = "https://graph.instagram.com/v21.0";
+export type IgLogin = "unified" | "instagram";
+/** Which Meta set-up the app uses. New Meta apps only get Unified login. */
+export const igLogin = (): IgLogin => (process.env.INSTAGRAM_LOGIN === "instagram" ? "instagram" : "unified");
+/** API host + version for the set-up. */
+export const igGraph = (mode: IgLogin = igLogin()) =>
+  mode === "instagram" ? "https://graph.instagram.com/v21.0" : `https://graph.facebook.com/${process.env.META_GRAPH_VERSION || "v26.0"}`;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 /** Send the booking link at most once per person in this time. */
 export const BOOKING_REPLY_EVERY_MS = 12 * 60 * 60 * 1000;
@@ -61,7 +73,7 @@ type Fetch = typeof fetch;
 export async function fetchInstagramUsername(location: Location, igsid: string, f: Fetch = fetch): Promise<string | null> {
   if (!location.instagramAccessToken) return null;
   try {
-    const res = await f(`${IG_GRAPH}/${encodeURIComponent(igsid)}?fields=username,name`, {
+    const res = await f(`${igGraph()}/${encodeURIComponent(igsid)}?fields=username,name`, {
       headers: { authorization: `Bearer ${location.instagramAccessToken}` },
     });
     if (!res.ok) return null;
@@ -104,7 +116,7 @@ export async function sendCustomerInstagram(p: {
   let mid: string | null = null;
   let error: string | null = null;
   try {
-    const res = await f(`${IG_GRAPH}/${encodeURIComponent(location.instagramAccountId!)}/messages`, {
+    const res = await f(`${igGraph()}/${encodeURIComponent(location.instagramAccountId!)}/messages`, {
       method: "POST",
       headers: { authorization: `Bearer ${location.instagramAccessToken}`, "content-type": "application/json" },
       body: JSON.stringify({ recipient: { id: customer.instagramId }, message: { text } }),
@@ -141,6 +153,8 @@ export const TOKEN_REFRESH_EVERY_MS = 7 * 24 * 60 * 60 * 1000;
  * stop. Called from the hourly cron: refreshes any token older than a week.
  */
 export async function refreshInstagramTokens(now = new Date(), f: Fetch = fetch) {
+  // Unified login tokens (Business Integration System User) don't expire.
+  if (igLogin() !== "instagram") return { checked: 0, refreshed: 0, skipped: "unified login tokens don't expire" };
   const due = await prisma.location.findMany({
     where: {
       instagramAccountId: { not: null }, instagramAccessToken: { not: null },
@@ -167,4 +181,26 @@ export async function refreshInstagramTokens(now = new Date(), f: Fetch = fetch)
     }
   }
   return { checked: due.length, refreshed };
+}
+
+// ── Webhook subscription ─────────────────────────────────────────────────
+
+/**
+ * Meta only sends an account's DMs to our webhook after the app is
+ * subscribed on that account. Called when Settings saves the account ID or
+ * token. Returns a readable error, or null when it worked.
+ */
+export async function subscribeInstagramWebhooks(
+  location: Pick<Location, "instagramAccountId" | "instagramAccessToken">, f: Fetch = fetch,
+): Promise<string | null> {
+  if (!location.instagramAccountId || !location.instagramAccessToken) return "Instagram account ID and token are both needed";
+  try {
+    const url = `${igGraph()}/${encodeURIComponent(location.instagramAccountId)}/subscribed_apps?subscribed_fields=messages`;
+    const res = await f(url, { method: "POST", headers: { authorization: `Bearer ${location.instagramAccessToken}` } });
+    const data = (await res.json().catch(() => ({}))) as { success?: boolean; error?: { message?: string; code?: number } };
+    if (res.ok && data.success !== false) return null;
+    return data.error?.message ?? `Meta answered HTTP ${res.status}`;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
 }

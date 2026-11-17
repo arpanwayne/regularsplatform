@@ -107,3 +107,48 @@ test("win-backs, reminders and Front Desk outreach leave Instagram-only customer
   assert.match(readFileSync("lib/front-desk.ts", "utf8"), /\.\.\.HAS_REAL_PHONE/);
   assert.match(readFileSync("app/api/calling-scripts/trigger/route.ts", "utf8"), /isInstagramOnly\(customer\)/);
 });
+
+// Meta's Unified login (the only set-up new Meta apps get since Oct 2026).
+import { igGraph, igLogin, fetchInstagramUsername, refreshInstagramTokens, subscribeInstagramWebhooks } from "../lib/instagram";
+
+type Call = { url: string; init?: RequestInit };
+const fakeFetch = (calls: Call[], body: unknown, ok = true) =>
+  (async (url: string, init?: RequestInit) => { calls.push({ url, init }); return { ok, status: ok ? 200 : 400, json: async () => body }; }) as unknown as typeof fetch;
+
+test("Unified login is the default and uses graph.facebook.com; Instagram login stays available", () => {
+  setEnv("INSTAGRAM_LOGIN", undefined);
+  assert.equal(igLogin(), "unified");
+  assert.match(igGraph(), /^https:\/\/graph\.facebook\.com\/v\d+\.\d+$/);
+  setEnv("INSTAGRAM_LOGIN", "instagram");
+  assert.equal(igLogin(), "instagram");
+  assert.equal(igGraph(), "https://graph.instagram.com/v21.0");
+  setEnv("INSTAGRAM_LOGIN", undefined);
+});
+
+test("the app is subscribed to the account's messages with its token", async () => {
+  const calls: Call[] = [];
+  const err = await subscribeInstagramWebhooks({ instagramAccountId: "17841400001", instagramAccessToken: "sys-token" }, fakeFetch(calls, { success: true }));
+  assert.equal(err, null);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /^https:\/\/graph\.facebook\.com\/v\d+\.\d+\/17841400001\/subscribed_apps\?subscribed_fields=messages$/);
+  assert.equal(calls[0].init?.method, "POST");
+  assert.equal((calls[0].init?.headers as Record<string, string>).authorization, "Bearer sys-token");
+  // Meta's error comes back readable.
+  const bad = await subscribeInstagramWebhooks({ instagramAccountId: "1", instagramAccessToken: "t" }, fakeFetch([], { error: { message: "(#200) Missing permission instagram_manage_messages" } }, false));
+  assert.match(String(bad), /instagram_manage_messages/);
+  assert.match(String(await subscribeInstagramWebhooks({ instagramAccountId: null, instagramAccessToken: "t" })), /needed/);
+});
+
+test("usernames are looked up on the Unified login host", async () => {
+  const calls: Call[] = [];
+  const name = await fetchInstagramUsername({ instagramAccessToken: "sys" } as never, "9988", fakeFetch(calls, { username: "riya.k" }));
+  assert.equal(name, "riya.k");
+  assert.match(calls[0].url, /^https:\/\/graph\.facebook\.com\/v\d+\.\d+\/9988\?fields=username,name$/);
+});
+
+test("Unified login tokens aren't refreshed (they don't expire)", async () => {
+  setEnv("INSTAGRAM_LOGIN", undefined);
+  const r = await refreshInstagramTokens(new Date(), fakeFetch([], {}));
+  assert.equal(r.checked, 0);
+  assert.ok("skipped" in r);
+});
