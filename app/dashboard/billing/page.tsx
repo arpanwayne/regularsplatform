@@ -12,6 +12,52 @@ export default async function BillingPage() {
   const business = await getCurrentBusiness();
   if (!business) return null;
 
+  // ── Custom bundle (Admin → Products & Bundles): billed by our team ──────
+  if (business.customBundleId && business.bundleStatus !== "NONE") {
+    const [bundle, payments] = await Promise.all([
+      prisma.bundle.findUnique({ where: { id: business.customBundleId }, select: { name: true, priceInr: true, priceCad: true, interval: true } }),
+      prisma.payment.findMany({ where: { businessId: business.id, kind: "BUNDLE" }, orderBy: { createdAt: "desc" }, take: 12 }),
+    ]);
+    const until = business.bundlePaidUntil;
+    const days = until ? Math.ceil((until.getTime() - Date.now()) / 86400000) : null;
+    const price = bundle ? (business.country === "IN" ? bundle.priceInr : bundle.priceCad) : null;
+    const per = bundle?.interval === "YEARLY" ? "year" : "month";
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl font-semibold">Billing</h1>
+          <p className="text-sm text-gray-500">
+            {business.bundleStatus === "ACTIVE" && until && `${bundle?.name ?? "Your bundle"} is paid until ${formatDate(until, business.country)}.`}
+            {business.bundleStatus === "LAPSED" && "Your bundle has ended and your tools are paused. Nothing has been deleted."}
+            {business.bundleStatus === "PENDING_PAYMENT" && `${bundle?.name ?? "Your bundle"} starts as soon as it's paid.`}
+          </p>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-5 text-sm">
+          <p className="font-medium">{bundle?.name ?? "Your bundle"}</p>
+          {price != null && <p className="text-gray-600">{business.country === "IN" ? `₹${price.toLocaleString("en-IN")}` : `C$${price}`} / {per}</p>}
+          <p className="mt-2 text-gray-600">This bundle is billed by Wayne E Solutions directly. To renew or change it, message your account manager.</p>
+          {business.bundleStatus === "ACTIVE" && days !== null && days <= RENEWAL_REMINDER_WINDOW_DAYS && (
+            <p className="mt-2 text-amber-700">{days <= 0 ? `It ended ${-days} day(s) ago — tools pause ${GRACE_DAYS} days after the end date.` : `It ends in ${days} day(s).`}</p>
+          )}
+        </div>
+        {payments.length > 0 && (
+          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+            <table className="w-full min-w-[480px] text-sm">
+              <thead className="bg-gray-50 text-left text-gray-500"><tr><th className="px-4 py-2 font-medium">Date</th><th className="px-4 py-2 font-medium">Amount</th><th className="px-4 py-2 font-medium">Status</th></tr></thead>
+              <tbody>{payments.map((p) => (
+                <tr key={p.id} className="border-t border-gray-100">
+                  <td className="px-4 py-2">{formatDate(p.paidAt ?? p.createdAt, business.country)}</td>
+                  <td className="px-4 py-2">{(p.amountInPaise / 100).toLocaleString("en-CA", { style: "currency", currency: p.currency })}</td>
+                  <td className="px-4 py-2">{p.status === "PAID" ? "Paid" : p.status === "FAILED" ? "Failed" : "Not completed"}</td>
+                </tr>))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // ── Bundle A: one bill for every tool ──────────────────────────────────
   if (isBundlePlan(business.frontDeskPlan) && business.bundleStatus !== "NONE") {
     const payments = await prisma.payment.findMany({ where: { businessId: business.id, kind: "BUNDLE" }, orderBy: { createdAt: "desc" }, take: 12 });
