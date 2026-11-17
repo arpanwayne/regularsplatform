@@ -216,7 +216,7 @@ function InstagramConnect({ location }: { location: LocationRow }) {
       setMsg({ ok: false, text: err });
       return;
     }
-    setMsg({ ok: true, text: "Saved" });
+    setMsg(data.instagramWarning ? { ok: false, text: data.instagramWarning } : { ok: true, text: "Saved" });
     router.refresh();
   }
 
@@ -265,7 +265,7 @@ function InstagramConnect({ location }: { location: LocationRow }) {
           <label className="block text-sm font-medium text-gray-700 mb-1">Instagram access token</label>
           <input name="instagramAccessToken" type="password" defaultValue=""
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            placeholder={location.hasInstagramToken ? "Saved — leave empty to keep it" : "Long-lived Instagram token (instagram_business_manage_messages)"} />
+            placeholder={location.hasInstagramToken ? "Saved — leave empty to keep it" : "System user token from Meta (Unified login, instagram_manage_messages)"} />
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="instagramAutoBooking" defaultChecked={location.instagramAutoBooking} />
