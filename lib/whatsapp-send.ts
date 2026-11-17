@@ -4,10 +4,10 @@ import { logEvent } from "@/lib/logger";
 import { senderName, type SendResult } from "@/lib/sms";
 import type { MessagePurpose } from "@/lib/types";
 import {
-  fallbackName, getDef, metaLanguage, nextStep, renderTemplate, resolveLang, sanitizeParam, templateName, WA_LANGS, WA_TEMPLATE_DEFS,
+  fallbackName, getDef, legacyTemplateName, metaLanguage, nextStep, renderTemplate, resolveLang, sanitizeParam, templateName, WA_LANGS, WA_TEMPLATE_DEFS,
   type WaLang, type WaTemplateKey,
 } from "@/lib/whatsapp-templates";
-import { whatsappSenderFor, windowOpen, type WaSender } from "@/lib/whatsapp-sender";
+import { sharedSender, whatsappSenderFor, windowOpen, type WaSender } from "@/lib/whatsapp-sender";
 
 /**
  * Outgoing WhatsApp (Cloud API). Every business-started message uses an
@@ -35,14 +35,40 @@ export async function graphSend(sender: WaSender, to: string, message: Record<st
   }
 }
 
-export const templateMessage = (key: WaTemplateKey, lang: WaLang, params: string[]) => ({
+export const templateMessage = (key: WaTemplateKey, lang: WaLang, params: string[], name = templateName(key, lang)) => ({
   type: "template",
   template: {
-    name: templateName(key, lang),
+    name,
     language: { code: metaLanguage(lang) },
     components: [{ type: "body", parameters: params.map((p) => ({ type: "text", text: sanitizeParam(p) })) }],
   },
 });
+
+/** Meta: the template (in this language) doesn't exist, isn't approved yet, or is paused/disabled. */
+export const TEMPLATE_MISSING_CODES = [132001, 132015, 132016];
+
+/**
+ * Sends a template, and if Meta says that name/language isn't usable yet
+ * (e.g. a new "_v2" or a Hindi version still in review) tries the older
+ * approved name, then English. Returns what was actually sent.
+ */
+export async function sendTemplateWithFallback(sender: WaSender, to: string, key: WaTemplateKey, lang: WaLang, params: string[] | ((l: WaLang) => string[])) {
+  const paramsFor = (l: WaLang) => (typeof params === "function" ? params(l) : params);
+  const tries: Array<{ lang: WaLang; name: string }> = [{ lang, name: templateName(key, lang) }];
+  const legacy = legacyTemplateName(key, lang);
+  if (legacy) tries.push({ lang, name: legacy });
+  if (lang !== "en") {
+    tries.push({ lang: "en", name: templateName(key, "en") });
+    const legacyEn = legacyTemplateName(key, "en");
+    if (legacyEn) tries.push({ lang: "en", name: legacyEn });
+  }
+  let r: GraphResult = { ok: false, id: null, error: "not sent" };
+  for (const t of tries) {
+    r = await graphSend(sender, to, templateMessage(key, t.lang, paramsFor(t.lang), t.name));
+    if (r.ok || !TEMPLATE_MISSING_CODES.includes(r.code ?? 0)) return { ...r, lang: t.lang, name: t.name };
+  }
+  return { ...r, lang: tries[tries.length - 1].lang, name: tries[tries.length - 1].name };
+}
 
 export const textMessage = (body: string) => ({ type: "text", text: { preview_url: true, body: body.slice(0, 4096) } });
 
@@ -73,7 +99,12 @@ export function marketingTemplateNames() {
   const names = new Set<string>();
   for (const d of WA_TEMPLATE_DEFS) {
     if (d.category !== "MARKETING") continue;
-    for (const l of WA_LANGS) if (d.bodies[l]) names.add(templateName(d.key, l));
+    for (const l of WA_LANGS) {
+      if (!d.bodies[l]) continue;
+      names.add(templateName(d.key, l));
+      const legacy = legacyTemplateName(d.key, l);
+      if (legacy) names.add(legacy);
+    }
   }
   return names;
 }
@@ -117,30 +148,33 @@ export async function sendCustomerWhatsApp(p: {
   if (customer.optedOut) return { ok: false, status: "OPTED_OUT" };
 
   const open = windowOpen(await lastInboundWhatsApp(customer.id), p.now);
-  let message: Record<string, unknown>, shown: string, tpl: string | null = null;
+  let r: GraphResult, shown: string, tpl: string | null = null, sentLang: WaLang | null = null;
   if (p.text && open) {
-    message = textMessage(p.text);
+    r = await graphSend(sender, customer.phone, textMessage(p.text));
     shown = p.text;
   } else if (p.templateKey) {
     if (getDef(p.templateKey).category === "MARKETING" && (await marketingLimitReached(customer.id, p.now))) {
       return { ok: false, status: "FAILED", error: `DAILY_LIMIT: This customer already got a marketing message in the last 24 hours. WhatsApp blocks more (Meta 131049), so this one waits.` };
     }
-    const lang = resolveLang(p.templateKey, await businessLanguage(business));
-    const params = p.params ?? customerParams(p.templateKey, lang, customer, location, business);
-    message = templateMessage(p.templateKey, lang, params);
-    shown = renderTemplate(p.templateKey, lang, params);
-    tpl = templateName(p.templateKey, lang);
+    const key = p.templateKey;
+    const lang = resolveLang(key, await businessLanguage(business));
+    const paramsFor = (l: WaLang) => p.params ?? customerParams(key, l, customer, location, business);
+    const t = await sendTemplateWithFallback(sender, customer.phone, key, lang, paramsFor);
+    r = t;
+    sentLang = t.lang;
+    tpl = t.name;
+    shown = renderTemplate(key, t.lang, paramsFor(t.lang));
   } else {
     return { ok: false, status: "FAILED", error: "WINDOW_CLOSED: WhatsApp only allows a free reply within 24 hours of the customer's last message." };
   }
 
-  const r = await graphSend(sender, customer.phone, message);
   const msg = await prisma.message.create({
     data: {
       businessId: business.id, locationId: location.id, customerId: customer.id,
       direction: "OUTBOUND", channel: "WHATSAPP", purpose, status: r.ok ? "SENT" : "FAILED",
       providerSid: r.id, text: shown,
-      rawPayload: JSON.stringify({ template: tpl, shared: sender.shared, error: r.error ?? null, errorCode: r.code ?? null }),
+      // lang is kept so "which language did this go in?" has an answer (bug B6).
+      rawPayload: JSON.stringify({ template: tpl, lang: sentLang, shared: sender.shared, error: r.error ?? null, errorCode: r.code ?? null }),
     },
   });
   if (r.ok) {
@@ -151,25 +185,40 @@ export async function sendCustomerWhatsApp(p: {
   return { ok: false, status: "FAILED", error: r.error };
 }
 
-/** Meta error when free text is sent outside the 24h window. */
-const RE_ENGAGEMENT = 131047;
+/**
+ * The WhatsApp number that writes to a business OWNER. Same as for customers
+ * (own number, or the shared number in shared countries), plus: owners in
+ * any country may get their brief from the shared number, because the owner
+ * is our client, not a marketing contact. This is what lets a Canadian
+ * business without a texting number still get its morning plan (bug B2).
+ * Set WHATSAPP_OWNER_ANY_COUNTRY=false to switch that off.
+ */
+export function ownerWhatsAppSender(location: Location | null | undefined, business: Pick<Business, "country">): WaSender | null {
+  return whatsappSenderFor(location, business) ?? (process.env.WHATSAPP_OWNER_ANY_COUNTRY === "false" ? null : sharedSender());
+}
 
 /**
- * Message to the business owner on WhatsApp. Tries `text` first (works when
- * the owner wrote to us in the last 24h, e.g. right after replying to the
- * brief); if WhatsApp refuses it and a template is given, sends that.
+ * Message to the business owner on WhatsApp.
+ *
+ * With a template: the template is sent. (It used to try free text first,
+ * but Meta ACCEPTS free text outside the 24h window and only reports the
+ * 131047 failure later on the status webhook — so the template was never
+ * sent and the morning brief silently never arrived, bug B2.)
+ * Without a template (the "Approved 2 actions" confirmation right after the
+ * owner wrote to us): plain text, which is inside the window.
  */
 export async function sendOwnerWhatsApp(
   business: Business, location: Location | null | undefined, to: string,
   msg: { text?: string; templateKey?: WaTemplateKey; params?: string[] },
 ): Promise<boolean> {
-  const sender = whatsappSenderFor(location, business);
+  const sender = ownerWhatsAppSender(location, business);
   if (!sender) return false;
   let r: GraphResult | null = null;
-  if (msg.text) r = await graphSend(sender, to, textMessage(msg.text));
-  if ((!r || (!r.ok && (r.code === RE_ENGAGEMENT || !msg.text))) && msg.templateKey) {
+  if (msg.templateKey) {
     const lang = resolveLang(msg.templateKey, await businessLanguage(business));
-    r = await graphSend(sender, to, templateMessage(msg.templateKey, lang, msg.params ?? []));
+    r = await sendTemplateWithFallback(sender, to, msg.templateKey, lang, msg.params ?? []);
+  } else if (msg.text) {
+    r = await graphSend(sender, to, textMessage(msg.text));
   }
   if (r?.ok) {
     await prisma.usageEvent.create({ data: { businessId: business.id, type: "WHATSAPP_SENT" } });

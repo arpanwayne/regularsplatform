@@ -5,6 +5,7 @@ import { executeApproved } from "@/lib/growth/executor";
 import { sendDailyBrief, sendWeeklyReport } from "@/lib/growth/brief";
 import { getSettings, localParts } from "@/lib/growth/settings";
 import { logEvent } from "@/lib/logger";
+import { growthAllowed } from "@/lib/growth/access";
 
 /**
  * One tick of the loop for one business (the hourly cron calls this):
@@ -16,6 +17,7 @@ export async function tick(businessId: string, now = new Date()) {
   const business = await prisma.business.findUniqueOrThrow({ where: { id: businessId } });
   const s = await getSettings(business);
   if (!s.enabled || business.status !== "ACTIVE") return { businessId, skipped: true };
+  if (!growthAllowed(business)) return { businessId, skipped: true, reason: "plan does not include the Growth Manager" };
   const { date, hour, weekday } = localParts(now, s.timezone);
   const out: Record<string, unknown> = { businessId };
   if (hour >= s.briefHour && s.lastPlanDate !== date) {

@@ -11,6 +11,8 @@ import { WA_TEMPLATE } from "@/lib/growth/executor";
 import { customerParams } from "@/lib/whatsapp-send";
 import { whatsappSenderFor, windowOpen } from "@/lib/whatsapp-sender";
 import { renderTemplate, resolveLang } from "@/lib/whatsapp-templates";
+import { GROWTH_UPGRADE_MESSAGE, growthAllowed } from "@/lib/growth/access";
+import { ownerChannel } from "@/lib/growth/brief";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +57,8 @@ export default async function GrowthPage() {
     };
   }
 
+  const allowed = growthAllowed(business);
+  const brief = ownerChannel(s, { ...business, locations });
   const sum = (rows: { outcomeValue: number | null }[]) => rows.reduce((t, r) => t + (r.outcomeValue ?? 0), 0);
   const tools = { wayneRing: wayneRing.available(s), gmb: gmb.available(s), videoStudio: videoStudio.available(s) };
 
@@ -68,8 +72,23 @@ export default async function GrowthPage() {
             and asks you before it contacts anyone. {s.enabled ? "It's on." : "It's off — turn it on in the settings below."}
           </p>
         </div>
-        <PlanNowButton disabled={business.status === "SUSPENDED"} />
+        <PlanNowButton disabled={business.status === "SUSPENDED" || !allowed} />
       </div>
+
+      {!allowed && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {GROWTH_UPGRADE_MESSAGE} <a href="/dashboard/billing" className="font-medium underline">Billing</a>
+        </div>
+      )}
+      {allowed && s.enabled && (
+        brief.ok ? (
+          <p className="text-sm text-gray-600">Morning plan: sent by {brief.channel === "WHATSAPP" ? "WhatsApp" : "text message"} to {brief.to} at {String(s.briefHour).padStart(2, "0")}:00 ({s.timezone}).</p>
+        ) : (
+          <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            The morning plan can&apos;t be sent yet: {brief.reason} Until then, approve actions on this page.
+          </div>
+        )
+      )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Revenue influenced, 7 days" value={money(s, sum(won7))} hint={`${won7.length} customers booked or came back`} />

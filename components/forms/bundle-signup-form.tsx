@@ -40,8 +40,7 @@ export function BundleSignupForm({ initialPlan, initialCountry }: { initialPlan:
       setError(typeof d?.error === "string" ? d.error : "Please check the form and try again.");
       return;
     }
-    router.push(d.next ?? "/dashboard/billing");
-    router.refresh();
+    window.location.assign(d.next ?? "/dashboard/billing"); // full load: no cached pages from a previous login (bug B0)
   }
 
   const input = "w-full rounded-md border border-gray-300 px-3 py-2 text-sm";
@@ -74,7 +73,9 @@ export function BundleSignupForm({ initialPlan, initialCountry }: { initialPlan:
         <label className="text-sm"><span className="mb-1 block font-medium text-gray-700">Your name</span><input name="name" required className={input} /></label>
         <label className="text-sm"><span className="mb-1 block font-medium text-gray-700">Business name</span><input name="businessName" required className={input} /></label>
         <label className="text-sm"><span className="mb-1 block font-medium text-gray-700">Type of business</span>
-          <select name="sector" required className={input} defaultValue="HOME_SERVICES">
+          {/* No preselected type: a silent "Home services" default made the Google posts about home maintenance for an agency (bug G8). */}
+          <select name="sector" required className={input} defaultValue="">
+            <option value="" disabled>Choose one</option>
             {SECTOR_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select></label>
         <label className="text-sm"><span className="mb-1 block font-medium text-gray-700">Your mobile (for call summaries and the morning plan)</span>

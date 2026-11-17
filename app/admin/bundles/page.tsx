@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { BundleAdminRow } from "@/components/admin/bundle-admin-row";
-import { BUNDLE_PLANS, TOOL_META, isBundlePlan, planTools } from "@/lib/hub/plans";
+import { BUNDLE_PLANS, TOOL_META, currencyFor, isBundlePlan, planTools } from "@/lib/hub/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +11,10 @@ export default async function AdminBundlesPage() {
     orderBy: { createdAt: "desc" },
     include: { owner: { select: { name: true, email: true } }, toolAccounts: true },
   });
+  // Has each tool that reports events (WayneRing, CRM) ever used its key? (bug B3)
+  const keyIds = rows.flatMap((b) => b.toolAccounts.map((a) => a.apiKeyId).filter(Boolean) as string[]);
+  const keys = keyIds.length ? await prisma.apiKey.findMany({ where: { id: { in: keyIds } }, select: { id: true, lastUsedAt: true, revokedAt: true } }) : [];
+  const keyBy = new Map(keys.map((k) => [k.id, k]));
   return (
     <div className="space-y-4">
       <div>
@@ -38,12 +42,19 @@ export default async function AdminBundlesPage() {
                           <span className="font-medium">{TOOL_META[t].name}</span>: {a ? a.status.toLowerCase() : "not started"}
                           {a?.externalId && <span className="text-gray-400"> · {a.externalId}</span>}
                           {a?.lastError && <span className="block text-red-600">{a.lastError}</span>}
+                          {a?.apiKeyId && (() => {
+                            const k = keyBy.get(a.apiKeyId);
+                            if (!k || k.revokedAt) return <span className="block text-amber-700">Regulars key revoked — press New keys</span>;
+                            return k.lastUsedAt
+                              ? <span className="block text-gray-500">Last event to Regulars: {k.lastUsedAt.toLocaleString("en-CA")}</span>
+                              : <span className="block text-amber-700">No events received yet — check this tool has the Regulars URL + key (see handover)</span>;
+                          })()}
                         </li>
                       );
                     })}
                   </ul>
                 </td>
-                <td className="px-4 py-3"><BundleAdminRow id={b.id} plan={isBundlePlan(b.frontDeskPlan) ? b.frontDeskPlan : "ANSWER"} /></td>
+                <td className="px-4 py-3"><BundleAdminRow id={b.id} plan={isBundlePlan(b.frontDeskPlan) ? b.frontDeskPlan : "ANSWER"} currency={currencyFor(b.country)} /></td>
               </tr>
             ))}
           </tbody>

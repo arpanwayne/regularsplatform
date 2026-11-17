@@ -26,6 +26,8 @@ type Payload = {
   channel?: "CALL" | "TEXT"; purpose?: string; relationship?: "caller" | "customer"; context?: string; message?: string;
   reviewId?: string; reply?: string; postType?: "update" | "offer"; prompt?: string; ctaUrl?: string | null;
   name?: string; brief?: string; overlay?: string; quoteValue?: number;
+  /** Set by the WhatsApp webhook after Meta 131049: don't run again before this time. */
+  retryAfter?: string; retried?: boolean;
 };
 
 export const WA_TEMPLATE: Partial<Record<ActionType, WaTemplateKey>> = {
@@ -50,6 +52,8 @@ export async function executeAction(actionId: string, now = new Date()): Promise
   const contact = CUSTOMER_CONTACT.includes(type);
 
   if (business.status !== "ACTIVE") return { id: action.id, status: "DEFERRED", detail: "business suspended" };
+  // A marketing message Meta held back (131049) is retried once, a day later (bug B4).
+  if (p.retryAfter && now.getTime() < new Date(p.retryAfter).getTime()) return { id: action.id, status: "DEFERRED", detail: `retry after ${p.retryAfter}` };
   if (contact && !withinContactHours(s, now)) return { id: action.id, status: "DEFERRED", detail: "outside contact hours" };
   const c = action.customer;
   if (contact && (!c || c.optedOut)) {
@@ -71,8 +75,9 @@ export async function executeAction(actionId: string, now = new Date()): Promise
     return { id: action.id, status: back ? ("DEFERRED" as const) : ("FAILED" as const), detail: error };
   };
   const sendText = async () => {
+    // p.message was written in the business's language (AI copy or the owner's edit).
     const text = p.message || templateCopy({ id: action.id, type, firstName: (c?.name ?? "").split(" ")[0], context: "", bookingUrl: location.bookingUrl }, s.messageLanguage);
-    const r = await sendToCustomer(business, location, c!, TEXT_PURPOSE[type] ?? "FOLLOW_UP", text, WA_TEMPLATE[type] ?? "winback");
+    const r = await sendToCustomer(business, location, c!, TEXT_PURPOSE[type] ?? "FOLLOW_UP", text, WA_TEMPLATE[type] ?? "winback", { customText: true });
     return r;
   };
 
@@ -98,11 +103,14 @@ export async function executeAction(actionId: string, now = new Date()): Promise
         const r = await sendText();
         if (!r.ok && r.error?.startsWith("DAILY_LIMIT")) return await fail("Waits until tomorrow: 1 marketing WhatsApp per customer per day", "APPROVED");
         if (!r.ok) return await fail(`Text not sent: ${r.status}${r.error ? ` (${r.error.slice(0, 200)})` : ""}`);
+        // Dry run (SMS provider not set up): recorded, but nobody got it — not "Done" (bug B1).
+        if (r.status === "NOT_SENT") return await fail("Text not sent: texting isn't set up yet (no SMS provider). Nothing reached the customer.");
         if (type === "WIN_BACK") await prisma.customer.update({ where: { id: c!.id }, data: { lastWinbackAt: now } });
         return await done({ tool: "text", ...r });
       }
       case "REVIEW_REQUEST": {
         const r = await sendReviewRequest(business, location, c!, now);
+        if (r.ok && r.status === "NOT_SENT") return await fail("Review request not sent: texting isn't set up yet (no SMS provider).");
         return r.ok ? await done({ tool: "text", ...r }) : await fail(`Review request not sent: ${r.status}`);
       }
       case "REVIEW_REPLY": {

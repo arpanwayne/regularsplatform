@@ -30,8 +30,8 @@ export function DashboardNav({
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
+    // Full page load: drops Next's client cache so the next account never sees this one's pages (bug B0).
+    window.location.assign("/login");
   }
 
   return (
@@ -54,8 +54,8 @@ export function DashboardNav({
                 {link.label}
               </Link>
             ))}
-            {bundle?.calls && <a href="/api/hub/open/wayneRing?page=calls" className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">Calls ↗</a>}
-            {bundle?.jobs && <a href="/api/hub/open/field-service" className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">Jobs ↗</a>}
+            {bundle?.calls && <a href="/api/hub/open/wayneRing?page=calls" target="_blank" rel="noopener" className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">Calls ↗</a>}
+            {bundle?.jobs && <a href="/api/hub/open/field-service" target="_blank" rel="noopener" className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">Jobs ↗</a>}
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm text-gray-500">

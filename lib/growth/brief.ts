@@ -1,12 +1,12 @@
 import type { Business, GrowthAction, GrowthSettings, Location } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
-import { normalizePhone } from "@/lib/phone";
+import { isPlaceholderPhone, normalizePhone } from "@/lib/phone";
 import { countSegments, smsConfigured, twilioSend } from "@/lib/sms";
 import { executeAction } from "@/lib/growth/executor";
 import { DAY, getSettings, isoWeek, localParts, money } from "@/lib/growth/settings";
 import { ACTION_LABEL, type ActionType } from "@/lib/growth/types";
-import { canSendWhatsApp, sendOwnerWhatsApp } from "@/lib/whatsapp-send";
+import { ownerWhatsAppSender, sendOwnerWhatsApp } from "@/lib/whatsapp-send";
 import type { WaTemplateKey } from "@/lib/whatsapp-templates";
 
 /**
@@ -29,7 +29,41 @@ type Item = { n: number; type: ActionType; actions: GrowthAction[]; label: strin
 const firstLoc = (b: Business & { locations: Location[] }) => b.locations.find((l) => l.status === "ACTIVE") ?? b.locations[0];
 
 export function ownerPhoneFor(s: GrowthSettings, b: Business & { locations: Location[] }) {
-  return s.ownerPhone || firstLoc(b)?.ownerNotifyPhone || null;
+  const phone = s.ownerPhone || firstLoc(b)?.ownerNotifyPhone || null;
+  // A typed-in dummy (+19876543210) is not a number we can brief (bug B14).
+  return phone && !isPlaceholderPhone(phone) ? phone : null;
+}
+
+export type OwnerChannel =
+  | { ok: true; channel: "WHATSAPP" | "SMS"; to: string }
+  | { ok: false; reason: string };
+
+/**
+ * How the owner's morning plan will reach them, or exactly why it can't.
+ * Used by the sender, the set-up checklist and Admin → Logs, so "why didn't
+ * the brief come?" always has one plain answer (bug B2).
+ *
+ * Order: SMS when the business texts by SMS and a texting number + Twilio
+ * are set up; otherwise WhatsApp (own number, or the shared number — owners
+ * in any country, see ownerWhatsAppSender); otherwise SMS if possible.
+ */
+export function ownerChannel(s: GrowthSettings, b: Business & { locations: Location[] }): OwnerChannel {
+  const raw = s.ownerPhone || firstLoc(b)?.ownerNotifyPhone || null;
+  if (!raw) return { ok: false, reason: "No owner mobile saved (Growth AI → Settings → Your mobile for the brief)." };
+  if (isPlaceholderPhone(raw)) return { ok: false, reason: `The owner mobile ${raw} looks like a placeholder. Save the owner's real mobile.` };
+  const loc = firstLoc(b);
+  const smsFrom = loc?.smsFromNumber || process.env.GROWTH_SMS_FROM;
+  const smsOk = !!smsFrom && smsConfigured();
+  const waOk = !!ownerWhatsAppSender(loc, b);
+  if (b.defaultChannel === "SMS" && smsOk) return { ok: true, channel: "SMS", to: raw };
+  if (waOk) return { ok: true, channel: "WHATSAPP", to: raw };
+  if (smsOk) return { ok: true, channel: "SMS", to: raw };
+  const missing = [
+    !smsFrom && "no texting number (Admin → assign one, or set GROWTH_SMS_FROM)",
+    !smsConfigured() && "Twilio not set up (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN)",
+    "no WhatsApp sender (WHATSAPP_SHARED_PHONE_NUMBER_ID / WHATSAPP_SHARED_ACCESS_TOKEN)",
+  ].filter(Boolean);
+  return { ok: false, reason: `Can't reach the owner: ${missing.join("; ")}.` };
 }
 
 /** Groups today's proposals into numbered brief items (one item per action type; single actions keep their own title). */
@@ -75,29 +109,33 @@ export function composeBrief(p: { name: string; weekday: string; items: Item[]; 
 type OwnerTemplate = { templateKey: WaTemplateKey; params: string[] };
 
 /**
- * Message to the owner. WhatsApp-first businesses (India) get it on WhatsApp
- * — `wa` is the approved template used when we're outside the 24h window —
- * everyone else by SMS.
+ * Message to the owner on the channel ownerChannel() picks. `wa` is the
+ * approved template for WhatsApp (a morning brief is always outside the
+ * 24h window); without it the text goes as free text (only right after the
+ * owner wrote to us). If the first channel fails, the other one is tried.
  */
 async function sendToOwner(business: Business & { locations: Location[] }, s: GrowthSettings, body: string, wa?: OwnerTemplate) {
-  const to = ownerPhoneFor(s, business);
+  const ch = ownerChannel(s, business);
+  if (!ch.ok) {
+    await logEvent({ businessId: business.id, source: "GROWTH", level: "WARN", message: `Owner message not sent: ${ch.reason}`, meta: { body } });
+    return false;
+  }
   const loc = firstLoc(business);
-  if (to && business.defaultChannel === "WHATSAPP" && canSendWhatsApp(business, loc)) {
-    return sendOwnerWhatsApp(business, loc, to, { text: body, ...(wa ?? {}) });
-  }
-  const from = loc?.smsFromNumber || process.env.GROWTH_SMS_FROM;
-  if (!to || !from || !smsConfigured()) {
-    await logEvent({ businessId: business.id, source: "GROWTH", level: "INFO", message: "Owner message not sent (dry-run or no owner number)", meta: { body } });
-    return false;
-  }
-  try {
-    await twilioSend(from, to, body.length > 900 ? body.slice(0, 897) + "…" : body);
-    await prisma.usageEvent.create({ data: { businessId: business.id, type: "SMS_SENT", smsSegments: countSegments(body) } });
-    return true;
-  } catch (err) {
-    await logEvent({ businessId: business.id, source: "GROWTH", level: "ERROR", message: "Owner message failed", meta: { error: err instanceof Error ? err.message : String(err) } });
-    return false;
-  }
+  const viaWhatsApp = () => sendOwnerWhatsApp(business, loc, ch.to, wa ? { ...wa } : { text: body });
+  const viaSms = async () => {
+    const from = loc?.smsFromNumber || process.env.GROWTH_SMS_FROM;
+    if (!from || !smsConfigured()) return false;
+    try {
+      await twilioSend(from, ch.to, body.length > 900 ? body.slice(0, 897) + "…" : body);
+      await prisma.usageEvent.create({ data: { businessId: business.id, type: "SMS_SENT", smsSegments: countSegments(body) } });
+      return true;
+    } catch (err) {
+      await logEvent({ businessId: business.id, source: "GROWTH", level: "ERROR", message: "Owner SMS failed", meta: { error: err instanceof Error ? err.message : String(err) } });
+      return false;
+    }
+  };
+  if (ch.channel === "SMS") return (await viaSms()) || (!!ownerWhatsAppSender(loc, business) && (await viaWhatsApp()));
+  return (await viaWhatsApp()) || (await viaSms());
 }
 
 /** The brief as one line, for the WhatsApp template variable (no new lines allowed there). */

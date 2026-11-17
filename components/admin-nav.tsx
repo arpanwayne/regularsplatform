@@ -22,8 +22,7 @@ export function AdminNav({ adminName }: { adminName: string }) {
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
+    window.location.assign("/login"); // full load clears the client page cache (bug B0)
   }
 
   return (

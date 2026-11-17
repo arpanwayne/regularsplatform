@@ -46,9 +46,17 @@ type Def = {
   /** Example values for Meta review, in order. */
   examples: Partial<Record<WaLang, string[]>> & { en: string[] };
   bodies: Partial<Record<WaLang, string>>;
+  /**
+   * Languages that exist on Meta but must not be sent: Meta filed them under
+   * MARKETING although we asked for UTILITY, so they get held back (131049).
+   * resolveLang() skips them and the message goes in English.
+   */
+  noSend?: WaLang[];
 };
 
 const BOOK_EX = "You can book here: https://cal.com/glow-salon";
+// Example values must belong to one made-up business (bug B19: "Maple HVAC" with a salon link).
+const BOOK_EX_HVAC = "You can book here: https://cal.com/maple-hvac";
 
 export const WA_TEMPLATE_DEFS: Def[] = [
   {
@@ -74,7 +82,7 @@ export const WA_TEMPLATE_DEFS: Def[] = [
     category: "UTILITY",
     audience: "customer",
     vars: ["customer first name", "business name", "next step"],
-    examples: { en: ["Daniel", "Maple HVAC", BOOK_EX] },
+    examples: { en: ["Daniel", "Maple HVAC", BOOK_EX_HVAC] },
     bodies: {
       en: "Hi {{1}}, this is {{2}}. Sorry we could not help when you called. Do you still need a hand? {{3}} Thank you!",
       hinglish: "Namaste {{1}}, {{2}} se. Maaf kijiye, jab aapne call kiya tab hum madad nahi kar paaye. Kya aapko abhi bhi madad chahiye? {{3}} Dhanyavaad!",
@@ -87,7 +95,7 @@ export const WA_TEMPLATE_DEFS: Def[] = [
     category: "UTILITY",
     audience: "customer",
     vars: ["customer first name", "business name", "next step"],
-    examples: { en: ["Daniel", "Maple HVAC", BOOK_EX] },
+    examples: { en: ["Daniel", "Maple HVAC", BOOK_EX_HVAC] },
     bodies: {
       en: "Hi {{1}}, this is {{2}} following up on the quote we sent you. Any questions, or shall we lock in a date? {{3}} Thank you!",
       hinglish: "Namaste {{1}}, {{2}} se, humne jo quote bheja tha uske baare mein puchna tha. Koi sawaal hai, ya date fix kar dein? {{3}} Dhanyavaad!",
@@ -127,11 +135,14 @@ export const WA_TEMPLATE_DEFS: Def[] = [
     audience: "customer",
     vars: ["customer first name", "business name", "Google review link"],
     examples: { en: ["Priya", "Glow Salon", "https://g.page/r/glow-salon/review"] },
+    // Every customer text ends with how to stop them (bug B12). These are
+    // new bodies, so they go to Meta under new "_v2" names (see NAME_OVERRIDES);
+    // until Meta approves them the old names are used (LEGACY_NAMES).
     bodies: {
-      en: "Hi {{1}}, thank you for choosing {{2}}! If you were happy with our service, please leave us a quick Google review: {{3}} It really helps us.",
-      hinglish: "Namaste {{1}}, {{2}} ko chunne ke liye dhanyavaad! Agar aapko hamari service achhi lagi, toh please ek chhota sa Google review de dijiye: {{3}} Isse hamein bahut madad milti hai.",
-      hi: "नमस्ते {{1}}, {{2}} को चुनने के लिए धन्यवाद! अगर आपको हमारी सेवा अच्छी लगी, तो कृपया एक छोटा सा Google review दीजिए: {{3}} इससे हमें बहुत मदद मिलती है।",
-      pa: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ {{1}}, {{2}} ਨੂੰ ਚੁਣਨ ਲਈ ਧੰਨਵਾਦ! ਜੇ ਤੁਹਾਨੂੰ ਸਾਡੀ ਸੇਵਾ ਚੰਗੀ ਲੱਗੀ, ਤਾਂ ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਛੋਟਾ ਜਿਹਾ Google review ਦਿਓ: {{3}} ਇਸ ਨਾਲ ਸਾਨੂੰ ਬਹੁਤ ਮਦਦ ਮਿਲਦੀ ਹੈ।",
+      en: "Hi {{1}}, thank you for choosing {{2}}! If you were happy with our service, please leave us a quick Google review: {{3}} Reply STOP to stop these messages.",
+      hinglish: "Namaste {{1}}, {{2}} ko chunne ke liye dhanyavaad! Agar aapko hamari service achhi lagi, toh please ek chhota sa Google review de dijiye: {{3}} Ye messages band karne ke liye STOP likhein.",
+      hi: "नमस्ते {{1}}, {{2}} को चुनने के लिए धन्यवाद! अगर आपको हमारी सेवा अच्छी लगी, तो कृपया एक छोटा सा Google review दीजिए: {{3}} ये मैसेज बंद करने के लिए STOP लिखें।",
+      pa: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ {{1}}, {{2}} ਨੂੰ ਚੁਣਨ ਲਈ ਧੰਨਵਾਦ! ਜੇ ਤੁਹਾਨੂੰ ਸਾਡੀ ਸੇਵਾ ਚੰਗੀ ਲੱਗੀ, ਤਾਂ ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਛੋਟਾ ਜਿਹਾ Google review ਦਿਓ: {{3}} ਇਹ ਮੈਸੇਜ ਬੰਦ ਕਰਨ ਲਈ STOP ਲਿਖੋ।",
     },
   },
   // ── To the business owner ─────────────────────────────────────────────
@@ -145,6 +156,9 @@ export const WA_TEMPLATE_DEFS: Def[] = [
       en: "Good morning! Here is today's plan for {{1}} ({{2}}): {{3}} Reply with the item numbers, ALL or SKIP.",
       hinglish: "Good morning! {{1}} ka aaj ka plan ({{2}}): {{3}} Item numbers, ALL ya SKIP likh kar reply karein.",
     },
+    // Meta approved loopdesk_owner_brief_hinglish as MARKETING (bug B12), so
+    // the brief would be held back like a promotion. Owners get it in English.
+    noSend: ["hinglish"],
   },
   {
     key: "owner_weekly",
@@ -155,6 +169,8 @@ export const WA_TEMPLATE_DEFS: Def[] = [
     bodies: {
       en: "Your weekly Growth Manager report for {{1}}: {{2}} Reply here if you have any questions.",
       hinglish: "Namaste! {{1}} ki weekly Growth Manager report: {{2}} Koi sawaal ho toh yahan reply karein.",
+      hi: "नमस्ते! {{1}} की साप्ताहिक Growth Manager रिपोर्ट: {{2}} कोई सवाल हो तो यहाँ जवाब दें।",
+      pa: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! {{1}} ਦੀ ਹਫ਼ਤਾਵਾਰੀ Growth Manager ਰਿਪੋਰਟ: {{2}} ਕੋਈ ਸਵਾਲ ਹੋਵੇ ਤਾਂ ਇੱਥੇ ਜਵਾਬ ਦਿਓ।",
     },
   },
   {
@@ -166,6 +182,8 @@ export const WA_TEMPLATE_DEFS: Def[] = [
     bodies: {
       en: "New customer message for {{1}} from {{2}}: {{3}} Open your inbox to reply.",
       hinglish: "Naya customer message {{1}} ke liye, {{2}} se: {{3}} Reply karne ke liye apna inbox kholein.",
+      hi: "नया ग्राहक मैसेज {{1}} के लिए, {{2}} से: {{3}} जवाब देने के लिए अपना इनबॉक्स खोलें।",
+      pa: "ਨਵਾਂ ਗਾਹਕ ਮੈਸੇਜ {{1}} ਲਈ, {{2}} ਵੱਲੋਂ: {{3}} ਜਵਾਬ ਦੇਣ ਲਈ ਆਪਣਾ ਇਨਬਾਕਸ ਖੋਲ੍ਹੋ।",
     },
   },
 ];
@@ -181,12 +199,36 @@ export const templatePrefix = () => (process.env.WHATSAPP_TEMPLATE_PREFIX || "lo
  */
 const NAME_OVERRIDES: Partial<Record<`${WaTemplateKey}:${WaLang}`, string>> = {
   "winback:en": "winback_v2",
+  // Review requests now end with the STOP line (bug B12) — new bodies, new names.
+  "review_request:en": "review_request_v2",
+  "review_request:hinglish": "review_request_v2",
+  "review_request:hi": "review_request_v2",
+  "review_request:pa": "review_request_v2",
 };
+
+/**
+ * The name a template had before an override, still approved on Meta. Used
+ * only while the new name is waiting for approval (Meta answers 132001
+ * "template does not exist"), so sends keep working during the switch.
+ */
+const LEGACY_NAMES: Partial<Record<`${WaTemplateKey}:${WaLang}`, string>> = {
+  "review_request:en": "review_request",
+  "review_request:hinglish": "review_request",
+  "review_request:hi": "review_request",
+  "review_request:pa": "review_request",
+};
+
+const nameFrom = (base: string, lang: WaLang) => `${templatePrefix()}_${base}${lang === "hinglish" ? "_hinglish" : ""}`;
 
 /** Meta template name: lowercase letters, digits, underscores. */
 export function templateName(key: WaTemplateKey, lang: WaLang) {
-  const base = NAME_OVERRIDES[`${key}:${lang}`] ?? key;
-  return `${templatePrefix()}_${base}${lang === "hinglish" ? "_hinglish" : ""}`;
+  return nameFrom(NAME_OVERRIDES[`${key}:${lang}`] ?? key, lang);
+}
+
+/** The older approved name for this template, or null when there is none. */
+export function legacyTemplateName(key: WaTemplateKey, lang: WaLang): string | null {
+  const base = LEGACY_NAMES[`${key}:${lang}`];
+  return base ? nameFrom(base, lang) : null;
 }
 
 /** WhatsApp language code for one of our languages. */
@@ -203,9 +245,10 @@ export function getDef(key: WaTemplateKey) {
 /** The language to use: the asked one if this template has it, else Hinglish → English. */
 export function resolveLang(key: WaTemplateKey, lang: string | null | undefined): WaLang {
   const d = getDef(key);
+  const usable = (l: WaLang) => !!d.bodies[l] && !(d.noSend ?? []).includes(l);
   const want = (WA_LANGS as string[]).includes(lang ?? "") ? (lang as WaLang) : "en";
-  if (d.bodies[want]) return want;
-  if (want !== "en" && d.bodies.hinglish) return "hinglish"; // hi/pa owners get Hinglish owner messages
+  if (usable(want)) return want;
+  if (want !== "en" && usable("hinglish")) return "hinglish"; // hi/pa owners get Hinglish owner messages
   return "en";
 }
 

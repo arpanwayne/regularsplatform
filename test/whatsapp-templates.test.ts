@@ -49,7 +49,9 @@ test("rendering fills the variables the customer will see", () => {
 });
 
 test("owner messages fall back to Hinglish for Hindi/Punjabi, unknown languages to English", () => {
-  assert.equal(resolveLang("owner_brief", "pa"), "hinglish");
+  assert.equal(resolveLang("owner_weekly", "fr"), "en");
+  // owner_brief: Hinglish was filed as MARKETING by Meta, so it goes in English (see noSend).
+  assert.equal(resolveLang("owner_brief", "pa"), "en");
   assert.equal(resolveLang("winback", "pa"), "pa");
   assert.equal(resolveLang("winback", "fr"), "en");
 });

@@ -42,14 +42,23 @@ export const TEMPLATES = {
 
 /**
  * Sends to a customer on their channel: their own preference, else the
- * business default. WhatsApp uses `templateKey` (an approved template) to
- * start the conversation, or `body` as plain text when the customer wrote in
- * the last 24h. Falls back to SMS when the location has no WhatsApp sender.
+ * business default. Falls back to SMS when the location has no WhatsApp sender.
+ *
+ * WhatsApp: `customText: true` means `body` was written for this customer in
+ * the business's language (AI copy, an owner's edit) and goes out as plain
+ * text inside the 24h window. Otherwise `body` is only the English SMS
+ * wording, so WhatsApp always uses the approved template `templateKey` in
+ * the business's language — inside the window too. Before this, a customer
+ * who had just chatted got the English SMS text even when the business
+ * writes in Hinglish (bug B6).
  */
-export async function sendToCustomer(business: Business, location: Location, customer: Customer, purpose: MessagePurpose, body: string, templateKey: WaTemplateKey) {
+export async function sendToCustomer(
+  business: Business, location: Location, customer: Customer, purpose: MessagePurpose, body: string, templateKey: WaTemplateKey,
+  opts: { customText?: boolean } = {},
+) {
   const channel = customer.preferredChannel ?? business.defaultChannel;
   if (channel === "WHATSAPP") {
-    const r = await sendCustomerWhatsApp({ business, location, customer, purpose, templateKey, text: body });
+    const r = await sendCustomerWhatsApp({ business, location, customer, purpose, templateKey, text: opts.customText ? body : undefined });
     if (r) return r;
   }
   return sendCustomerSms({ business, location, customer, body, purpose });

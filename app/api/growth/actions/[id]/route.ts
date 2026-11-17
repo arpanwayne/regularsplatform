@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/session";
 import { executeAction } from "@/lib/growth/executor";
 import { parseJson } from "@/lib/growth/settings";
+import { GROWTH_UPGRADE_MESSAGE, growthAllowed } from "@/lib/growth/access";
 
 const schema = z.object({
   decision: z.enum(["approve", "skip"]),
@@ -21,6 +22,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (!action) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (action.status !== "PROPOSED") return NextResponse.json({ error: `Already ${action.status.toLowerCase()}` }, { status: 409 });
 
+  if (parsed.data.decision === "approve" && !growthAllowed(business)) return NextResponse.json({ error: GROWTH_UPGRADE_MESSAGE }, { status: 403 });
   if (parsed.data.decision === "skip") {
     await prisma.growthAction.update({ where: { id: action.id }, data: { status: "SKIPPED" } });
     return NextResponse.json({ status: "SKIPPED" });

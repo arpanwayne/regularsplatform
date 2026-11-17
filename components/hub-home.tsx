@@ -6,6 +6,7 @@ import { DAY, getSettings, money } from "@/lib/growth/settings";
 import { accountData } from "@/lib/hub/provision";
 import { BUNDLE_PLANS, TOOL_META, isBundlePlan, type Tool } from "@/lib/hub/plans";
 import { TOOL_NAMES } from "@/lib/brand";
+import { ownerChannel } from "@/lib/growth/brief";
 
 const HUB_MSG: Record<string, string> = {
   "not-in-plan": "That tool isn't part of your plan. Upgrade on the Billing page to add it.",
@@ -33,12 +34,16 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
   const plan = BUNDLE_PLANS[business.frontDeskPlan];
   const s = await getSettings(business);
   const since = new Date(Date.now() - 7 * DAY);
-  const [accounts, waiting, won, events] = await Promise.all([
+  const [accounts, waiting, won, events, locations] = await Promise.all([
     prisma.toolAccount.findMany({ where: { businessId: business.id } }),
     prisma.growthAction.count({ where: { businessId: business.id, status: "PROPOSED" } }),
     prisma.growthAction.findMany({ where: { businessId: business.id, outcome: "WON", outcomeAt: { gte: since } }, select: { outcomeValue: true } }),
     prisma.growthEvent.groupBy({ by: ["type"], where: { businessId: business.id, occurredAt: { gte: since } }, _count: true }),
+    prisma.location.findMany({ where: { businessId: business.id }, orderBy: { createdAt: "asc" } }),
   ]);
+  // Ticked only when the plan can really reach a real number (bugs B2/B14:
+  // a dummy +19876543210 with no texting number used to show as done).
+  const brief = ownerChannel(s, { ...business, locations });
   const count = (...types: string[]) => events.filter((e) => types.includes(e.type)).reduce((t, e) => t + e._count, 0);
   const acc = (t: Tool) => accounts.find((a) => a.tool === t);
   const live = business.bundleStatus === "ACTIVE";
@@ -51,7 +56,11 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
     { done: !!wr.phoneNumber, text: wr.phoneNumber ? `Calls answered on ${wr.phoneNumber}` : "Phone number connected (our team sets this up with you)" },
     ...(plan.tools.includes("FIELD_SERVICE") ? [{ done: acc("FIELD_SERVICE")?.status === "ACTIVE", text: `${TOOL_NAMES.jobs} account created` }] : []),
     ...(plan.tools.includes("GMB") ? [{ done: !!gmb.connected, text: gmb.connected ? "Google listing connected" : `Connect your Google listing (open ${TOOL_NAMES.google} below)` }] : []),
-    ...(plan.growthManager ? [{ done: !!s.ownerPhone, text: "Mobile number for the morning plan", href: "/dashboard/growth" }] : []),
+    ...(plan.growthManager ? [{
+      done: brief.ok,
+      text: brief.ok ? `Morning plan goes to ${brief.to} by ${brief.channel === "WHATSAPP" ? "WhatsApp" : "text"}` : `Morning plan: ${brief.reason}`,
+      href: "/dashboard/growth",
+    }] : []),
   ];
   const allDone = steps.every((x) => x.done);
 
@@ -132,7 +141,8 @@ function Tile({ name, blurb, status, note, links }: { name: string; blurb: strin
       {links.length > 0 && (
         <div className="mt-auto flex flex-wrap gap-2">
           {links.map((l) => l.external
-            ? <a key={l.href} href={l.href} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">{l.label}</a>
+            // ↗ tools open in a new tab so the owner keeps this home screen (bug B17).
+            ? <a key={l.href} href={l.href} target="_blank" rel="noopener" className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">{l.label}</a>
             : <Link key={l.href} href={l.href} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">{l.label}</Link>)}
         </div>
       )}
