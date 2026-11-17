@@ -172,6 +172,9 @@ export const WA_TEMPLATE_DEFS: Def[] = [
       hi: "नमस्ते! {{1}} की साप्ताहिक Growth Manager रिपोर्ट: {{2}} कोई सवाल हो तो यहाँ जवाब दें।",
       pa: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ! {{1}} ਦੀ ਹਫ਼ਤਾਵਾਰੀ Growth Manager ਰਿਪੋਰਟ: {{2}} ਕੋਈ ਸਵਾਲ ਹੋਵੇ ਤਾਂ ਇੱਥੇ ਜਵਾਬ ਦਿਓ।",
     },
+    // Meta filed the Hindi version as MARKETING (17 Nov 2026), so it would be
+    // rate-limited like a promotion (131049). Hindi owners get Hinglish.
+    noSend: ["hi"],
   },
   {
     key: "owner_new_message",
@@ -185,6 +188,9 @@ export const WA_TEMPLATE_DEFS: Def[] = [
       hi: "नया ग्राहक मैसेज {{1}} के लिए, {{2}} से: {{3}} जवाब देने के लिए अपना इनबॉक्स खोलें।",
       pa: "ਨਵਾਂ ਗਾਹਕ ਮੈਸੇਜ {{1}} ਲਈ, {{2}} ਵੱਲੋਂ: {{3}} ਜਵਾਬ ਦੇਣ ਲਈ ਆਪਣਾ ਇਨਬਾਕਸ ਖੋਲ੍ਹੋ।",
     },
+    // Meta filed the Punjabi version as MARKETING (17 Nov 2026). A new-message
+    // alert must not be held back, so Punjabi owners get Hinglish.
+    noSend: ["pa"],
   },
 ];
 

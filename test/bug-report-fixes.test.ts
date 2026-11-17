@@ -49,10 +49,13 @@ test("B2: the owner brief picks a channel that can really reach the owner, or sa
 test("B12: the owner brief never uses the Hinglish template Meta filed as MARKETING", () => {
   assert.equal(resolveLang("owner_brief", "hinglish"), "en");
   assert.equal(resolveLang("owner_brief", "pa"), "en");
-  // The utility owner templates now have Hindi and Punjabi.
+  // The utility owner templates have Hindi and Punjabi...
   assert.equal(resolveLang("owner_weekly", "pa"), "pa");
   assert.equal(resolveLang("owner_new_message", "hi"), "hi");
   assert.equal(resolveLang("owner_weekly", "hinglish"), "hinglish");
+  // ...except the two Meta filed as MARKETING, which fall back to Hinglish.
+  assert.equal(resolveLang("owner_weekly", "hi"), "hinglish");
+  assert.equal(resolveLang("owner_new_message", "pa"), "hinglish");
 });
 
 test("B12: review requests end with the STOP line under a new name, old name kept as fallback", () => {
