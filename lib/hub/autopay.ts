@@ -97,7 +97,11 @@ export async function sendRenewalReminders(now = new Date()) {
   });
   const appUrl = process.env.APP_URL || "";
   for (const b of due) {
-    await sendEmail({ to: b.owner.email, subject: "Your plan ends in 3 days", text: `Your plan ends soon. Renew here to keep your AI receptionist and tools running, or turn on automatic payment so you don't have to think about it:\n\n${appUrl}/dashboard/billing` });
+    // Custom bundles (Products & Bundles) are billed by our team, so no self-serve link.
+    const text = b.customBundleId
+      ? "Your bundle ends in 3 days. Message your Wayne E Solutions account manager to renew, so your tools keep running."
+      : `Your plan ends soon. Renew here to keep your AI receptionist and tools running, or turn on automatic payment so you don't have to think about it:\n\n${appUrl}/dashboard/billing`;
+    await sendEmail({ to: b.owner.email, subject: "Your plan ends in 3 days", text });
     await prisma.business.update({ where: { id: b.id }, data: { renewalReminderAt: now } });
   }
   return due.length;

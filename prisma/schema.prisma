@@ -94,6 +94,19 @@ model Business {
   razorpaySubscriptionId String?   @unique
   renewalReminderAt      DateTime?
 
+  // ── Products & Bundles (custom bundles, Nov 2026) ──────────────────────
+  // A super admin can build a bundle from any software in the catalog
+  // (Admin → Products & Bundles) and give it to a client. When set, it
+  // replaces frontDeskPlan as "what this business gets". The two fields
+  // below are copied from the bundle so plan checks stay fast; they are
+  // refreshed whenever the bundle is edited (lib/hub/catalog.ts syncBundle).
+  customBundleId String?
+  customBundle   Bundle?   @relation(fields: [customBundleId], references: [id], onDelete: SetNull)
+  /// Comma list of the connected tools in the custom bundle (WAYNERING,GMB…).
+  bundleTools    String    @default("")
+  /// The custom bundle includes the Growth Manager.
+  bundleGrowth   Boolean   @default(false)
+
   createdAt DateTime @default(now())
 
   locations      Location[]
@@ -110,8 +123,10 @@ model Business {
   growthSettings GrowthSettings?
   growthEvents   GrowthEvent[]
   growthActions  GrowthAction[]
+  productSetups  ProductSetup[]
 
   @@index([ownerId])
+  @@index([customBundleId])
 }
 
 model Location {
@@ -595,4 +610,81 @@ model RateLimit {
 model RazorpayPlan {
   key    String @id
   planId String
+}
+
+// ── Products & Bundles (Nov 2026) ─────────────────────────────────────────
+// The catalog of everything Wayne E Solutions sells, and bundles built from
+// it. See lib/hub/catalog.ts and Admin → Products & Bundles.
+
+model Product {
+  id          String  @id @default(cuid())
+  /// Stable slug, e.g. "korvo". Built-in tools use waynering, field-service, gmb, video, regulars.
+  key         String  @unique
+  name        String
+  description String?
+  /// Where the client opens it (manual software) or our website for it.
+  url         String?
+  /// Connect: HUB (Regulars itself) | AUTO (account made automatically, one login) | MANUAL (our team sets it up)
+  connect     String  @default("MANUAL")
+  /// For AUTO: which connected tool it is (WAYNERING | FIELD_SERVICE | GMB | VIDEO).
+  hubTool     String? @unique
+  /// Optional list prices, in rupees / Canadian dollars per month.
+  priceInr    Int?
+  priceCad    Int?
+  builtIn     Boolean @default(false)
+  active      Boolean @default(true)
+  sortOrder   Int     @default(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bundles BundleProduct[]
+  setups  ProductSetup[]
+}
+
+model Bundle {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  /// Price per period, in rupees / Canadian dollars.
+  priceInr    Int?
+  priceCad    Int?
+  /// Interval: MONTHLY | YEARLY
+  interval    String  @default("MONTHLY")
+  /// Includes the AI Growth Manager (morning plan, win-backs…).
+  growthManager   Boolean @default(false)
+  /// Included SMS per month (null = no limit set).
+  smsMonthlyLimit Int?
+  active      Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items      BundleProduct[]
+  businesses Business[]
+}
+
+model BundleProduct {
+  bundleId  String
+  bundle    Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([bundleId, productId])
+}
+
+/// A MANUAL product our team sets up for one client: shown on their home page.
+model ProductSetup {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /// Status: SETUP | READY | PAUSED
+  status     String   @default("SETUP")
+  /// The client's own link/login page for it, if different from the product's.
+  link       String?
+  note       String?
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@unique([businessId, productId])
 }

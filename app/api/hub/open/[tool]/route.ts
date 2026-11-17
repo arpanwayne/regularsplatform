@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness, getCurrentUser } from "@/lib/session";
-import { TOOL_META, bundleLive, planTools, type Tool } from "@/lib/hub/plans";
+import { TOOL_META, bundleLive, type Tool } from "@/lib/hub/plans";
+import { businessTools } from "@/lib/hub/catalog-rules";
 import { signHubToken, toolUrl } from "@/lib/hub/tokens";
 
 const SLUG: Record<string, Tool> = { wayneRing: "WAYNERING", "field-service": "FIELD_SERVICE", gmb: "GMB", video: "VIDEO" };
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: { tool: string
   const tool = SLUG[params.tool];
   if (!business || !tool) return back("unknown");
 
-  if (!planTools(business.frontDeskPlan).includes(tool)) return back("not-in-plan");
+  if (!businessTools(business).includes(tool)) return back("not-in-plan");
   if (!bundleLive(business) || business.status === "SUSPENDED") return back("plan-inactive");
   const account = await prisma.toolAccount.findUnique({ where: { businessId_tool: { businessId: business.id, tool } } });
   if (!account?.externalId || account.status !== "ACTIVE") return back("setting-up");

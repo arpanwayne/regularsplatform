@@ -5,6 +5,7 @@ import { StatCard } from "@/components/stat-card";
 import { DAY, getSettings, money } from "@/lib/growth/settings";
 import { accountData } from "@/lib/hub/provision";
 import { BUNDLE_PLANS, TOOL_META, isBundlePlan, type Tool } from "@/lib/hub/plans";
+import { businessTools, customBundleView } from "@/lib/hub/catalog";
 import { TOOL_NAMES } from "@/lib/brand";
 import { ownerChannel } from "@/lib/growth/brief";
 
@@ -30,8 +31,19 @@ function statusOf(a: Acc | undefined, live: boolean) {
  * one-click sign-in, and a set-up checklist until everything is connected.
  */
 export async function HubHome({ business, hubMessage }: { business: Business; hubMessage?: string }) {
-  if (!isBundlePlan(business.frontDeskPlan)) return null;
-  const plan = BUNDLE_PLANS[business.frontDeskPlan];
+  // A built-in plan, or a custom bundle from Admin → Products & Bundles.
+  let plan: { name: string; tools: Tool[]; growthManager: boolean };
+  let manual: NonNullable<Awaited<ReturnType<typeof customBundleView>>>["manual"] = [];
+  if (business.customBundleId) {
+    const view = await customBundleView(business.id);
+    if (!view) return null;
+    plan = { name: view.bundle.name, tools: businessTools(business), growthManager: business.bundleGrowth };
+    manual = view.manual;
+  } else if (isBundlePlan(business.frontDeskPlan)) {
+    plan = BUNDLE_PLANS[business.frontDeskPlan];
+  } else {
+    return null;
+  }
   const s = await getSettings(business);
   const since = new Date(Date.now() - 7 * DAY);
   const [accounts, waiting, won, events, locations] = await Promise.all([
@@ -52,8 +64,10 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
 
   const steps = [
     { done: live, text: "Plan paid", href: "/dashboard/billing" },
-    { done: acc("WAYNERING")?.status === "ACTIVE", text: "AI receptionist account created" },
-    { done: !!wr.phoneNumber, text: wr.phoneNumber ? `Calls answered on ${wr.phoneNumber}` : "Phone number connected (our team sets this up with you)" },
+    ...(plan.tools.includes("WAYNERING") ? [
+      { done: acc("WAYNERING")?.status === "ACTIVE", text: "AI receptionist account created" },
+      { done: !!wr.phoneNumber, text: wr.phoneNumber ? `Calls answered on ${wr.phoneNumber}` : "Phone number connected (our team sets this up with you)" },
+    ] : []),
     ...(plan.tools.includes("FIELD_SERVICE") ? [{ done: acc("FIELD_SERVICE")?.status === "ACTIVE", text: `${TOOL_NAMES.jobs} account created` }] : []),
     ...(plan.tools.includes("GMB") ? [{ done: !!gmb.connected, text: gmb.connected ? "Google listing connected" : `Connect your Google listing (open ${TOOL_NAMES.google} below)` }] : []),
     ...(plan.growthManager ? [{
@@ -61,6 +75,8 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
       text: brief.ok ? `Morning plan goes to ${brief.to} by ${brief.channel === "WHATSAPP" ? "WhatsApp" : "text"}` : `Morning plan: ${brief.reason}`,
       href: "/dashboard/growth",
     }] : []),
+    // Software our team sets up by hand (Korvo, Loyvexa…).
+    ...manual.map((m) => ({ done: m.setup?.status === "READY", text: m.setup?.status === "READY" ? `${m.product.name} is ready` : `${m.product.name}: our team is setting it up` })),
   ];
   const allDone = steps.every((x) => x.done);
 
@@ -124,6 +140,17 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
             : [{ href: "/api/hub/open/video?page=make", label: "Make an ad ↗", external: true }, { href: "/dashboard/growth", label: "Reel ideas" }];
           const note = t === "GMB" && ready && !gmb.connected ? "Open it to connect your Google listing" : t === "WAYNERING" && ready && wr.phoneNumber ? wr.phoneNumber : TOOL_META[t].ownerLogin ? null : "Run for you by our team";
           return <Tile key={t} name={TOOL_META[t].name} blurb={TOOL_META[t].blurb} status={st} note={note} links={ready || !TOOL_META[t].ownerLogin ? links : []} />;
+        })}
+        {manual.map(({ product, setup }) => {
+          const st = !live || setup?.status === "PAUSED" ? { label: "Paused", tone: "bg-gray-100 text-gray-600" }
+            : setup?.status === "READY" ? { label: "Ready", tone: "bg-green-50 text-green-800" }
+            : { label: "Setting up", tone: "bg-amber-50 text-amber-800" };
+          const href = setup?.link ?? product.url;
+          return (
+            <Tile key={product.id} name={product.name} blurb={product.description ?? ""} status={st}
+              note={st.label === "Setting up" ? "Our team is setting this up for you — we'll let you know when it's ready" : setup?.note ?? null}
+              links={st.label === "Ready" && href ? [{ href, label: `Open ${product.name} ↗`, external: true }] : []} />
+          );
         })}
       </div>
     </section>

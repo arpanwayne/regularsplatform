@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { generateApiKey } from "@/lib/api-keys";
 import { logEvent } from "@/lib/logger";
 import { getSettings, parseJson } from "@/lib/growth/settings";
-import { TOOLS, TOOL_META, bundleLive, planTools, type Tool } from "@/lib/hub/plans";
+import { TOOLS, TOOL_META, bundleLive, type Tool } from "@/lib/hub/plans";
+import { businessTools } from "@/lib/hub/catalog-rules";
 import { signHubToken, toolSecret, toolUrl } from "@/lib/hub/tokens";
 
 /**
@@ -85,7 +86,8 @@ export async function provisionTool(biz: Biz, tool: Tool, opts: { active: boolea
     regulars: REPORTS_EVENTS.includes(tool)
       ? { baseUrl: (process.env.APP_URL ?? "").replace(/\/$/, "") || null, apiKey: issued?.plain ?? null, locationId: biz.locations[0]?.id ?? null }
       : undefined,
-    growth: { missedCallTextBack: biz.frontDeskPlan === "ANSWER_RETURN" || biz.frontDeskPlan === "GROW" },
+    // Custom bundles (Products & Bundles) turn the follow-ups on with their Growth Manager box.
+    growth: { missedCallTextBack: biz.customBundleId ? biz.bundleGrowth : biz.frontDeskPlan === "ANSWER_RETURN" || biz.frontDeskPlan === "GROW" },
   };
 
   try {
@@ -131,7 +133,7 @@ async function wireGrowthSettings(businessId: string, tool: Tool, a: Answer, api
   if (Object.keys(data).length) await prisma.growthSettings.update({ where: { businessId }, data });
 }
 
-/** Provision every tool: on for the plan's tools, paused for the rest it already has. */
+/** Provision every tool: on for the plan's (or custom bundle's) tools, paused for the rest it already has. */
 export async function provisionBusiness(businessId: string, opts: { rotateKeys?: boolean } = {}): Promise<ProvisionResult[]> {
   const biz = await prisma.business.findUnique({
     where: { id: businessId },
@@ -139,7 +141,8 @@ export async function provisionBusiness(businessId: string, opts: { rotateKeys?:
   });
   if (!biz) return [];
   const live = bundleLive(biz) && biz.status !== "SUSPENDED";
-  const wanted = new Set(planTools(biz.frontDeskPlan));
+  // Built-in plan or custom bundle (Admin → Products & Bundles).
+  const wanted = new Set(businessTools(biz));
   const results: ProvisionResult[] = [];
   for (const tool of TOOLS) {
     const has = biz.toolAccounts.find((t) => t.tool === tool);

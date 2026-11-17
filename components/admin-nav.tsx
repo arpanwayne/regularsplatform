@@ -7,6 +7,7 @@ import clsx from "clsx";
 const LINKS = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/businesses", label: "Businesses" },
+  { href: "/admin/catalog", label: "Products & Bundles" },
   { href: "/admin/bundles", label: "Bundles" },
   { href: "/admin/owners", label: "Owners" },
   { href: "/admin/usage", label: "Usage" },

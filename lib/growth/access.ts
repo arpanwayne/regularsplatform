@@ -9,12 +9,15 @@ import { BUNDLE_PLANS, isBundlePlan } from "@/lib/hub/plans";
  *  - Bundle A: plans with growthManager (Answer + Return, Grow) while the
  *    bundle is ACTIVE.
  *  - Regulars-only: the paid GROWTH and PRO plans.
+ *  - Custom bundles: when the bundle has "Growth Manager" ticked.
  *  - Starter (free) and Answer: no.
  *
  * To demo it on a test business, put that business on PRO from
  * Admin → Businesses.
  */
-export function growthAllowed(b: Pick<Business, "plan" | "frontDeskPlan" | "bundleStatus">): boolean {
+export function growthAllowed(b: Pick<Business, "plan" | "frontDeskPlan" | "bundleStatus"> & Partial<Pick<Business, "customBundleId" | "bundleGrowth">>): boolean {
+  // A custom bundle (Admin → Products & Bundles) says itself whether it includes it.
+  if (b.bundleStatus !== "NONE" && b.customBundleId) return b.bundleStatus === "ACTIVE" && !!b.bundleGrowth;
   if (b.bundleStatus !== "NONE" && isBundlePlan(b.frontDeskPlan)) {
     return b.bundleStatus === "ACTIVE" && BUNDLE_PLANS[b.frontDeskPlan].growthManager;
   }
