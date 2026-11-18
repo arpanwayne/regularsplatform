@@ -6,10 +6,12 @@ import { runSegmentationForBusiness } from "@/lib/run-segmentation";
 import { logEvent } from "@/lib/logger";
 import { handleOwnerReply } from "@/lib/growth/brief";
 import { sendOwnerSms, senderName } from "@/lib/sms";
-import { ownerWhatsAppSender, sendOwnerWhatsApp } from "@/lib/whatsapp-send";
+import { ownerWhatsAppSender, sendCustomerWhatsApp, sendOwnerWhatsApp } from "@/lib/whatsapp-send";
 import { sharedCountries, waErrorText } from "@/lib/whatsapp-sender";
 import { onMessageDeliveryFailed } from "@/lib/growth/delivery";
 import { smsConfigured } from "@/lib/sms";
+import { handleStaffMessage } from "@/lib/staff";
+import { applyConsentReply, applyJoin, consentAnswerText, parseConsentReply, parseJoin, welcomeText } from "@/lib/onboarding";
 
 // GET — Meta's webhook verification handshake. Each Location gets its own
 // whatsappVerifyToken (shown on the Settings page); we also accept the
@@ -53,14 +55,22 @@ const META_SAMPLE_PHONE_NUMBER_IDS = ["123456123"];
 /**
  * Inbound on the shared number (+91 90414 36801): many businesses send from
  * it, so work out which one this person is talking to.
- *  1. the owner of a business on the shared number (brief replies)
+ *  0. a QR scan: "JOIN <code>" names the location itself
+ *  1. the owner of a business on the shared number (brief replies, approvals)
+ *     or one of its managers ("add Rahul 98…")
  *  2. the business that last messaged this customer from the shared number
  *  3. the shared-number business this phone is already a customer of
  */
-async function routeShared(from: string): Promise<{ location: LocWithBusiness; owner: boolean } | null> {
+async function routeShared(from: string, text?: string): Promise<{ location: LocWithBusiness; owner: boolean } | null> {
   const countries = sharedCountries();
   const phones = [from, `+${from}`];
   const onShared = { whatsappPhoneNumberId: null } as const;
+
+  const join = parseJoin(text);
+  if (join) {
+    const joined = await prisma.location.findFirst({ where: { ...onShared, joinCode: join.code }, include: { business: true } });
+    if (joined) return { location: joined, owner: false };
+  }
 
   // Owners in any country can get their brief from the shared number
   // (lib/whatsapp-send.ts ownerWhatsAppSender), so their replies route here too.
@@ -74,6 +84,13 @@ async function routeShared(from: string): Promise<{ location: LocWithBusiness; o
     const location = await prisma.location.findUnique({ where: { id: ownerLoc.id }, include: { business: true } });
     if (location) return { location, owner: true };
   }
+  // A manager (Dashboard → Team saves their mobile as digits).
+  const manager = await prisma.user.findFirst({
+    where: { role: "MANAGER", phone: { in: phones }, managedBusiness: { status: "ACTIVE" } },
+    select: { managedBusiness: { select: { locations: { where: onShared, orderBy: { createdAt: "asc" }, take: 1, include: { business: true } } } } },
+  });
+  const managerLoc = manager?.managedBusiness?.locations[0];
+  if (managerLoc) return { location: managerLoc, owner: true };
 
   const lastOut = await prisma.message.findFirst({
     where: { channel: "WHATSAPP", direction: "OUTBOUND", customer: { phone: from }, location: onShared },
@@ -166,7 +183,7 @@ export async function POST(req: NextRequest) {
         let location: LocWithBusiness | null = ownLocation;
         let fromOwner = false;
         if (isShared) {
-          const routed = await routeShared(message.from);
+          const routed = await routeShared(message.from, text);
           location = routed?.location ?? null;
           fromOwner = !!routed?.owner;
           if (!location) {
@@ -179,6 +196,11 @@ export async function POST(req: NextRequest) {
         if (business.status === "SUSPENDED" || location.status === "SUSPENDED") continue;
 
         try {
+          // The owner approving an offer / a manager adding a customer.
+          if (text && (await handleStaffMessage(location, message.from, text, "WHATSAPP").catch(async (err) => {
+            await logEvent({ businessId: business.id, source: "WHATSAPP", level: "ERROR", message: "Staff command failed", meta: { error: err instanceof Error ? err.message : String(err) } });
+            return false;
+          }))) continue;
           // The owner answering the daily brief.
           if (text && (await handleOwnerReply(location, message.from, text).catch(() => false))) continue;
           if (fromOwner) continue; // owner chatting to the shared number, not a customer
@@ -198,6 +220,7 @@ export async function POST(req: NextRequest) {
               lastSeenAt: now,
               visitCount: isQualifyingVisit(messageType) ? 1 : 0,
               preferredChannel: "WHATSAPP", // they reached us on WhatsApp
+              consentSource: "INBOUND", // they wrote first (consentStatus IMPLIED)
               optedOut: optOut,
               optedOutAt: optOut ? now : null,
             },
@@ -241,6 +264,22 @@ export async function POST(req: NextRequest) {
           });
           if (!stored) continue;
 
+          // QR scan ("JOIN <code>") or an answer to the YES/NO consent request:
+          // handled automatically — a thank-you goes back, the owner isn't pinged.
+          let automatic = false;
+          const join = parseJoin(text);
+          const decision = !optOut && customer.consentStatus === "PENDING" ? parseConsentReply(text) : null;
+          if (join && location.joinCode === join.code) {
+            const joined = await applyJoin(customer, join.tag, now);
+            await sendCustomerWhatsApp({ business, location, customer: joined, purpose: "OTHER", text: await welcomeText(business, senderName(location, business)), now });
+            automatic = true;
+          } else if (decision) {
+            const answered = await applyConsentReply(customer, decision, now);
+            await sendCustomerWhatsApp({ business, location, customer: answered, purpose: "OTHER", text: await consentAnswerText(business, senderName(location, business), decision), now });
+            automatic = true;
+          }
+          if (automatic) await prisma.message.update({ where: { id: stored.id }, data: { readAt: now } });
+
           if (isQualifyingVisit(messageType)) {
             await prisma.visit.create({
               data: {
@@ -254,7 +293,7 @@ export async function POST(req: NextRequest) {
           }
 
           // Tell the owner (opt-in: Settings → "Forward customer replies to").
-          if (!optOut && location.ownerNotifyPhone) {
+          if (!optOut && !automatic && location.ownerNotifyPhone) {
             const who = customer.name ? `${customer.name} (+${customer.phone})` : `+${customer.phone}`;
             const name = senderName(location, business);
             // WhatsApp whenever we can reach the owner there (the shared number works for

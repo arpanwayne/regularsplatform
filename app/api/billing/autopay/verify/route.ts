@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusiness } from "@/lib/session";
 import { logEvent } from "@/lib/logger";
 import { autopayStore, fetchSubscription, verifySubscriptionPayment } from "@/lib/hub/autopay";
 import { paidThrough } from "@/lib/hub/autopay-events";
@@ -10,7 +10,7 @@ const schema = z.object({ razorpay_payment_id: z.string(), razorpay_subscription
 
 /** Turns the tools on as soon as checkout finishes. The webhook is the backup; only one counts. */
 export async function POST(req: NextRequest) {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusiness();
   if (!business) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid input" }, { status: 400 });

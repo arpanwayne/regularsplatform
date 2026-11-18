@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { getCurrentBusiness } from "@/lib/session";
+import { getCurrentMember } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { CustomerTable } from "@/components/customer-table";
 import { Segment } from "@/lib/types";
+import { AddCustomerForm } from "@/components/add-customer-form";
+import { CsvImport } from "@/components/front-desk-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -13,21 +15,25 @@ export default async function CustomersPage({
 }: {
   searchParams: { segment?: string };
 }) {
-  const business = await getCurrentBusiness();
-  if (!business) return null;
+  const member = await getCurrentMember();
+  if (!member) return null;
+  const { business } = member;
 
   const segmentFilter = SEGMENTS.includes(searchParams.segment as Segment)
     ? (searchParams.segment as Segment)
     : undefined;
 
-  const [customers, locationCount] = await Promise.all([
+  const [customers, locations] = await Promise.all([
     prisma.customer.findMany({
       where: { businessId: business.id, ...(segmentFilter ? { segment: segmentFilter } : {}) },
       orderBy: { lastSeenAt: "desc" },
       include: { location: { select: { name: true } } },
     }),
-    prisma.location.count({ where: { businessId: business.id } }),
+    prisma.location.findMany({ where: { businessId: business.id }, select: { id: true, name: true, status: true }, orderBy: { createdAt: "asc" } }),
   ]);
+  const locationCount = locations.length;
+  const activeLocations = locations.filter((l) => l.status === "ACTIVE");
+  const pendingConsent = customers.filter((c) => c.consentStatus === "PENDING").length;
 
   return (
     <div className="space-y-4">
@@ -42,13 +48,22 @@ export default async function CustomersPage({
           </Link>
         )}
       </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <AddCustomerForm locations={activeLocations} />
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <CsvImport locations={activeLocations} country={business.country} />
+        </div>
+      </div>
+      {pendingConsent > 0 && (
+        <p className="text-sm text-gray-600">{pendingConsent} customer{pendingConsent === 1 ? " hasn't" : "s haven't"} answered the YES/NO request yet. They get no offers until they say YES.</p>
+      )}
       <div className="flex flex-wrap gap-2">
         <FilterLink label="All" segment={undefined} active={!segmentFilter} />
         {SEGMENTS.map((s) => (
           <FilterLink key={s} label={s.replace("_", " ")} segment={s} active={segmentFilter === s} />
         ))}
       </div>
-      <CustomerTable customers={customers} showLocation={locationCount > 1} country={business.country} bundle={business.bundleStatus !== "NONE"} />
+      <CustomerTable customers={customers} showLocation={locationCount > 1} country={business.country} bundle={business.bundleStatus !== "NONE" || !member.isOwner} />
     </div>
   );
 }

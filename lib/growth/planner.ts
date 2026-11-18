@@ -1,4 +1,4 @@
-import { marketingConsentFilter } from "@/lib/consent";
+import { marketingConsentFilter, mayMarket as consentAllows } from "@/lib/consent";
 import { Prisma } from "@prisma/client";
 import type { Business, Customer, GrowthSettings, Location } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -11,9 +11,8 @@ import {
   type ActionType, type GrowthGoal,
 } from "@/lib/growth/types";
 
-function mayMarket(c: { lastSeenAt: Date }, country: string | null | undefined, now: Date) {
-  const cutoff = marketingConsentFilter(country, now).lastSeenAt?.gte;
-  return !cutoff || c.lastSeenAt >= cutoff;
+function mayMarket(c: { lastSeenAt: Date; consentStatus?: string | null }, country: string | null | undefined, now: Date) {
+  return consentAllows(c, country, now);
 }
 
 /**

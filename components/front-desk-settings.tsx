@@ -56,7 +56,7 @@ export function FrontDeskSettings({ business, locations }: { business: Business;
 
       {locations.map((l) => <LocationSms key={l.id} location={l} />)}
 
-      <CsvImport locations={locations} />
+      <CsvImport locations={locations} country={business.country} />
       <Winback />
     </section>
   );
@@ -111,18 +111,25 @@ function LocationSms({ location }: { location: Location }) {
   );
 }
 
-function CsvImport({ locations }: { locations: Location[] }) {
+/**
+ * CSV import (Settings and Dashboard → Customers). New customers get a YES/NO
+ * WhatsApp/SMS before any offer, unless the owner confirms the list already
+ * agreed (in Canada, a purchase in the last 2 years is implied consent under
+ * CASL, so that box starts ticked there).
+ */
+export function CsvImport({ locations, country }: { locations: Pick<Location, "id" | "name">[]; country?: string | null }) {
   const router = useRouter();
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
+  const [confirmed, setConfirmed] = useState(country === "CA");
   const [result, setResult] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function upload(file: File) {
     setBusy(true); setResult(null);
-    const res = await fetch(`/api/customers/import?locationId=${locationId}`, { method: "POST", headers: { "content-type": "text/csv" }, body: await file.text() });
+    const res = await fetch(`/api/customers/import?locationId=${locationId}${confirmed ? "&consent=confirmed" : ""}`, { method: "POST", headers: { "content-type": "text/csv" }, body: await file.text() });
     const d = await res.json().catch(() => ({}));
     setBusy(false);
-    setResult(res.ok ? `Imported ${d.rows} rows: ${d.created} new, ${d.updated} updated, ${d.skipped} skipped.${d.errors?.length ? " " + d.errors.slice(0, 3).join("; ") : ""}` : d.error || "Import failed.");
+    setResult(res.ok ? `Imported ${d.rows} rows: ${d.created} new, ${d.updated} updated, ${d.skipped} skipped.${d.consentQueued ? ` ${d.consentQueued} will get a YES/NO request in contact hours.` : ""}${d.errors?.length ? " " + d.errors.slice(0, 3).join("; ") : ""}` : d.error || "Import failed.");
     router.refresh();
   }
 
@@ -130,6 +137,10 @@ function CsvImport({ locations }: { locations: Location[] }) {
     <div className="space-y-2 text-sm">
       <h3 className="font-medium">Import customer list (CSV)</h3>
       <p className="text-gray-600">Columns: <code>phone</code> (required), <code>name</code>, <code>last_visit</code>, <code>visits</code>, <code>total_spend</code>, <code>channel</code>. Only import people who&apos;ve been your customers.</p>
+      <label className="flex items-start gap-2 text-gray-600">
+        <input type="checkbox" className="mt-0.5" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
+        <span>These customers already agreed to get messages from us{country === "CA" ? " (or bought from us in the last 2 years)" : ""}. Untick to send each new customer a YES/NO request first.</span>
+      </label>
       <div className="flex flex-wrap items-center gap-2">
         {locations.length > 1 && (
           <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className="rounded-md border border-gray-300 px-2 py-1">

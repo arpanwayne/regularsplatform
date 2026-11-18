@@ -80,7 +80,7 @@ export function CustomerTable({
   if (customers.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
-        Customers appear here after their first call, text or visit. You can also import a list in Settings.
+        Customers appear here after their first call, text, visit or QR scan. You can also add them above or import a list.
       </div>
     );
   }
@@ -129,6 +129,21 @@ export function CustomerTable({
                 )}
                 <td className="px-4 py-3">
                   <SegmentBadge segment={c.segment} />
+                  {c.consentStatus === "PENDING" && (
+                    <span title="Asked to reply YES or NO — no offers until YES" className="ml-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      Waiting for YES
+                    </span>
+                  )}
+                  {c.consentStatus === "DECLINED" && (
+                    <span title="Said NO to offers" className="ml-1 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                      No offers
+                    </span>
+                  )}
+                  {c.consentStatus === "GRANTED" && c.consentSource === "QR" && (
+                    <span title={c.joinTag ? `Joined by QR (${c.joinTag})` : "Joined by QR"} className="ml-1 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                      QR{c.joinTag ? ` · ${c.joinTag}` : ""}
+                    </span>
+                  )}
                   {c.optedOut && (
                     <span className="ml-1 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
                       Opted out

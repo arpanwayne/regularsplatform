@@ -114,7 +114,7 @@ type OwnerTemplate = { templateKey: WaTemplateKey; params: string[] };
  * 24h window); without it the text goes as free text (only right after the
  * owner wrote to us). If the first channel fails, the other one is tried.
  */
-async function sendToOwner(business: Business & { locations: Location[] }, s: GrowthSettings, body: string, wa?: OwnerTemplate) {
+export async function sendToOwner(business: Business & { locations: Location[] }, s: GrowthSettings, body: string, wa?: OwnerTemplate) {
   const ch = ownerChannel(s, business);
   if (!ch.ok) {
     await logEvent({ businessId: business.id, source: "GROWTH", level: "WARN", message: `Owner message not sent: ${ch.reason}`, meta: { body } });

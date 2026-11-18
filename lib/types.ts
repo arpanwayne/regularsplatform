@@ -18,7 +18,7 @@ export type MessageType =
 
 export type CallLogStatus = "PENDING" | "TRIGGERED" | "COMPLETED" | "FAILED";
 
-export type Role = "OWNER" | "SUPER_ADMIN";
+export type Role = "OWNER" | "MANAGER" | "SUPER_ADMIN";
 
 export type BusinessStatus = "ACTIVE" | "SUSPENDED";
 
@@ -38,7 +38,7 @@ export type Channel = "WHATSAPP" | "SMS";
 export const CHANNELS: Channel[] = ["WHATSAPP", "SMS"];
 /** Where a conversation message came from. Instagram is inbox-only: replies, never outreach. */
 export type MessageChannel = Channel | "INSTAGRAM";
-export type MessagePurpose = "MISSED_CALL" | "REVIEW_REQUEST" | "WINBACK" | "FOLLOW_UP" | "REPLY" | "BOOKING_LINK" | "OTHER";
+export type MessagePurpose = "MISSED_CALL" | "REVIEW_REQUEST" | "WINBACK" | "FOLLOW_UP" | "REPLY" | "BOOKING_LINK" | "OFFER" | "CONSENT_REQUEST" | "OTHER";
 export type FrontDeskPlan = "ANSWER" | "ANSWER_RETURN" | "GROW";
 export const FRONT_DESK_PLANS: FrontDeskPlan[] = ["ANSWER", "ANSWER_RETURN", "GROW"];
 /** Included outgoing SMS per month for each Front Desk plan (from the product doc). */
@@ -48,7 +48,7 @@ export const FRONT_DESK_SMS_LIMIT: Record<FrontDeskPlan, number | null> = {
   GROW: 1000,
 };
 
-export type LogSource = "PRIVACY" | "WEBHOOK" | "CALLING_SCRIPT" | "BILLING" | "AUTH" | "API" | "SMS" | "GROWTH" | "WHATSAPP" | "INSTAGRAM";
+export type LogSource = "PRIVACY" | "WEBHOOK" | "CALLING_SCRIPT" | "BILLING" | "AUTH" | "API" | "SMS" | "GROWTH" | "WHATSAPP" | "INSTAGRAM" | "OFFER" | "CONSENT";
 export type LogLevel = "INFO" | "WARN" | "ERROR";
 
 export type PaymentStatus = "CREATED" | "PAID" | "FAILED";

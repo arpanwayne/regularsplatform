@@ -35,7 +35,10 @@ export type WaTemplateKey =
   | "review_request"
   | "owner_brief"
   | "owner_weekly"
-  | "owner_new_message";
+  | "owner_new_message"
+  | "consent_request"
+  | "offer"
+  | "owner_approval";
 
 type Def = {
   key: WaTemplateKey;
@@ -145,6 +148,46 @@ export const WA_TEMPLATE_DEFS: Def[] = [
       pa: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ {{1}}, {{2}} ਨੂੰ ਚੁਣਨ ਲਈ ਧੰਨਵਾਦ! ਜੇ ਤੁਹਾਨੂੰ ਸਾਡੀ ਸੇਵਾ ਚੰਗੀ ਲੱਗੀ, ਤਾਂ ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਛੋਟਾ ਜਿਹਾ Google review ਦਿਓ: {{3}} ਇਹ ਮੈਸੇਜ ਬੰਦ ਕਰਨ ਲਈ STOP ਲਿਖੋ।",
     },
   },
+  // ── Onboarding flow (Nov 2026): consent request + manager offers ──────
+  {
+    // Sent once to a customer the staff added ("add Rahul 98…") or imported.
+    // They were asked in person first; this is the written YES/NO record.
+    key: "consent_request",
+    category: "UTILITY",
+    audience: "customer",
+    vars: ["customer first name", "business name"],
+    examples: {
+      en: ["Priya", "Glow Salon"],
+      hinglish: ["Priya", "Glow Salon"],
+      hi: ["प्रिया", "Glow Salon"],
+      pa: ["ਪ੍ਰਿਆ", "Glow Salon"],
+    },
+    bodies: {
+      en: "Hi {{1}}, {{2}} would like to send you offers and updates on WhatsApp. Reply YES to join, or NO if you do not want them. Thank you!",
+      hinglish: "Namaste {{1}}, {{2}} aapko WhatsApp pe offers aur updates bhejna chahta hai. Judne ke liye YES likhein, nahi chahiye toh NO likhein. Dhanyavaad!",
+      hi: "नमस्ते {{1}}, {{2}} आपको WhatsApp पर ऑफ़र और अपडेट भेजना चाहता है। जुड़ने के लिए YES लिखें, नहीं चाहिए तो NO लिखें। धन्यवाद!",
+      pa: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ {{1}}, {{2}} ਤੁਹਾਨੂੰ WhatsApp ਤੇ ਆਫ਼ਰ ਅਤੇ ਅੱਪਡੇਟ ਭੇਜਣਾ ਚਾਹੁੰਦਾ ਹੈ। ਜੁੜਨ ਲਈ YES ਲਿਖੋ, ਨਹੀਂ ਚਾਹੀਦੇ ਤਾਂ NO ਲਿਖੋ। ਧੰਨਵਾਦ!",
+    },
+  },
+  {
+    // A manager's offer, after the owner approved it (or it was inside the limits).
+    key: "offer",
+    category: "MARKETING",
+    audience: "customer",
+    vars: ["customer first name", "business name", "the offer"],
+    examples: {
+      en: ["Priya", "Glow Salon", "20% off any hair spa this week, show this message at the counter."],
+      hinglish: ["Priya", "Glow Salon", "Is hafte hair spa pe 20% off, counter pe ye message dikhayein."],
+      hi: ["प्रिया", "Glow Salon", "इस हफ़्ते हेयर स्पा पर 20% छूट, काउंटर पर यह मैसेज दिखाएँ।"],
+      pa: ["ਪ੍ਰਿਆ", "Glow Salon", "ਇਸ ਹਫ਼ਤੇ ਹੇਅਰ ਸਪਾ ਤੇ 20% ਛੋਟ, ਕਾਊਂਟਰ ਤੇ ਇਹ ਮੈਸੇਜ ਦਿਖਾਓ।"],
+    },
+    bodies: {
+      en: "Hi {{1}}, a special offer from {{2}}: {{3}} Reply STOP to stop these messages.",
+      hinglish: "Namaste {{1}}, {{2}} ki taraf se aapke liye ek khaas offer: {{3}} Ye messages band karne ke liye STOP likhein.",
+      hi: "नमस्ते {{1}}, {{2}} की ओर से आपके लिए एक ख़ास ऑफ़र: {{3}} ये मैसेज बंद करने के लिए STOP लिखें।",
+      pa: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ {{1}}, {{2}} ਵੱਲੋਂ ਤੁਹਾਡੇ ਲਈ ਇੱਕ ਖ਼ਾਸ ਆਫ਼ਰ: {{3}} ਇਹ ਮੈਸੇਜ ਬੰਦ ਕਰਨ ਲਈ STOP ਲਿਖੋ।",
+    },
+  },
   // ── To the business owner ─────────────────────────────────────────────
   {
     key: "owner_brief",
@@ -191,6 +234,18 @@ export const WA_TEMPLATE_DEFS: Def[] = [
     // Meta filed the Punjabi version as MARKETING (17 Nov 2026). A new-message
     // alert must not be held back, so Punjabi owners get Hinglish.
     noSend: ["pa"],
+  },
+  {
+    // A manager's offer is above the owner's limits (lib/offers.ts).
+    key: "owner_approval",
+    category: "UTILITY",
+    audience: "owner",
+    vars: ["business name", "who wrote it", "how many customers", "the offer", "approval number"],
+    examples: { en: ["Glow Salon", "Simran", "120", "20% off any hair spa this week.", "7"] },
+    bodies: {
+      en: "Approval needed for {{1}}: {{2}} wants to send an offer to {{3}} customers. Offer: {{4}} Reply APPROVE {{5}} or REJECT {{5}} on this chat.",
+      hinglish: "Approval chahiye, {{1}}: {{2}} {{3}} customers ko offer bhejna chahte hain. Offer: {{4}} Is chat pe APPROVE {{5}} ya REJECT {{5}} likhein.",
+    },
   },
 ];
 

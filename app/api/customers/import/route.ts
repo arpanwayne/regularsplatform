@@ -14,8 +14,12 @@ const pick = (row: Record<string, string>, ...keys: string[]) => keys.map((k) =>
  * work from day one. Columns (case-insensitive, extras ignored):
  *   phone (required), name, last_visit (date), visits, total_spend, channel (sms|whatsapp)
  * Existing customers are updated, never duplicated (one per location + phone).
- * Imported customers have dealt with the business, which is the CASL basis for
- * implied consent — the opt-out footer still goes on every text.
+ * Consent (onboarding flow, Nov 2026): new customers are PENDING and get one
+ * YES/NO request from the hourly cron, in contact hours — nothing marketing
+ * goes to them before YES. With ?consent=confirmed the owner confirms the list
+ * already agreed (in Canada: dealt with the business, the CASL basis for
+ * implied consent) and they are IMPLIED. The opt-out footer still goes on
+ * every text. Existing customers keep their consent as it is.
  */
 export async function POST(req: NextRequest) {
   const business = await getCurrentBusiness();
@@ -31,6 +35,7 @@ export async function POST(req: NextRequest) {
   if (!rows.length) return NextResponse.json({ error: "CSV is empty — first row must be the header" }, { status: 400 });
   if (rows.length > MAX_ROWS) return NextResponse.json({ error: `Max ${MAX_ROWS} rows per import` }, { status: 400 });
 
+  const confirmed = req.nextUrl.searchParams.get("consent") === "confirmed";
   let created = 0, updated = 0;
   const errors: string[] = [];
   for (const [i, row] of rows.entries()) {
@@ -80,11 +85,13 @@ export async function POST(req: NextRequest) {
           visitCount: Number.isFinite(visits) ? visits : when ? 1 : 0,
           totalSpend: Number.isFinite(spend) ? spend : 0,
           preferredChannel: channel,
+          consentStatus: confirmed ? "IMPLIED" : "PENDING",
+          consentSource: confirmed ? "IMPORT_CONFIRMED" : "IMPORT",
         },
       });
       created++;
     }
   }
   await runSegmentationForBusiness(business.id);
-  return NextResponse.json({ rows: rows.length, created, updated, skipped: rows.length - created - updated, errors });
+  return NextResponse.json({ rows: rows.length, created, updated, skipped: rows.length - created - updated, consentQueued: confirmed ? 0 : created, errors });
 }

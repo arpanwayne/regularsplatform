@@ -353,6 +353,7 @@ with the same `CRON_SECRET` as in `.env`. Without the growth line, the morning b
 ```
 5 * * * * curl -s -H "Authorization: Bearer CRON_SECRET_HERE" https://regulars.wayneesolutions.com/api/cron/growth > /dev/null
 0 15 * * * curl -s -H "Authorization: Bearer CRON_SECRET_HERE" https://regulars.wayneesolutions.com/api/cron/winback > /dev/null
+20 * * * * curl -s -H "Authorization: Bearer CRON_SECRET_HERE" https://regulars.wayneesolutions.com/api/cron/offers > /dev/null
 0 3 * * * curl -s -X POST -H "Authorization: Bearer CRON_SECRET_HERE" https://regulars.wayneesolutions.com/api/cron/downgrade-expired-plans > /dev/null
 ```
 

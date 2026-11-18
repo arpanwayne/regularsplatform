@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusiness } from "@/lib/session";
 import { subscribeInstagramWebhooks } from "@/lib/instagram";
 
 const updateSchema = z.object({
@@ -23,7 +23,7 @@ const updateSchema = z.object({
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusiness();
   if (!business) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -67,7 +67,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusiness();
   if (!business) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

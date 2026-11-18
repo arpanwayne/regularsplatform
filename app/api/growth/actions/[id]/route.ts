@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusiness } from "@/lib/session";
 import { executeAction } from "@/lib/growth/executor";
 import { parseJson } from "@/lib/growth/settings";
 import { GROWTH_UPGRADE_MESSAGE, growthAllowed } from "@/lib/growth/access";
@@ -14,7 +14,7 @@ const schema = z.object({
 
 /** POST /api/growth/actions/:id — owner approves (and optionally edits) or skips one action. */
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusiness();
   if (!business) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });

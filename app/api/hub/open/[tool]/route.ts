@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentBusiness, getCurrentUser } from "@/lib/session";
+import { getCurrentUser, getOwnerBusiness } from "@/lib/session";
 import { TOOL_META, bundleLive, type Tool } from "@/lib/hub/plans";
 import { businessTools } from "@/lib/hub/catalog-rules";
 import { signHubToken, toolUrl } from "@/lib/hub/tokens";
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: { tool: string
   const back = (msg: string) => NextResponse.redirect(new URL(`/dashboard?hub=${encodeURIComponent(msg)}`, req.url));
   const user = await getCurrentUser();
   if (!user) return NextResponse.redirect(new URL("/login", req.url));
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusiness();
   const tool = SLUG[params.tool];
   if (!business || !tool) return back("unknown");
 

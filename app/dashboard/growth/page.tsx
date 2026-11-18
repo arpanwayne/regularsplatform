@@ -1,4 +1,4 @@
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusinessOrRedirect } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { StatCard } from "@/components/stat-card";
 import { formatDateTime } from "@/lib/format";
@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
  * skip), what it did and what came of it, and how much it may do alone.
  */
 export default async function GrowthPage() {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusinessOrRedirect();
   if (!business) return null;
   const s = await getSettings(business);
   const now = new Date();
