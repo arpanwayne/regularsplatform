@@ -12,8 +12,8 @@ import { TOOL_NAMES } from "@/lib/brand";
  * Prices: CAD are the published Front Desk prices. INR are a DRAFT — confirm
  * before taking Indian payments.
  */
-export type Tool = "WAYNERING" | "FIELD_SERVICE" | "GMB" | "VIDEO";
-export const TOOLS: Tool[] = ["WAYNERING", "FIELD_SERVICE", "GMB", "VIDEO"];
+export type Tool = "WAYNERING" | "FIELD_SERVICE" | "GMB" | "VIDEO" | "LOYVEXA";
+export const TOOLS: Tool[] = ["WAYNERING", "FIELD_SERVICE", "GMB", "VIDEO", "LOYVEXA"];
 export type Currency = "CAD" | "INR";
 
 export type BundlePlan = {
@@ -79,6 +79,15 @@ export const TOOL_META: Record<Tool, {
     name: TOOL_NAMES.ads, blurb: "Finished video ads and social posts", ownerLogin: true,
     apiEnv: "VIDEO_STUDIO_API_URL", appEnv: "VIDEO_STUDIO_APP_URL", secretEnv: "HUB_SECRET_VIDEO",
     pages: { home: "/ads", make: "/ads/new" },
+  },
+  // Dealer / channel loyalty for manufacturers (Growlane AI). Not in the
+  // built-in Front Desk plans; sold through custom bundles (Products & Bundles).
+  // The hub creates the brand (Loyvexa "tenant") and its first admin, pauses
+  // it when the bundle lapses, and signs the owner into the brand console.
+  LOYVEXA: {
+    name: "Loyvexa", blurb: "Dealer and mechanic loyalty: QR points, schemes, UPI payouts", ownerLogin: true,
+    apiEnv: "LOYVEXA_API_URL", appEnv: "LOYVEXA_APP_URL", secretEnv: "HUB_SECRET_LOYVEXA",
+    pages: { home: "/admin/" },
   },
 };
 

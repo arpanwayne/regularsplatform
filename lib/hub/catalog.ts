@@ -12,7 +12,7 @@ const DAY = 86400000;
  * Products & Bundles (Admin → Products & Bundles).
  *
  *  - The catalog lists every product we sell. Built-in tools (WayneRing, CRM,
- *    GMB, Video Studio) connect automatically; others (Korvo, Loyvexa, new
+ *    GMB, Video Studio, Loyvexa) connect automatically; others (Korvo, new
  *    ones) are MANUAL until they get the hub's provisioning + single sign-on.
  *  - A bundle is any set of products with its own price.
  *  - Giving a bundle to a client works like the built-in plans: one paid
@@ -22,13 +22,25 @@ const DAY = 86400000;
 
 /** Creates the built-in and starter catalog rows if they're missing. Safe to call on every page view. */
 export async function ensureCatalog() {
+  const switched: string[] = [];
   for (const p of BUILT_IN_PRODUCTS) {
-    await prisma.product.upsert({
+    const before = await prisma.product.findUnique({ where: { key: p.key }, select: { connect: true, hubTool: true } });
+    const row = await prisma.product.upsert({
       where: { key: p.key },
+      // Only on first creation; an existing row keeps the name / price our team edited.
       create: { ...p, builtIn: true },
       // How a built-in connects is code; keep it right even if a row was edited.
       update: { connect: p.connect, hubTool: p.hubTool, builtIn: true },
     });
+    // A product that just became automatic (Loyvexa, Nov 2026): every bundle
+    // with it must recompute its tools, so its clients get set up.
+    if (before && (before.connect !== p.connect || before.hubTool !== p.hubTool)) switched.push(row.id);
+  }
+  if (switched.length) {
+    const bundles = await prisma.bundleProduct.findMany({ where: { productId: { in: switched } }, select: { bundleId: true } });
+    for (const bundleId of Array.from(new Set(bundles.map((b) => b.bundleId)))) {
+      await syncBundle(bundleId).catch((err) => logEvent({ source: "BILLING", level: "ERROR", message: "Bundle re-sync after a product became automatic failed", meta: { bundleId, error: err instanceof Error ? err.message : String(err) } }));
+    }
   }
   for (const p of STARTER_PRODUCTS) {
     const exists = await prisma.product.findUnique({ where: { key: p.key }, select: { id: true } });

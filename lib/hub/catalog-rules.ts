@@ -24,6 +24,8 @@ export const BUILT_IN_PRODUCTS: CatalogProduct[] = [
   { key: "field-service", name: "Jobs (CRM)", description: "Quotes, jobs, technicians and invoices", url: null, connect: "AUTO", hubTool: "FIELD_SERVICE", sortOrder: 20 },
   { key: "gmb", name: "GMB Manager", description: "Google reviews and posts", url: null, connect: "AUTO", hubTool: "GMB", sortOrder: 30 },
   { key: "video", name: "AI Video Studio", description: "Video ads and social posts", url: null, connect: "AUTO", hubTool: "VIDEO", sortOrder: 40 },
+  // Was a MANUAL starter product until Nov 2026; ensureCatalog() switches the existing row over.
+  { key: "loyvexa", name: "Loyvexa", description: "Dealer and channel loyalty: points, schemes, rewards", url: null, connect: "AUTO", hubTool: "LOYVEXA", sortOrder: 70 },
 ];
 
 /**
@@ -33,7 +35,6 @@ export const BUILT_IN_PRODUCTS: CatalogProduct[] = [
  */
 export const STARTER_PRODUCTS: CatalogProduct[] = [
   { key: "korvo", name: "Korvo", description: "Distributor software: sales hierarchy, orders, Tally", url: null, connect: "MANUAL", hubTool: null, sortOrder: 60 },
-  { key: "loyvexa", name: "Loyvexa", description: "Dealer and channel loyalty: points, schemes, rewards", url: null, connect: "MANUAL", hubTool: null, sortOrder: 70 },
 ];
 
 export const isTool = (t: unknown): t is Tool => typeof t === "string" && (TOOLS as string[]).includes(t);

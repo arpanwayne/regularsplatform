@@ -9,7 +9,7 @@ import { BUNDLE_NAME } from "@/lib/brand";
 
 const SECTOR_OPTIONS: [string, string][] = [
   ["HOME_SERVICES", "Home services (HVAC, plumbing, electrical…)"], ["CLINIC", "Clinic"], ["SALON", "Salon / spa"],
-  ["RESTAURANT", "Restaurant"], ["GYM", "Gym / studio"], ["RETAIL", "Retail"], ["OTHER", "Something else"],
+  ["RESTAURANT", "Restaurant"], ["GYM", "Gym / studio"], ["RETAIL", "Retail"], ["MANUFACTURER", "Manufacturer / brand (dealers, mechanics)"], ["OTHER", "Something else"],
 ];
 
 /** One signup for the whole bundle: plan, business, owner — then one payment. */

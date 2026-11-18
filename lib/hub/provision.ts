@@ -12,7 +12,7 @@ import { signHubToken, toolSecret, toolUrl } from "@/lib/hub/tokens";
  * tool its plan includes, and pauses it in tools the plan no longer includes.
  * Idempotent — safe to run on every payment, plan change, lapse or retry.
  *
- * Contract (same for all four tools):
+ * Contract (same for every tool):
  *   POST {TOOL_API_URL}{PATH[tool]}
  *   Authorization: Bearer <hub JWT, purpose "provision">
  *   { hubBusinessId, active, paidUntil, plan, business{…}, owner{…}, regulars? {baseUrl, apiKey?, locationId} }
@@ -25,6 +25,7 @@ export const PATH: Record<Tool, string> = {
   FIELD_SERVICE: "/api/v1/hub/provision",
   GMB: "/api/hub/provision",
   VIDEO: "/api/v1/hub/provision",
+  LOYVEXA: "/api/hub/provision",
 };
 /** Tools that report events back into Regulars and so get an rk_live_ key. */
 const REPORTS_EVENTS: Tool[] = ["WAYNERING", "FIELD_SERVICE"];
