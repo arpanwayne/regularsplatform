@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusiness } from "@/lib/session";
 
 const patchSchema = z.object({
   defaultChannel: z.enum(["WHATSAPP", "SMS"]).optional(),
@@ -12,7 +12,7 @@ const patchSchema = z.object({
 // PATCH /api/business — owner-editable messaging settings. Plan and SMS
 // limits are set by a super admin (app/api/admin/businesses/[id]).
 export async function PATCH(req: NextRequest) {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusiness();
   if (!business) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = patchSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest) {
 // to Location (a business can have multiple, each with its own WhatsApp
 // number) — see app/api/locations/route.ts and app/api/locations/[id]/route.ts.
 export async function GET() {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusiness();
   if (!business) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

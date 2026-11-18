@@ -1,4 +1,4 @@
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusinessOrRedirect } from "@/lib/session";
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { BillingCheckout } from "@/components/billing-checkout";
@@ -9,7 +9,7 @@ import { BUNDLE_PLANS, GRACE_DAYS, currencyFor, isBundlePlan } from "@/lib/hub/p
 export const dynamic = "force-dynamic";
 
 export default async function BillingPage() {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusinessOrRedirect();
   if (!business) return null;
 
   // ── Custom bundle (Admin → Products & Bundles): billed by our team ──────

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusiness } from "@/lib/session";
 import { verifyRazorpaySignature } from "@/lib/billing";
 import { logEvent } from "@/lib/logger";
 import { activateBundle } from "@/lib/hub/bundle";
@@ -16,7 +16,7 @@ const schema = z.object({
 const PLAN_PERIOD_MS = 30 * 24 * 60 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusiness();
   if (!business) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

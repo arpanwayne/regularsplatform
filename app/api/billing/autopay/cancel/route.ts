@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusiness } from "@/lib/session";
 import { logEvent } from "@/lib/logger";
 import { autopayStore, cancelAutopay } from "@/lib/hub/autopay";
 
 /** Stops future charges. The plan keeps running to the end of what's been paid for. */
 export async function POST() {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusiness();
   if (!business) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!business.razorpaySubscriptionId || !["ON", "FAILED", "PENDING"].includes(business.autopayStatus)) return NextResponse.json({ error: "Automatic payment isn't on" }, { status: 409 });
   try {

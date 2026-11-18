@@ -26,18 +26,29 @@ model User {
   // A password reset signs out every session issued before this moment.
   sessionsValidFrom DateTime?
   name         String
-  /// Role: OWNER | SUPER_ADMIN. Not self-assignable via signup — granted via
-  /// prisma/promote-admin.ts by someone with server access.
+  /// Role: OWNER | MANAGER | SUPER_ADMIN. SUPER_ADMIN is not self-assignable
+  /// via signup — granted via prisma/promote-admin.ts by someone with server
+  /// access. MANAGER logins are created by the owner (Dashboard → Team).
   role         String     @default("OWNER")
+  /// Mobile (E.164 or digits). For a MANAGER: the number they WhatsApp the
+  /// business number from ("add Rahul 98…"). For an OWNER: one more number
+  /// their approval replies are recognised from.
+  phone        String?
+  /// MANAGER only: the one business this staff login works in.
+  managedBusinessId String?
+  managedBusiness   Business? @relation("BusinessManagers", fields: [managedBusinessId], references: [id], onDelete: Cascade)
   createdAt    DateTime   @default(now())
-  businesses   Business[]
+  businesses   Business[] @relation("BusinessOwner")
   resetTokens  PasswordResetToken[]
+  offersCreated Offer[]
+
+  @@index([managedBusinessId])
 }
 
 model Business {
   id      String @id @default(cuid())
   ownerId String
-  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner   User   @relation("BusinessOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   name    String
   /// Sector: SALON | GYM | CLINIC | RETAIL | RESTAURANT
   sector  String
@@ -107,6 +118,17 @@ model Business {
   /// The custom bundle includes the Growth Manager.
   bundleGrowth   Boolean   @default(false)
 
+  // ── Offer approvals (onboarding flow, Nov 2026) ─────────────────────────
+  // A manager's offer goes out straight away when it is inside these limits;
+  // anything bigger waits for the owner's APPROVE / REJECT on WhatsApp.
+  // Set by the owner (Dashboard → Offers). See lib/offers.ts.
+  /// Highest discount (%) sent without asking the owner.
+  approvalMaxDiscount Int     @default(10)
+  /// Most customers one offer may reach without asking the owner.
+  approvalMaxAudience Int     @default(200)
+  /// Free items / bonus points go out without asking the owner.
+  approvalAutoFreebie Boolean @default(false)
+
   createdAt DateTime @default(now())
 
   locations      Location[]
@@ -124,6 +146,8 @@ model Business {
   growthEvents   GrowthEvent[]
   growthActions  GrowthAction[]
   productSetups  ProductSetup[]
+  managers       User[]  @relation("BusinessManagers")
+  offers         Offer[]
 
   @@index([ownerId])
   @@index([customBundleId])
@@ -173,6 +197,14 @@ model Location {
   /// Status: ACTIVE | SUSPENDED. Independent of Business.status — a chain
   /// can suspend one branch without affecting the others.
   status String @default("ACTIVE")
+
+  /// Short code in this location's QR ("JOIN K7M2QX T5"). It is how a QR
+  /// scan on the shared WhatsApp number finds the right business, and it
+  /// marks the customer as having joined themselves (consent). lib/onboarding.ts
+  joinCode String? @unique
+  /// The location's own WhatsApp number as people dial it (read once from
+  /// Meta for the QR link). Null on the shared number.
+  whatsappDisplayNumber String?
 
   createdAt DateTime @default(now())
 
@@ -228,6 +260,25 @@ model Customer {
   lastReviewRequestAt  DateTime?
   lastWinbackAt        DateTime?
 
+  // ── Marketing consent (onboarding flow, Nov 2026) ───────────────────────
+  // Offers, win-backs and other marketing go only to IMPLIED or GRANTED.
+  //   IMPLIED  — they wrote or called us themselves, or the owner confirmed an
+  //              imported list already agreed (the behaviour before this field;
+  //              Canada still applies the CASL two-year limit on top)
+  //   PENDING  — added by staff or imported; a YES/NO request is sent and
+  //              nothing marketing goes until they answer YES
+  //   GRANTED  — scanned the QR (JOIN code) or answered YES
+  //   DECLINED — answered NO
+  // Service messages (booking replies, missed-call text-back) are not marketing.
+  consentStatus      String    @default("IMPLIED")
+  /// ConsentSource: INBOUND | QR | MANAGER | IMPORT | IMPORT_CONFIRMED | CALL
+  consentSource      String?
+  consentAt          DateTime?
+  /// When the YES/NO request went out (null = not sent yet; the hourly cron sends queued ones).
+  consentRequestedAt DateTime?
+  /// QR tag scanned on joining, e.g. "T5" for table 5.
+  joinTag            String?
+
   messages Message[]
   visits   Visit[]
   callLogs CallLog[]
@@ -235,6 +286,7 @@ model Customer {
   growthActions GrowthAction[]
 
   @@unique([locationId, phone])
+  @@index([businessId, consentStatus])
   @@index([locationId, instagramId])
   @@index([businessId, segment])
   @@index([locationId])
@@ -687,4 +739,51 @@ model ProductSetup {
   createdAt  DateTime @default(now())
 
   @@unique([businessId, productId])
+}
+
+// ── Offers (onboarding flow, Nov 2026) ────────────────────────────────────
+// A manager (or the owner) writes an offer; inside the owner's limits it goes
+// out at once, otherwise the owner gets an APPROVE / REJECT WhatsApp. No
+// answer in 24 hours → one reminder; in 48 hours → the offer expires (it is
+// never sent without a yes). See lib/offers.ts.
+model Offer {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  title           String
+  /// What the customer reads (goes into the "offer" WhatsApp template / an SMS).
+  message         String
+  discountPercent Int?
+  /// Free item or bonus points.
+  freebie         Boolean  @default(false)
+  /// Comma list of segments (NEW,REGULAR…). Empty = every customer who can get offers.
+  segments        String   @default("")
+  /// How many customers it would reach when it was created.
+  audienceCount   Int      @default(0)
+  /// Don't send before this time (null = as soon as it is approved, in contact hours).
+  sendAt          DateTime?
+
+  /// Status: PENDING_APPROVAL | APPROVED | REJECTED | EXPIRED | SENDING | SENT | CANCELLED
+  status         String    @default("PENDING_APPROVAL")
+  /// Short number the owner types back ("APPROVE 7"). Unique per business.
+  approvalNo     Int
+  /// Why it needed the owner (plain words), empty when auto-approved.
+  approvalReason String    @default("")
+  requestedAt    DateTime  @default(now())
+  reminderSentAt DateTime?
+  decidedAt      DateTime?
+  /// DecidedVia: AUTO | WHATSAPP | SMS | DASHBOARD | TIMEOUT
+  decidedVia     String?
+  sentAt         DateTime?
+  sentCount      Int       @default(0)
+  failedCount    Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, approvalNo])
+  @@index([status, requestedAt])
 }

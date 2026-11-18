@@ -1,17 +1,32 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { marketingConsentFilter } from "../lib/consent";
+import { caslCutoff, marketingConsentFilter, mayMarket } from "../lib/consent";
 import { formatDate, formatDateTime, localeFor } from "../lib/format";
 import { verifyWebhookSignature } from "../lib/whatsapp";
 import { verifyTwilioSignature } from "../lib/sms";
 
 const setEnv = (k: string, v: string | undefined) => { const e = process.env as Record<string, string | undefined>; if (v === undefined) delete e[k]; else e[k] = v; };
 
-test("Canadian marketing stops two years after the last dealing", () => {
+test("Canadian marketing stops two years after the last dealing (implied consent only)", () => {
   const now = new Date("2026-11-09T00:00:00Z");
-  const cutoff = marketingConsentFilter("CA", now).lastSeenAt?.gte;
-  assert.equal(cutoff?.toISOString().slice(0, 10), "2024-11-09");
-  assert.deepEqual(marketingConsentFilter("IN", now), {});
+  assert.equal(caslCutoff("CA", now)?.toISOString().slice(0, 10), "2024-11-09");
+  assert.equal(caslCutoff("IN", now), null);
+  const old = new Date("2023-01-01T00:00:00Z");
+  assert.equal(mayMarket({ lastSeenAt: old, consentStatus: "IMPLIED" }, "CA", now), false);
+  assert.equal(mayMarket({ lastSeenAt: old, consentStatus: "GRANTED" }, "CA", now), true); // said YES / scanned the QR
+  assert.equal(mayMarket({ lastSeenAt: old, consentStatus: "IMPLIED" }, "IN", now), true);
+  // The Prisma filter: never PENDING / DECLINED; in Canada, GRANTED or seen within 2 years.
+  assert.deepEqual(marketingConsentFilter("IN", now), { AND: [{ consentStatus: { notIn: ["PENDING", "DECLINED"] } }] });
+  assert.deepEqual(marketingConsentFilter("CA", now).AND[1], { OR: [{ consentStatus: "GRANTED" }, { lastSeenAt: { gte: caslCutoff("CA", now) } }] });
+});
+
+test("nothing marketing goes to customers who haven't said YES or said NO", () => {
+  const now = new Date();
+  for (const country of ["IN", "CA"]) {
+    assert.equal(mayMarket({ lastSeenAt: now, consentStatus: "PENDING" }, country, now), false);
+    assert.equal(mayMarket({ lastSeenAt: now, consentStatus: "DECLINED" }, country, now), false);
+    assert.equal(mayMarket({ lastSeenAt: now }, country, now), true); // rows from before this field
+  }
 });
 
 test("dates follow the business's country and time zone, not the server's", () => {

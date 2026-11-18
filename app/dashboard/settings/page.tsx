@@ -1,4 +1,4 @@
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusinessOrRedirect } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { LocationsManager } from "@/components/locations-manager";
 import { FrontDeskSettings } from "@/components/front-desk-settings";
@@ -8,7 +8,7 @@ import { instagramAllowed } from "@/lib/instagram";
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusinessOrRedirect();
   if (!business) return null;
 
   const rows = await prisma.location.findMany({

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusiness } from "@/lib/session";
 import { createRazorpayOrderFor, isRazorpayConfigured } from "@/lib/billing";
 import { BUNDLE_PLANS, BUNDLE_PLAN_IDS, currencyFor, isBundlePlan } from "@/lib/hub/plans";
 import { logEvent } from "@/lib/logger";
@@ -14,7 +14,7 @@ const schema = z.object({ plan: z.enum(BUNDLE_PLAN_IDS as [string, ...string[]])
  * which then turns every tool on (lib/hub/bundle.ts → activateBundle).
  */
 export async function POST(req: NextRequest) {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusiness();
   if (!business) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (business.status === "SUSPENDED") return NextResponse.json({ error: "This account is suspended" }, { status: 403 });
 

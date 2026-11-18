@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
 import { normalizePhone } from "@/lib/phone";
-import { keywordOf, sendOwnerSms, signedUrl, verifyTwilioSignature } from "@/lib/sms";
+import { keywordOf, sendCustomerSms, sendOwnerSms, senderName, signedUrl, verifyTwilioSignature } from "@/lib/sms";
 import { handleOwnerReply } from "@/lib/growth/brief";
+import { handleStaffMessage } from "@/lib/staff";
+import { applyConsentReply, applyJoin, parseConsentReply, parseJoin, welcomeText } from "@/lib/onboarding";
 
 const EMPTY_TWIML = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
 const twiml = () => new NextResponse(EMPTY_TWIML, { status: 200, headers: { "content-type": "text/xml" } });
@@ -37,6 +39,8 @@ export async function POST(req: NextRequest) {
   const phone = normalizePhone(params.From, business.country);
   if (!phone) return twiml();
 
+  // The owner approving an offer ("APPROVE 7") / a manager adding a customer ("add Rahul …").
+  if (await handleStaffMessage(location, params.From, body, "SMS").catch(() => false)) return twiml();
   // AI Growth Manager: the owner answering the daily brief ("1 3", "ALL", "SKIP").
   if (await handleOwnerReply(location, params.From, body).catch(() => false)) return twiml();
 
@@ -47,6 +51,7 @@ export async function POST(req: NextRequest) {
     create: {
       businessId: business.id, locationId: location.id, phone,
       preferredChannel: "SMS",
+      consentSource: "INBOUND", // they texted first (consentStatus IMPLIED)
       smsOptedOut: kw === "STOP", smsOptedOutAt: kw === "STOP" ? now : null,
     },
     update: {
@@ -69,6 +74,22 @@ export async function POST(req: NextRequest) {
     // A retried webhook (same MessageSid) — already stored.
     if (String(err?.code) !== "P2002") throw err;
   });
+
+  // QR scan ("JOIN <code>") or YES / NO to the consent request. Twilio itself
+  // answers YES (an opt-in keyword on Canadian numbers), so we only reply to JOIN.
+  const join = parseJoin(body);
+  const decision = kw !== "STOP" && customer.consentStatus === "PENDING" ? parseConsentReply(body) : null;
+  if (join && location.joinCode === join.code) {
+    const joined = await applyJoin(customer, join.tag, now);
+    await sendCustomerSms({ business, location, customer: joined, purpose: "OTHER", body: await welcomeText(business, senderName(location, business)) });
+    await prisma.message.updateMany({ where: { providerSid: params.MessageSid || "-" }, data: { readAt: now } });
+    return twiml();
+  }
+  if (decision) {
+    await applyConsentReply(customer, decision, now);
+    await prisma.message.updateMany({ where: { providerSid: params.MessageSid || "-" }, data: { readAt: now } });
+    return twiml();
+  }
 
   if (kw) {
     await logEvent({ businessId: business.id, source: "SMS", level: "INFO", message: `SMS ${kw} from ${phone}`, meta: { customerId: customer.id } });

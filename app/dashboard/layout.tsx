@@ -22,6 +22,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <DashboardNav
         businessName={business.name}
         isSuperAdmin={user.role === "SUPER_ADMIN"}
+        isManager={business.ownerId !== user.id}
         bundle={business.bundleStatus === "NONE" ? undefined : {
           calls: businessTools(business).includes("WAYNERING"),
           jobs: businessTools(business).includes("FIELD_SERVICE"),

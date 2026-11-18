@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusiness } from "@/lib/session";
 import { getSettings } from "@/lib/growth/settings";
 import { ACTION_TYPES, AUTONOMY_LEVELS, GOALS } from "@/lib/growth/types";
 import { isPlaceholderPhone } from "@/lib/phone";
@@ -34,7 +34,7 @@ const schema = z.object({
 
 /** PATCH /api/growth/settings — owner settings for the AI Growth Manager. */
 export async function PATCH(req: NextRequest) {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusiness();
   if (!business) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });

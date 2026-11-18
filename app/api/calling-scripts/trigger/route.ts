@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusiness } from "@/lib/session";
 import { triggerVoiceCall } from "@/lib/calling-provider";
 import { recordUsageEvent } from "@/lib/usage";
 import { logEvent } from "@/lib/logger";
@@ -10,7 +10,7 @@ import { isInstagramOnly } from "@/lib/instagram-shared";
 const schema = z.object({ scriptId: z.string(), customerId: z.string() });
 
 export async function POST(req: NextRequest) {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusiness();
   if (!business) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

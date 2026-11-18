@@ -1,4 +1,4 @@
-import { getCurrentBusiness } from "@/lib/session";
+import { getOwnerBusinessOrRedirect } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { allTemplatesForSector } from "@/lib/calling-scripts/templates";
 import { SegmentBadge } from "@/components/segment-badge";
@@ -7,7 +7,7 @@ import type { Sector } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export default async function CallingScriptsPage() {
-  const business = await getCurrentBusiness();
+  const business = await getOwnerBusinessOrRedirect();
   if (!business) return null;
 
   const [templates, generated] = await Promise.all([

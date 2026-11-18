@@ -7,26 +7,33 @@ import { BUNDLE_NAME } from "@/lib/brand";
 
 const LINKS = [
   { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/growth", label: "Growth AI" },
+  { href: "/dashboard/growth", label: "Growth AI", ownerOnly: true },
   { href: "/dashboard/customers", label: "Customers" },
+  { href: "/dashboard/offers", label: "Offers" },
   { href: "/dashboard/inbox", label: "Inbox" },
-  { href: "/dashboard/calling-scripts", label: "Calling scripts" },
-  { href: "/dashboard/billing", label: "Billing" },
-  { href: "/dashboard/settings", label: "Settings" },
+  { href: "/dashboard/qr", label: "QR codes" },
+  { href: "/dashboard/calling-scripts", label: "Calling scripts", ownerOnly: true },
+  { href: "/dashboard/team", label: "Team", ownerOnly: true },
+  { href: "/dashboard/billing", label: "Billing", ownerOnly: true },
+  { href: "/dashboard/settings", label: "Settings", ownerOnly: true },
 ];
 
 export function DashboardNav({
   businessName,
   isSuperAdmin,
+  isManager = false,
   bundle,
 }: {
   businessName: string;
   isSuperAdmin?: boolean;
+  /** Managers see only the pages they work in (no billing, settings, team, Growth AI). */
+  isManager?: boolean;
   /** Bundle A: one menu for every tool; tools in other apps open with single sign-on. */
   bundle?: { calls: boolean; jobs: boolean };
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const links = isManager ? LINKS.filter((l) => !l.ownerOnly) : LINKS;
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -35,12 +42,12 @@ export function DashboardNav({
   }
 
   return (
-    <header className="border-b border-gray-200 bg-white">
+    <header className="border-b border-gray-200 bg-white print:hidden">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
         <div className="order-last flex w-full items-center gap-8 lg:order-none lg:w-auto">
           <span className="hidden font-semibold lg:inline">{bundle ? BUNDLE_NAME : "Regulars"}</span>
           <nav className="-mx-1 flex gap-1 overflow-x-auto whitespace-nowrap lg:mx-0 lg:flex-wrap">
-            {(bundle ? LINKS.filter((l) => l.href !== "/dashboard/calling-scripts").map((l) => (l.href === "/dashboard" ? { ...l, label: "Home" } : l.href === "/dashboard/growth" ? { ...l, label: "Growth Manager" } : l)) : LINKS).map((link) => (
+            {(bundle ? links.filter((l) => l.href !== "/dashboard/calling-scripts").map((l) => (l.href === "/dashboard" ? { ...l, label: "Home" } : l.href === "/dashboard/growth" ? { ...l, label: "Growth Manager" } : l)) : links).map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
@@ -54,8 +61,8 @@ export function DashboardNav({
                 {link.label}
               </Link>
             ))}
-            {bundle?.calls && <a href="/api/hub/open/wayneRing?page=calls" target="_blank" rel="noopener" className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">Calls ↗</a>}
-            {bundle?.jobs && <a href="/api/hub/open/field-service" target="_blank" rel="noopener" className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">Jobs ↗</a>}
+            {!isManager && bundle?.calls && <a href="/api/hub/open/wayneRing?page=calls" target="_blank" rel="noopener" className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">Calls ↗</a>}
+            {!isManager && bundle?.jobs && <a href="/api/hub/open/field-service" target="_blank" rel="noopener" className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100">Jobs ↗</a>}
           </nav>
         </div>
         <div className="flex items-center gap-3 text-sm text-gray-500">

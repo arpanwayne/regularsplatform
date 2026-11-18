@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentBusiness } from "@/lib/session";
+import { getCurrentBusiness, getOwnerBusiness } from "@/lib/session";
 import { logEvent } from "@/lib/logger";
 import { z } from "zod";
 import { normalizePhone } from "@/lib/phone";
@@ -8,8 +8,9 @@ import { normalizePhone } from "@/lib/phone";
 // Privacy requests (PIPEDA and similar): a customer can ask for a copy of what
 // a business holds about them, or for it to be removed.
 
-async function find(id: string) {
-  const business = await getCurrentBusiness();
+// Removing a customer's data is the owner's call; managers can view and edit.
+async function find(id: string, ownerOnly = false) {
+  const business = ownerOnly ? await getOwnerBusiness() : await getCurrentBusiness();
   if (!business) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
   const customer = await prisma.customer.findFirst({ where: { id, businessId: business.id } });
   if (!customer) return { error: NextResponse.json({ error: "Customer not found" }, { status: 404 }) };
@@ -31,7 +32,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const found = await find(params.id);
+  const found = await find(params.id, true);
   if (found.error) return found.error;
   const { business, customer } = found;
 
