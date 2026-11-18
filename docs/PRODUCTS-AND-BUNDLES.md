@@ -6,7 +6,8 @@ Admin → **Products & Bundles** (`/admin/catalog`). Is page se apne saare softw
 - Built-in, jo pehle se list mein aate hain:
   - **Regulars (Hub):** har bundle mein hota hai.
   - **WayneRing, Jobs (CRM), GMB Manager, AI Video Studio (Auto-connect):** client ka account apne aap banta hai, aur client ek login se in sab mein jaata hai.
-- Shuru se list mein **Korvo** aur **Loyvexa** bhi hain, dono **Manual**.
+- **Loyvexa** ab **Auto-connect** hai (Nov 2026): bundle dete hi Loyvexa mein client ka brand aur pehla admin (owner ka email) apne aap banta hai, bundle lapse hone pe brand pause hota hai, aur client home page ke "Open Loyvexa ↗" se ek click mein brand console kholta hai. Iske liye server pe `LOYVEXA_API_URL`, `LOYVEXA_APP_URL` aur `HUB_SECRET_LOYVEXA` set hone chahiye (Loyvexa server pe wahi secret `HUB_SECRET` mein).
+- **Korvo** abhi bhi **Manual** hai.
 - **+ Add software** se koi bhi naya software jodo. Har naya software Manual se shuru hota hai.
 - Software ka naam, description, link aur price edit kar sakte ho. "Switch off" karne se wo naye bundles mein nahi dikhta. Jo bundles use pehle se use kar rahe hain, unke clients ke liye wo pause ho jaata hai.
 

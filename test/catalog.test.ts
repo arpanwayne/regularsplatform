@@ -15,8 +15,16 @@ test("every built-in tool is in the catalog exactly once, plus Regulars as the h
   assert.equal(BUILT_IN_PRODUCTS.filter((p) => p.connect === "HUB").length, 1);
   const keys = [...BUILT_IN_PRODUCTS, ...STARTER_PRODUCTS].map((p) => p.key);
   assert.equal(new Set(keys).size, keys.length, "keys are unique");
-  // Korvo and Loyvexa start as manual (no automatic set-up in them yet).
-  for (const k of ["korvo", "loyvexa"]) assert.equal(STARTER_PRODUCTS.find((p) => p.key === k)?.connect, "MANUAL");
+  // Korvo is still manual; Loyvexa connects automatically since Nov 2026.
+  assert.equal(STARTER_PRODUCTS.find((p) => p.key === "korvo")?.connect, "MANUAL");
+  assert.equal(BUILT_IN_PRODUCTS.find((p) => p.key === "loyvexa")?.hubTool, "LOYVEXA");
+  assert.equal(STARTER_PRODUCTS.find((p) => p.key === "loyvexa"), undefined);
+});
+
+test("a custom bundle with Loyvexa sets up Loyvexa; the built-in Front Desk plans never do", () => {
+  assert.deepEqual(toolsFromProducts([{ connect: "HUB", hubTool: null }, { connect: "AUTO", hubTool: "LOYVEXA" }, { connect: "MANUAL", hubTool: null }]), ["LOYVEXA"]);
+  assert.deepEqual(businessTools({ customBundleId: "b1", bundleTools: "LOYVEXA,WAYNERING", frontDeskPlan: null }), ["WAYNERING", "LOYVEXA"]);
+  for (const plan of ["ANSWER", "ANSWER_RETURN", "GROW"]) assert.ok(!businessTools({ customBundleId: null, bundleTools: "", frontDeskPlan: plan }).includes("LOYVEXA"));
 });
 
 test("a bundle's connected tools are its AUTO products only, in the standard order", () => {
