@@ -20,7 +20,8 @@ export type AdminBusinessRow = {
   _count: { customers: number; callLogs: number; locations: number };
 };
 
-export function BusinessAdminTable({ businesses }: { businesses: AdminBusinessRow[] }) {
+/** showPlan: Regulars plans (Starter/Growth/Pro). Off on Loopdesk, whose clients are on a bundle instead. */
+export function BusinessAdminTable({ businesses, showPlan = true }: { businesses: AdminBusinessRow[]; showPlan?: boolean }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export function BusinessAdminTable({ businesses }: { businesses: AdminBusinessRo
   if (businesses.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
-        Abhi tak koi business signup nahi hua.
+        Abhi is portal pe koi business nahi hai.
       </div>
     );
   }
@@ -53,7 +54,7 @@ export function BusinessAdminTable({ businesses }: { businesses: AdminBusinessRo
             <th className="px-4 py-2 font-medium">Owner</th>
             <th className="px-4 py-2 font-medium">WhatsApp</th>
             <th className="px-4 py-2 font-medium">Customers</th>
-            <th className="px-4 py-2 font-medium">Plan</th>
+            <th className="px-4 py-2 font-medium">{showPlan ? "Plan" : "Add-ons"}</th>
             <th className="px-4 py-2 font-medium">Status</th>
             <th className="px-4 py-2 font-medium"></th>
           </tr>
@@ -90,6 +91,7 @@ export function BusinessAdminTable({ businesses }: { businesses: AdminBusinessRo
                 </td>
                 <td className="px-4 py-3">{b._count.customers}</td>
                 <td className="px-4 py-3">
+                  {showPlan && <>
                   <select
                     value={b.plan}
                     disabled={savingId === b.id}
@@ -107,6 +109,7 @@ export function BusinessAdminTable({ businesses }: { businesses: AdminBusinessRo
                       till {new Date(b.planExpiresAt).toLocaleDateString("en-IN")}
                     </p>
                   )}
+                  </>}
                   <label className="mt-1 flex items-center gap-1 text-xs text-gray-600" title="Instagram DMs → booking add-on">
                     <input type="checkbox" checked={b.instagramAddon} disabled={savingId === b.id}
                       onChange={(e) => patch(b.id, { instagramAddon: e.target.checked })} />

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { generateResetToken, hashResetToken } from "@/lib/reset-token";
 import { sendEmail } from "@/lib/email";
 import { allow, clientIp } from "@/lib/rate-limit";
-import { BUNDLE_NAME } from "@/lib/brand";
+import { PORTAL_NAME, portalOfBusiness, portalUrl } from "@/lib/portal";
 
 const schema = z.object({ email: z.string().email() });
 
@@ -17,7 +17,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (!(await allow(`forgot:ip:${clientIp(req)}`, 5, 15 * 60_000))) return NextResponse.json({ error: "Too many requests. Try again in 15 minutes." }, { status: 429 });
-  const user = await prisma.user.findFirst({ where: { email: { in: [parsed.data.email, parsed.data.email.toLowerCase()] } } });
+  const user = await prisma.user.findFirst({
+    where: { email: { in: [parsed.data.email, parsed.data.email.toLowerCase()] } },
+    include: { businesses: { select: { bundleStatus: true }, take: 1 } },
+  });
 
   // Always return the same generic response whether or not the email
   // exists — otherwise this endpoint becomes an account-enumeration oracle.
@@ -31,14 +34,16 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // The link opens on the user's own portal (Loopdesk bundle or Regulars plan).
     // process.env.APP_URL is "" (not undefined) when unset via .env.example,
     // so `??` alone wouldn't fall back — `||` catches the empty string too.
-    const appUrl = process.env.APP_URL || req.nextUrl.origin;
+    const portal = user.businesses[0] ? portalOfBusiness(user.businesses[0]) : "REGULARS";
+    const appUrl = portalUrl(portal) || process.env.APP_URL || req.nextUrl.origin;
     const resetLink = `${appUrl}/reset-password?token=${rawToken}`;
 
     await sendEmail({
       to: user.email,
-      subject: `Reset your ${BUNDLE_NAME} password`,
+      subject: `Reset your ${PORTAL_NAME[portal]} password`,
       text: `Use this link to set a new password. It works for one hour.\n\n${resetLink}\n\nIf you didn't ask for this, you can ignore this email.`,
     });
   }
