@@ -1,7 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PRICING_TIERS } from "@/lib/pricing";
+import { currentPortal } from "@/lib/portal";
 
 export default function HomePage() {
+  // Loopdesk's marketing site is loopdeskai.wayneesolutions.com; the app address opens on log-in.
+  if (currentPortal() === "LOOPDESK") redirect("/login");
   return (
     <main>
       <section className="min-h-screen flex flex-col items-center justify-center px-6 text-center">

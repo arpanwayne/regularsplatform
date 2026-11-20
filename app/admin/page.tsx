@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { StatCard } from "@/components/stat-card";
+import { PORTAL_NAME, businessWhere, currentPortal } from "@/lib/portal";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOverviewPage() {
+  const portal = currentPortal();
+  const biz = businessWhere(portal);
   const [
     totalBusinesses,
     activeBusinesses,
@@ -13,14 +16,14 @@ export default async function AdminOverviewPage() {
     callLogCounts,
     paidPayments,
   ] = await Promise.all([
-    prisma.business.count(),
-    prisma.business.count({ where: { status: "ACTIVE" } }),
-    prisma.location.count({ where: { whatsappPhoneNumberId: { not: null } } }),
-    prisma.customer.count(),
-    prisma.customer.groupBy({ by: ["segment"], _count: true }),
-    prisma.callLog.groupBy({ by: ["status"], _count: true }),
+    prisma.business.count({ where: biz }),
+    prisma.business.count({ where: { ...biz, status: "ACTIVE" } }),
+    prisma.location.count({ where: { whatsappPhoneNumberId: { not: null }, business: biz } }),
+    prisma.customer.count({ where: { business: biz } }),
+    prisma.customer.groupBy({ by: ["segment"], where: { business: biz }, _count: true }),
+    prisma.callLog.groupBy({ by: ["status"], where: { business: biz }, _count: true }),
     // Per currency: CAD bundle payments used to be added to rupees.
-    prisma.payment.groupBy({ by: ["currency"], where: { status: "PAID" }, _sum: { amountInPaise: true } }),
+    prisma.payment.groupBy({ by: ["currency"], where: { status: "PAID", business: biz }, _sum: { amountInPaise: true } }),
   ]);
 
   const segments = Object.fromEntries(segmentCounts.map((s) => [s.segment, s._count]));
@@ -34,11 +37,13 @@ export default async function AdminOverviewPage() {
     <div className="space-y-8">
       <div>
         <h1 className="text-xl font-semibold">Platform overview</h1>
-        <p className="text-sm text-gray-500">Aggregated across every business on Regulars.</p>
+        <p className="text-sm text-gray-500">
+          {portal === "LOOPDESK" ? `Every client with a ${PORTAL_NAME.LOOPDESK} bundle.` : "Every business on a Regulars plan (Starter, Growth, Pro)."}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label="Businesses" value={totalBusinesses} hint={`${activeBusinesses} active`} />
+        <StatCard label={portal === "LOOPDESK" ? "Clients" : "Businesses"} value={totalBusinesses} hint={`${activeBusinesses} active`} />
         <StatCard label="Locations WhatsApp-connected" value={connectedLocations} />
         <StatCard label="Total customers" value={totalCustomers} />
         <StatCard
@@ -49,12 +54,12 @@ export default async function AdminOverviewPage() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label="Total revenue (paid)" value={revenue} hint="Online payments plus offline payments recorded on Bundles → Activate" />
+        <StatCard label="Total revenue (paid)" value={revenue} hint={portal === "LOOPDESK" ? "Online payments plus offline payments recorded on Bundles → Activate" : "Plan payments from these businesses"} />
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white">
         <div className="border-b border-gray-100 px-4 py-3">
-          <h2 className="font-medium">Customers by segment (all businesses)</h2>
+          <h2 className="font-medium">Customers by segment</h2>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 p-4">
           {["NEW", "REGULAR", "AT_RISK", "HIGH_SPENDER", "DORMANT"].map((seg) => (

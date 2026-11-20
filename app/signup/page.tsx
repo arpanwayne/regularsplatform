@@ -1,14 +1,23 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { currentPortal, portalUrl } from "@/lib/portal";
 import { BUNDLE_NAME } from "@/lib/brand";
 import { AuthForm } from "@/components/forms/auth-form";
 import { BundleSignupForm } from "@/components/forms/bundle-signup-form";
 import { isBundlePlan } from "@/lib/hub/plans";
 import { getCurrentUser } from "@/lib/session";
 
-// /signup                        → plain Regulars signup (unchanged)
-// /signup?plan=GROW&country=CA   → Bundle A: one account for every tool
+// Regulars address:  /signup → plain Regulars signup (Starter/Growth/Pro)
+//                    /signup?plan=GROW → sent to the Loopdesk address
+// Loopdesk address:  /signup[?plan=GROW&country=CA] → bundle signup (default Grow)
 export default async function SignupPage({ searchParams }: { searchParams: { plan?: string; country?: string } }) {
-  const plan = searchParams.plan?.toUpperCase();
+  const portal = currentPortal();
+  const asked = searchParams.plan?.toUpperCase();
+  if (portal === "REGULARS" && isBundlePlan(asked) && portalUrl("LOOPDESK")) {
+    const qs = new URLSearchParams({ plan: asked, ...(searchParams.country ? { country: searchParams.country } : {}) });
+    redirect(`${portalUrl("LOOPDESK")}/signup?${qs}`);
+  }
+  const plan = isBundlePlan(asked) ? asked : portal === "LOOPDESK" ? "GROW" : asked;
   if (isBundlePlan(plan)) {
     const signedIn = await getCurrentUser();
     return (

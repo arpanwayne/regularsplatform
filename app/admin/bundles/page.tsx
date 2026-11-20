@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { currentPortal, portalUrl } from "@/lib/portal";
 import { prisma } from "@/lib/prisma";
 import { BundleAdminRow } from "@/components/admin/bundle-admin-row";
 import { BUNDLE_PLANS, TOOL_META, currencyFor, isBundlePlan } from "@/lib/hub/plans";
@@ -8,6 +10,8 @@ export const dynamic = "force-dynamic";
 
 /** Bundle A accounts: plan, paid period and the set-up state in every tool. */
 export default async function AdminBundlesPage() {
+  // Bundles live on the Loopdesk portal; from the Regulars address, go there.
+  if (currentPortal() !== "LOOPDESK") redirect(portalUrl("LOOPDESK") ? `${portalUrl("LOOPDESK")}/admin/bundles` : "/admin");
   const rows = await prisma.business.findMany({
     where: { bundleStatus: { not: "NONE" } },
     orderBy: { createdAt: "desc" },
