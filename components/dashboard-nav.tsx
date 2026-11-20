@@ -53,7 +53,6 @@ export function DashboardNav({
   return (
     <AppHeader
       wordmark={bundle ? BUNDLE_NAME : "Regulars"}
-      showLogo={!!bundle}
       homeHref="/dashboard"
       links={navLinks}
       activeHref={pathname}

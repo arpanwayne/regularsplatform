@@ -10,17 +10,14 @@ const devanagari = Noto_Sans_Devanagari({ subsets: ["devanagari"], weight: ["400
 
 export function generateMetadata(): Metadata {
   const portal = currentPortal();
+  const icons = { icon: [{ url: "/brand/favicon.png", type: "image/png" }], apple: [{ url: "/brand/apple-touch-icon.png" }] };
   return portal === "LOOPDESK"
-    ? {
-        title: PORTAL_NAME.LOOPDESK,
-        description: "Answer every call, follow up every customer, and see what's bringing in work.",
-        icons: { icon: [{ url: "/brand/favicon.png", type: "image/png" }], apple: [{ url: "/brand/apple-touch-icon.png" }] },
-      }
-    : { title: "Regulars", description: "WhatsApp loyalty and repeat customers for local businesses." };
+    ? { title: PORTAL_NAME.LOOPDESK, description: "Answer every call, follow up every customer, and see what's bringing in work.", icons }
+    : { title: "Regulars", description: "WhatsApp loyalty and repeat customers for local businesses.", icons };
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // data-portal picks the brand colours (app/globals.css): Loopdesk crimson or Regulars green.
+  // data-portal: lets a portal override the brand colours in app/globals.css (none do today).
   return (
     <html lang="en" data-portal={currentPortal()} className={`${plex.variable} ${plexMono.variable} ${devanagari.variable}`}>
       <body className="font-sans">{children}</body>

@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 // Loopdesk AI design system (same tokens in all 7 tools).
-// Loopdesk portal: logo crimson. Regulars portal: green. Rules: the "Loopdesk AI" design system.
+// Logo crimson in every portal and tool. Rules: the "Loopdesk AI" design system.
 const config: Config = {
   content: [
     "./app/**/*.{ts,tsx}",
@@ -10,7 +10,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Brand scale from CSS variables (app/globals.css), set per portal.
+        // Brand scale from CSS variables (app/globals.css).
         // 600 = primary button, 700 = top bar, 800 = hover, 100 + 900 = soft badge.
         brand: {
           DEFAULT: "rgb(var(--brand-600) / <alpha-value>)",

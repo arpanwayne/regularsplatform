@@ -36,7 +36,6 @@ export function AdminNav({ adminName, portal, portalName, other }: {
   return (
     <AppHeader
       wordmark={portalName}
-      showLogo={portal === "LOOPDESK"}
       toolName="Admin"
       homeHref="/admin"
       links={LINKS.filter((l) => !l.only || l.only === portal).map((l) => ({
