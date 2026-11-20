@@ -46,7 +46,9 @@ test("admin menu: bundle pages are Loopdesk-only and each panel has its own name
   const nav = readFileSync("components/admin-nav.tsx", "utf8");
   assert.match(nav, /"\/admin\/catalog".*only: "LOOPDESK"/);
   assert.match(nav, /"\/admin\/bundles".*only: "LOOPDESK"/);
-  assert.match(nav, /\{portalName\} · Admin/);
+  // Shared Loopdesk AI top bar: "<portal name> / Admin" (wordmark + tool name).
+  assert.match(nav, /wordmark=\{portalName\}/);
+  assert.match(nav, /toolName="Admin"/);
   assert.doesNotMatch(nav, /Regulars · Admin/);
   for (const page of ["app/admin/catalog/page.tsx", "app/admin/bundles/page.tsx"]) {
     assert.match(readFileSync(page, "utf8"), /currentPortal\(\) !== "LOOPDESK"/);
