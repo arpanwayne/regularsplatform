@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import clsx from "clsx";
-
+import { usePathname } from "next/navigation";
+import { AppHeader } from "@/components/app-header";
 import type { Portal } from "@/lib/portal";
 
 // Products & Bundles and Bundles are Loopdesk-only; the rest show in both
@@ -29,7 +27,6 @@ export function AdminNav({ adminName, portal, portalName, other }: {
   other?: { name: string; url: string };
 }) {
   const pathname = usePathname();
-  const router = useRouter();
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -37,33 +34,24 @@ export function AdminNav({ adminName, portal, portalName, other }: {
   }
 
   return (
-    <header className="border-b border-gray-200 bg-gray-900 text-white">
-      <div className="mx-auto max-w-6xl px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <span className="font-semibold">{portalName} · Admin</span>
-          <nav className="flex gap-1">
-            {LINKS.filter((l) => !l.only || l.only === portal).map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={clsx(
-                  "rounded-md px-3 py-1.5 text-sm font-medium transition",
-                  pathname === link.href ? "bg-white/15" : "text-gray-300 hover:bg-white/10"
-                )}
-              >
-                {portal === "LOOPDESK" && link.loopdeskLabel ? link.loopdeskLabel : link.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
-        <div className="flex items-center gap-3 text-sm text-gray-300">
-          {other && <a href={other.url} className="text-gray-300 hover:text-white">{other.name} admin ↗</a>}
-          <span>{adminName}</span>
-          <button onClick={logout} className="font-medium text-white hover:text-gray-200">
+    <AppHeader
+      wordmark={portalName}
+      toolName="Admin"
+      homeHref="/admin"
+      links={LINKS.filter((l) => !l.only || l.only === portal).map((l) => ({
+        href: l.href,
+        label: portal === "LOOPDESK" && l.loopdeskLabel ? l.loopdeskLabel : l.label,
+      }))}
+      activeHref={pathname}
+      right={
+        <>
+          {other && <a href={other.url} className="font-medium text-brand-200 hover:text-white">{other.name} admin ↗</a>}
+          <span className="hidden font-medium text-white sm:inline">{adminName}</span>
+          <button onClick={logout} className="font-medium text-brand-200 hover:text-white">
             Log out
           </button>
-        </div>
-      </div>
-    </header>
+        </>
+      }
+    />
   );
 }

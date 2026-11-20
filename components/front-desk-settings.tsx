@@ -20,7 +20,7 @@ export function FrontDeskSettings({ business, locations }: { business: Business;
   }
 
   return (
-    <section className="space-y-5 rounded-lg border border-gray-200 bg-white p-5">
+    <section className="space-y-5 rounded-card border border-gray-200 bg-white p-5">
       <div>
         <h2 className="text-lg font-semibold">Texting &amp; calls</h2>
         <p className="text-sm text-gray-600">
@@ -33,7 +33,7 @@ export function FrontDeskSettings({ business, locations }: { business: Business;
         <label className="flex items-center gap-2">
           Default channel
           <select defaultValue={business.defaultChannel} onChange={(e) => patchBusiness({ defaultChannel: e.target.value })}
-            className="rounded-md border border-gray-300 px-2 py-1">
+            className="rounded-input border border-control px-2 py-1">
             <option value="SMS">SMS (Canada)</option>
             <option value="WHATSAPP">WhatsApp</option>
           </select>
@@ -41,7 +41,7 @@ export function FrontDeskSettings({ business, locations }: { business: Business;
         <label className="flex items-center gap-2">
           Country
           <select defaultValue={business.country} onChange={(e) => patchBusiness({ country: e.target.value })}
-            className="rounded-md border border-gray-300 px-2 py-1">
+            className="rounded-input border border-control px-2 py-1">
             <option value="CA">Canada</option>
             <option value="US">United States</option>
             <option value="IN">India</option>
@@ -85,12 +85,12 @@ function LocationSms({ location }: { location: Location }) {
     <label className="block text-sm">
       <span className="text-gray-600">{label}</span>
       <input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} placeholder={placeholder}
-        className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2" />
+        className="mt-1 w-full rounded-input border border-control px-3 py-2" />
     </label>
   );
 
   return (
-    <form onSubmit={save} className="space-y-3 rounded-md border border-gray-100 bg-gray-50 p-4">
+    <form onSubmit={save} className="space-y-3 rounded-card border border-gray-100 bg-gray-50 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-medium">{location.name}</h3>
         <span className="text-sm text-gray-600">
@@ -104,7 +104,7 @@ function LocationSms({ location }: { location: Location }) {
         {field("googleReviewUrl", "Google review link", "https://g.page/r/…/review")}
       </div>
       <div className="flex items-center gap-3">
-        <button className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Save</button>
+        <button className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800">Save</button>
         {status && <span className="text-sm text-gray-500">{status}</span>}
       </div>
     </form>
@@ -143,7 +143,7 @@ export function CsvImport({ locations, country }: { locations: Pick<Location, "i
       </label>
       <div className="flex flex-wrap items-center gap-2">
         {locations.length > 1 && (
-          <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className="rounded-md border border-gray-300 px-2 py-1">
+          <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className="rounded-input border border-control px-2 py-1">
             {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         )}
@@ -175,11 +175,11 @@ function Winback() {
       <p className="text-gray-600">Texts at-risk and dormant customers who haven&apos;t had a win-back in 30 days. Runs daily for Answer + Return and Grow plans.</p>
       <div className="flex items-center gap-2">
         {preview === null ? (
-          <button disabled={busy} onClick={() => run(true)} className="rounded-md border border-gray-300 px-3 py-1.5 font-medium hover:bg-gray-50">Preview</button>
+          <button disabled={busy} onClick={() => run(true)} className="rounded-full border border-control px-3 py-1.5 font-medium hover:bg-gray-50">Preview</button>
         ) : (
           <>
             <span>{preview} customer{preview === 1 ? "" : "s"} would get a text.</span>
-            {preview > 0 && <button disabled={busy} onClick={() => run(false)} className="rounded-md bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-700">Send now</button>}
+            {preview > 0 && <button disabled={busy} onClick={() => run(false)} className="rounded-full bg-brand-600 px-3 py-1.5 font-medium text-white hover:bg-brand-800">Send now</button>}
           </>
         )}
         {result && <span className="text-gray-700">{result}</span>}

@@ -3,7 +3,7 @@ import { runComplianceChecks } from "@/lib/compliance-check";
 export const dynamic = "force-dynamic";
 
 const LEVEL_STYLES: Record<string, string> = {
-  PASS: "bg-brand-100 text-brand-700",
+  PASS: "bg-green-100 text-green-800",
   WARN: "bg-amber-100 text-amber-700",
   FAIL: "bg-red-100 text-red-700",
 };
@@ -16,7 +16,7 @@ export default async function AdminCompliancePage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Compliance self-check</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Compliance self-check</h1>
         <p className="text-sm text-gray-500 max-w-2xl">
           Automated checks for what this codebase actually controls. This is <b>not</b> a
           substitute for a human review of your live Meta Business Manager setup (opt-in policy,
@@ -27,16 +27,16 @@ export default async function AdminCompliancePage() {
       </div>
 
       {failCount === 0 && warnCount === 0 ? (
-        <div className="rounded-md border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800">
+        <div className="rounded-card border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           Sab automated checks pass ho rahe hain.
         </div>
       ) : (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {failCount} FAIL, {warnCount} WARN — neeche detail dekho.
         </div>
       )}
 
-      <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+      <div className="rounded-card border border-gray-200 bg-white overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-gray-500">
             <tr>

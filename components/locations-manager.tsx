@@ -31,7 +31,7 @@ export function LocationsManager({ locations, sharedNumber, instagram = false }:
         Each location can connect its own WhatsApp Business number. If you have one outlet, keep one location. Add more here if you have several.
       </p>
       {sharedNumber && (
-        <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
+        <p className="rounded-card bg-green-50 px-3 py-2 text-sm text-green-800">
           Locations without their own number send WhatsApp messages from <b>{sharedNumber}</b> (shared number). Every message names your business, so nothing else needs setting up.
         </p>
       )}
@@ -40,18 +40,18 @@ export function LocationsManager({ locations, sharedNumber, instagram = false }:
         <LocationCard key={loc.id} location={loc} canDelete={locations.length > 1} sharedNumber={sharedNumber} instagram={instagram} />
       ))}
 
-      <div className="rounded-lg border border-dashed border-gray-300 p-4">
+      <div className="rounded-card border border-dashed border-gray-300 p-4">
         {adding === false && (
           <form onSubmit={addLocation} className="flex gap-2">
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="New location name, e.g. Andheri branch"
-              className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="flex-1 rounded-input border border-control px-3 py-2 text-sm"
             />
             <button
               type="submit"
-              className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700"
+              className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800"
             >
               + Add location
             </button>
@@ -105,13 +105,13 @@ function LocationCard({ location, canDelete, sharedNumber, instagram }: { locati
   }
 
   return (
-    <section className="rounded-lg border border-gray-200 bg-white p-4 space-y-4">
+    <section className="rounded-card border border-gray-200 bg-white p-4 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-medium">{location.name}</h2>
           <span
             className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-              location.status === "ACTIVE" ? "bg-brand-100 text-brand-700" : "bg-red-100 text-red-700"
+              location.status === "ACTIVE" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"
             }`}
           >
             {location.status}
@@ -120,14 +120,14 @@ function LocationCard({ location, canDelete, sharedNumber, instagram }: { locati
         <div className="flex gap-2">
           <button
             onClick={toggleStatus}
-            className="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium hover:bg-gray-50"
+            className="rounded-full border border-control px-3 py-1 text-xs font-medium hover:bg-gray-50"
           >
             {location.status === "ACTIVE" ? "Suspend" : "Activate"}
           </button>
           {canDelete && (
             <button
               onClick={deleteLocation}
-              className="rounded-md border border-red-300 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+              className="rounded-full border border-red-300 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
             >
               Delete
             </button>
@@ -158,7 +158,7 @@ function LocationCard({ location, canDelete, sharedNumber, instagram }: { locati
           <input
             name="whatsappPhoneNumberId"
             defaultValue={location.whatsappPhoneNumberId ?? ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-input border border-control px-3 py-2 text-sm"
             placeholder="e.g. 109876543210123"
           />
         </div>
@@ -168,14 +168,14 @@ function LocationCard({ location, canDelete, sharedNumber, instagram }: { locati
             name="whatsappAccessToken"
             type="password"
             defaultValue=""
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-input border border-control px-3 py-2 text-sm"
             placeholder={location.hasWhatsappToken ? "Saved — leave empty to keep it" : "System user permanent access token"}
           />
         </div>
         <button
           type="submit"
           disabled={saving}
-          className="rounded-md bg-brand-600 px-4 py-2 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-60"
+          className="rounded-full bg-brand-600 px-4 py-2 text-white text-sm font-medium hover:bg-brand-800 disabled:opacity-60"
         >
           {saving ? "Saving…" : "Save"}
         </button>
@@ -254,17 +254,17 @@ function InstagramConnect({ location }: { location: LocationRow }) {
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Instagram account ID</label>
           <input name="instagramAccountId" defaultValue={location.instagramAccountId ?? ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="e.g. 17841400000000000" />
+            className="w-full rounded-input border border-control px-3 py-2 text-sm" placeholder="e.g. 17841400000000000" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Instagram username</label>
           <input name="instagramUsername" defaultValue={location.instagramUsername ?? ""}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" placeholder="e.g. mapleh_vac" />
+            className="w-full rounded-input border border-control px-3 py-2 text-sm" placeholder="e.g. mapleh_vac" />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Instagram access token</label>
           <input name="instagramAccessToken" type="password" defaultValue=""
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-input border border-control px-3 py-2 text-sm"
             placeholder={location.hasInstagramToken ? "Saved — leave empty to keep it" : "System user token from Meta (Unified login, instagram_manage_messages)"} />
         </div>
         <label className="flex items-center gap-2 text-sm">
@@ -273,7 +273,7 @@ function InstagramConnect({ location }: { location: LocationRow }) {
         </label>
         <div className="flex items-center gap-3">
           <button type="submit" disabled={saving}
-            className="rounded-md bg-brand-600 px-4 py-2 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-60">
+            className="rounded-full bg-brand-600 px-4 py-2 text-white text-sm font-medium hover:bg-brand-800 disabled:opacity-60">
             {saving ? "Saving…" : "Save Instagram"}
           </button>
           {connected && (

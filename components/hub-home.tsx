@@ -82,22 +82,22 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
 
   return (
     <section className="space-y-6">
-      {hubMessage && HUB_MSG[hubMessage] && <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{HUB_MSG[hubMessage]}</div>}
+      {hubMessage && HUB_MSG[hubMessage] && <div className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{HUB_MSG[hubMessage]}</div>}
       {business.bundleStatus === "PENDING_PAYMENT" && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-brand-200 bg-brand-50 px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-brand-200 bg-brand-50 px-5 py-4">
           <div><p className="font-medium">One step left: pay for {plan.name}</p><p className="text-sm text-gray-600">Everything is set up automatically the moment it&apos;s paid.</p></div>
-          <Link href="/dashboard/billing" className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Go to payment</Link>
+          <Link href="/dashboard/billing" className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800">Go to payment</Link>
         </div>
       )}
       {business.bundleStatus === "LAPSED" && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-red-200 bg-red-50 px-5 py-4">
           <p className="text-sm text-red-800">Your plan ended and your tools are paused. Your data is safe.</p>
-          <Link href="/dashboard/billing" className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Reactivate</Link>
+          <Link href="/dashboard/billing" className="rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700">Reactivate</Link>
         </div>
       )}
 
       <div>
-        <h1 className="text-xl font-semibold">Good to see you</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Good to see you</h1>
         <p className="text-sm text-gray-500">{business.name} · {plan.name} plan · everything in one place</p>
       </div>
 
@@ -109,7 +109,7 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
       </div>
 
       {!allDone && live && (
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
+        <div className="rounded-card border border-gray-200 bg-white p-5">
           <h2 className="mb-3 font-medium">Getting you set up</h2>
           <ol className="space-y-2 text-sm">
             {steps.map((x) => (
@@ -160,18 +160,18 @@ export async function HubHome({ business, hubMessage }: { business: Business; hu
 
 function Tile({ name, blurb, status, note, links }: { name: string; blurb: string; status: { label: string; tone: string }; note?: string | null; links: { href: string; label: string; external?: boolean }[] }) {
   return (
-    <article className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+    <article className="flex flex-col gap-3 rounded-card border border-gray-200 bg-white p-4">
       <div className="flex items-start justify-between gap-2">
         <div><h3 className="font-medium">{name}</h3><p className="text-sm text-gray-600">{blurb}</p></div>
-        <span className={`shrink-0 rounded px-2 py-0.5 text-xs ${status.tone}`}>{status.label}</span>
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${status.tone}`}>{status.label}</span>
       </div>
       {note && <p className="text-xs text-gray-500">{note}</p>}
       {links.length > 0 && (
         <div className="mt-auto flex flex-wrap gap-2">
           {links.map((l) => l.external
             // ↗ tools open in a new tab so the owner keeps this home screen (bug B17).
-            ? <a key={l.href} href={l.href} target="_blank" rel="noopener" className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">{l.label}</a>
-            : <Link key={l.href} href={l.href} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">{l.label}</Link>)}
+            ? <a key={l.href} href={l.href} target="_blank" rel="noopener" className="rounded-full border border-control px-3 py-1.5 text-sm hover:bg-gray-50">{l.label}</a>
+            : <Link key={l.href} href={l.href} className="rounded-full border border-control px-3 py-1.5 text-sm hover:bg-gray-50">{l.label}</Link>)}
         </div>
       )}
     </article>

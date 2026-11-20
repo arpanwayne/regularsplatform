@@ -58,7 +58,7 @@ export default async function UnifiedCustomersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Unified customers (all locations)</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Unified customers (all locations)</h1>
           <p className="text-sm text-gray-500">
             {multiLocationCustomers.length} customer{multiLocationCustomers.length === 1 ? " has" : "s have"} visited more than one location.
           </p>
@@ -68,16 +68,16 @@ export default async function UnifiedCustomersPage() {
         </Link>
       </div>
 
-      <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-500">
+      <div className="rounded-card border border-gray-200 bg-gray-50 px-4 py-3 text-xs text-gray-500">
         This segment is calculated from combined stats for this page only. Outreach still uses each location&apos;s own segment, because outreach comes from one location.
       </div>
 
       {unified.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
+        <div className="rounded-card border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
           No customers yet.
         </div>
       ) : (
-        <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+        <div className="rounded-card border border-gray-200 bg-white overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-left text-gray-500">
               <tr>

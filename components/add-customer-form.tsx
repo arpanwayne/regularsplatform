@@ -24,18 +24,18 @@ export function AddCustomerForm({ locations }: { locations: { id: string; name: 
   }
 
   return (
-    <form onSubmit={submit} className="space-y-2 rounded-lg border border-gray-200 bg-white p-4 text-sm">
+    <form onSubmit={submit} className="space-y-2 rounded-card border border-gray-200 bg-white p-4 text-sm">
       <h2 className="font-medium">Add a customer</h2>
       <p className="text-gray-600">Ask them first if they&apos;d like offers on WhatsApp. They get one message to reply YES or NO, and offers start only after YES.</p>
       <div className="flex flex-wrap items-center gap-2">
-        <input className="rounded-md border border-gray-300 px-3 py-2" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="rounded-md border border-gray-300 px-3 py-2" placeholder="Mobile" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+        <input className="rounded-input border border-control px-3 py-2" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="rounded-input border border-control px-3 py-2" placeholder="Mobile" value={phone} onChange={(e) => setPhone(e.target.value)} required />
         {locations.length > 1 && (
-          <select className="rounded-md border border-gray-300 px-2 py-2" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+          <select className="rounded-input border border-control px-2 py-2" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
             {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </select>
         )}
-        <button disabled={busy} className="rounded-md bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-700 disabled:opacity-60">{busy ? "Adding…" : "Add"}</button>
+        <button disabled={busy} className="rounded-full bg-brand-600 px-4 py-2 font-medium text-white hover:bg-brand-800 disabled:opacity-60">{busy ? "Adding…" : "Add"}</button>
       </div>
       {msg && <p className={msg.ok ? "text-gray-700" : "text-red-600"}>{msg.text}</p>}
     </form>

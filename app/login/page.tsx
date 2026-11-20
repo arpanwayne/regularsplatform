@@ -7,7 +7,7 @@ export default function LoginPage({ searchParams }: { searchParams: { moved?: st
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6">
       {searchParams.moved && (
-        <div role="status" className="mb-6 w-full max-w-sm rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+        <div role="status" className="mb-6 w-full max-w-sm rounded-card border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           Your account lives on {name}. Please log in here.
         </div>
       )}

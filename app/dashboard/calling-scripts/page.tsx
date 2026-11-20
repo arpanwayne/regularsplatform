@@ -22,7 +22,7 @@ export default async function CallingScriptsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-semibold">Calling scripts</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Calling scripts</h1>
         <p className="text-sm text-gray-500">
           Default {business.sector.toLowerCase()} scripts, one per segment. Generate a personal version for a customer on the Customers page.
         </p>
@@ -32,7 +32,7 @@ export default async function CallingScriptsPage() {
         <h2 className="font-medium mb-3">Default templates</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {templates.map((t) => (
-            <div key={t.segment} className="rounded-lg border border-gray-200 bg-white p-4">
+            <div key={t.segment} className="rounded-card border border-gray-200 bg-white p-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="font-medium text-sm">{t.title}</p>
                 <SegmentBadge segment={t.segment} />
@@ -52,7 +52,7 @@ export default async function CallingScriptsPage() {
         ) : (
           <div className="space-y-3">
             {generated.map((g) => (
-              <div key={g.id} className="rounded-lg border border-gray-200 bg-white p-4">
+              <div key={g.id} className="rounded-card border border-gray-200 bg-white p-4">
                 <div className="flex items-center justify-between mb-2">
                   <p className="font-medium text-sm">{g.title}</p>
                   <SegmentBadge segment={g.segment} />

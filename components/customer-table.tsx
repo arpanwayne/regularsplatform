@@ -79,14 +79,14 @@ export function CustomerTable({
 
   if (customers.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
+      <div className="rounded-card border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
         Customers appear here after their first call, text, visit or QR scan. You can also add them above or import a list.
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+    <div className="rounded-card border border-gray-200 bg-white overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-gray-50 text-left text-gray-500">
           <tr>
@@ -106,12 +106,12 @@ export function CustomerTable({
                   {editingId === c.id ? (
                     <div className="space-y-1">
                       <input value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={80} placeholder="Name"
-                        aria-label="Customer name" className="w-44 rounded-md border border-gray-300 px-2 py-1 text-sm" />
+                        aria-label="Customer name" className="w-44 rounded-input border border-control px-2 py-1 text-sm" />
                       <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} maxLength={25} placeholder="+91 98765 43210"
-                        aria-label="Phone number" inputMode="tel" className="block w-44 rounded-md border border-gray-300 px-2 py-1 text-sm" />
+                        aria-label="Phone number" inputMode="tel" className="block w-44 rounded-input border border-control px-2 py-1 text-sm" />
                       {editError && <p className="max-w-[16rem] text-xs text-red-600">{editError}</p>}
                       <div className="flex gap-2">
-                        <button type="button" disabled={saving} onClick={() => saveEdit(c.id)} className="rounded-md bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+                        <button type="button" disabled={saving} onClick={() => saveEdit(c.id)} className="rounded-full bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-800 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
                         <button type="button" onClick={() => setEditingId(null)} className="text-xs text-gray-600 underline">Cancel</button>
                       </div>
                     </div>
@@ -162,7 +162,7 @@ export function CustomerTable({
                     onClick={() => generateScript(c.id)}
                     disabled={loadingId === c.id || c.optedOut}
                     title={c.optedOut ? "Customer opted out — cannot generate outreach" : undefined}
-                    className="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="rounded-full border border-control px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {loadingId === c.id ? "Generating…" : "Generate calling script"}
                   </button>}

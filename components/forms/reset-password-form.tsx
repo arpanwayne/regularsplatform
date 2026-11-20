@@ -57,13 +57,13 @@ export function ResetPasswordForm() {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         placeholder="Naya password (min 8 characters)"
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+        className="w-full rounded-input border border-control px-3 py-2 text-sm"
       />
       {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-md bg-brand-600 px-4 py-2.5 text-white font-medium hover:bg-brand-700 transition disabled:opacity-60"
+        className="w-full rounded-full bg-brand-600 px-4 py-2.5 text-white font-medium hover:bg-brand-800 transition disabled:opacity-60"
       >
         {loading ? "Saving…" : "Reset password"}
       </button>

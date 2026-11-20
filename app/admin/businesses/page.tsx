@@ -24,7 +24,7 @@ export default async function AdminBusinessesPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">{portal === "LOOPDESK" ? "Clients" : "Businesses"}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{portal === "LOOPDESK" ? "Clients" : "Businesses"}</h1>
         <p className="text-sm text-gray-500">
           {portal === "LOOPDESK"
             ? "Clients with a bundle. Suspend a client or tune its follow-ups here; change the bundle in Bundles or Products & Bundles."

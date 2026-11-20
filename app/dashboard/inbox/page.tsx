@@ -68,32 +68,32 @@ export default async function InboxPage({ searchParams }: { searchParams: { c?: 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-xl font-semibold">Inbox</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
           <span>
             WhatsApp this month: <b>{waSent}</b>
             {waSender
-              ? <span className="ml-2 rounded bg-green-100 px-2 py-0.5 text-green-800">{waSender.shared ? `Sending from ${sharedDisplayNumber()}` : "Sending from your WhatsApp number"}</span>
-              : <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-amber-800">WhatsApp not connected</span>}
+              ? <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-green-800">{waSender.shared ? `Sending from ${sharedDisplayNumber()}` : "Sending from your WhatsApp number"}</span>
+              : <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">WhatsApp not connected</span>}
           </span>
-          {igOn && <span className="rounded bg-pink-100 px-2 py-0.5 text-pink-800">Instagram DMs on</span>}
+          {igOn && <span className="rounded-full bg-pink-100 px-2 py-0.5 text-pink-800">Instagram DMs on</span>}
           {(usesSms || usage.used > 0) && (
             <span>
               SMS this month: <b>{usage.used}</b>
               {usage.limit != null && <> / {usage.limit} included</>}
               {usage.overage > 0 && <> · {usage.overage} extra (C${usage.overageCad.toFixed(2)})</>}
-              {usesSms && !smsConfigured() && <span className="ml-2 rounded bg-amber-100 px-2 py-0.5 text-amber-800">Dry-run: Twilio not configured, nothing is actually sent</span>}
+              {usesSms && !smsConfigured() && <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">Dry-run: Twilio not configured, nothing is actually sent</span>}
             </span>
           )}
         </p>
       </div>
 
       {latest.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">
+        <div className="rounded-card border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">
           No messages yet. Customer replies, missed-call messages, review requests and win-backs will show up here.
         </div>
       ) : (
-        <div className="grid min-h-[520px] grid-cols-1 overflow-hidden rounded-lg border border-gray-200 bg-white md:grid-cols-[300px_1fr]">
+        <div className="grid min-h-[520px] grid-cols-1 overflow-hidden rounded-card border border-gray-200 bg-white md:grid-cols-[300px_1fr]">
           <ul className="max-h-[640px] overflow-y-auto border-b border-gray-200 md:border-b-0 md:border-r">
             {latest.map((m) => {
               const c = byId.get(m.customerId);

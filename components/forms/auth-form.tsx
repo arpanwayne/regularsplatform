@@ -57,7 +57,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             <select
               name="sector"
               required
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              className="w-full rounded-input border border-control px-3 py-2 text-sm"
             >
               <option value="SALON">Salon</option>
               <option value="GYM">Gym</option>
@@ -76,7 +76,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-md bg-brand-600 px-4 py-2.5 text-white font-medium hover:bg-brand-700 transition disabled:opacity-60"
+        className="w-full rounded-full bg-brand-600 px-4 py-2.5 text-white font-medium hover:bg-brand-800 transition disabled:opacity-60"
       >
         {loading ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
       </button>
@@ -105,7 +105,7 @@ function Field({
         type={type}
         required={required}
         minLength={minLength}
-        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+        className="w-full rounded-input border border-control px-3 py-2 text-sm"
       />
     </div>
   );

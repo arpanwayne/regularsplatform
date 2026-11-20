@@ -36,7 +36,7 @@ export default async function AdminOverviewPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-xl font-semibold">Platform overview</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Platform overview</h1>
         <p className="text-sm text-gray-500">
           {portal === "LOOPDESK" ? `Every client with a ${PORTAL_NAME.LOOPDESK} bundle.` : "Every business on a Regulars plan (Starter, Growth, Pro)."}
         </p>
@@ -57,7 +57,7 @@ export default async function AdminOverviewPage() {
         <StatCard label="Total revenue (paid)" value={revenue} hint={portal === "LOOPDESK" ? "Online payments plus offline payments recorded on Bundles → Activate" : "Plan payments from these businesses"} />
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-card border border-gray-200 bg-white">
         <div className="border-b border-gray-100 px-4 py-3">
           <h2 className="font-medium">Customers by segment</h2>
         </div>

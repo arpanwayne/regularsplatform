@@ -30,10 +30,10 @@ export function TeamManager({ managers }: { managers: Manager[] }) {
     else window.alert("Couldn't remove. Please try again.");
   }
 
-  const input = "w-full rounded-md border border-gray-300 px-3 py-2 text-sm";
+  const input = "w-full rounded-input border border-control px-3 py-2 text-sm";
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-hidden rounded-card border border-gray-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-gray-500">
             <tr>
@@ -61,7 +61,7 @@ export function TeamManager({ managers }: { managers: Manager[] }) {
         </table>
       </div>
 
-      <form onSubmit={add} className="space-y-3 rounded-lg border border-gray-200 bg-white p-4">
+      <form onSubmit={add} className="space-y-3 rounded-card border border-gray-200 bg-white p-4">
         <h2 className="font-medium">Add a manager</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <input className={input} placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
@@ -74,7 +74,7 @@ export function TeamManager({ managers }: { managers: Manager[] }) {
           Share the email and password with them yourself.
         </p>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <button disabled={saving} className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60">
+        <button disabled={saving} className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-60">
           {saving ? "Adding…" : "Add manager"}
         </button>
       </form>

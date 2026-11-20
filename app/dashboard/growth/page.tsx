@@ -66,7 +66,7 @@ export default async function GrowthPage() {
     <div className="space-y-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">AI Growth Manager</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">AI Growth Manager</h1>
           <p className="max-w-2xl text-sm text-gray-600">
             Every day it reads your calls, texts, quotes, jobs and reviews, picks the actions most likely to bring in work,
             and asks you before it contacts anyone. {s.enabled ? "It's on." : "It's off — turn it on in the settings below."}
@@ -76,7 +76,7 @@ export default async function GrowthPage() {
       </div>
 
       {!allowed && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {GROWTH_UPGRADE_MESSAGE} <a href="/dashboard/billing" className="font-medium underline">Billing</a>
         </div>
       )}
@@ -84,7 +84,7 @@ export default async function GrowthPage() {
         brief.ok ? (
           <p className="text-sm text-gray-600">Morning plan: sent by {brief.channel === "WHATSAPP" ? "WhatsApp" : "text message"} to {brief.to} at {String(s.briefHour).padStart(2, "0")}:00 ({s.timezone}).</p>
         ) : (
-          <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div role="alert" className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             The morning plan can&apos;t be sent yet: {brief.reason} Until then, approve actions on this page.
           </div>
         )
@@ -100,7 +100,7 @@ export default async function GrowthPage() {
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Today&apos;s plan</h2>
         {proposed.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
+          <p className="rounded-card border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">
             Nothing waiting. The next plan is made at {String(s.briefHour).padStart(2, "0")}:00 ({s.timezone}), or press &ldquo;Plan now&rdquo;.
           </p>
         ) : (
@@ -121,7 +121,7 @@ export default async function GrowthPage() {
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">What it did</h2>
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+        <div className="overflow-x-auto rounded-card border border-gray-200 bg-white">
           <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-gray-50 text-left text-gray-500">
               <tr><th className="px-4 py-2 font-medium">When</th><th className="px-4 py-2 font-medium">Action</th><th className="px-4 py-2 font-medium">Result</th><th className="px-4 py-2 font-medium">Outcome</th></tr>
@@ -133,7 +133,7 @@ export default async function GrowthPage() {
                   <td className="px-4 py-2 text-gray-500">{formatDateTime(a.executedAt ?? a.updatedAt, business.country, s.timezone)}</td>
                   <td className="px-4 py-2">{a.title}</td>
                   <td className="px-4 py-2">{a.status === "DONE" ? "Done" : a.status === "FAILED" ? <span className="text-red-600" title={a.error ?? ""}>Failed</span> : "Running"}</td>
-                  <td className="px-4 py-2">{a.outcome === "WON" ? <span className="rounded bg-green-100 px-2 py-0.5 text-green-800">Won {a.outcomeValue != null ? money(s, a.outcomeValue) : ""}</span> : <span className="text-gray-400">—</span>}</td>
+                  <td className="px-4 py-2">{a.outcome === "WON" ? <span className="rounded-full bg-green-100 px-2 py-0.5 text-green-800">Won {a.outcomeValue != null ? money(s, a.outcomeValue) : ""}</span> : <span className="text-gray-500">—</span>}</td>
                 </tr>
               ))}
             </tbody>

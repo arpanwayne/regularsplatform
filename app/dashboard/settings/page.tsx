@@ -24,7 +24,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Settings</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       <LocationsManager locations={locations} sharedNumber={sharedNumber} instagram={instagramAllowed(business)} />
       <FrontDeskSettings business={business} locations={locations} />
     </div>

@@ -21,7 +21,7 @@ export default async function AdminApiKeysPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">API keys</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">API keys</h1>
         <p className="text-sm text-gray-500">
           Server-to-server keys for <code>POST /api/v1/events</code>. A connected system (e.g. Sehat Saathi, a POS or a
           booking tool) uses one to report real visits for a business, instead of relying on customer-typed WhatsApp

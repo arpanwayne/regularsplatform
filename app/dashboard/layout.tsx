@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentBusiness, getCurrentUser } from "@/lib/session";
 import { DashboardNav } from "@/components/dashboard-nav";
 import { businessTools } from "@/lib/hub/catalog-rules";
+import { switcherItems } from "@/lib/hub/switcher";
 import { currentPortal, portalForHost, portalOfBusiness, portalUrl } from "@/lib/portal";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -35,11 +36,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
         bundle={business.bundleStatus === "NONE" ? undefined : {
           calls: businessTools(business).includes("WAYNERING"),
           jobs: businessTools(business).includes("FIELD_SERVICE"),
+          switcher: switcherItems(businessTools(business)),
         }}
       />
       <div className="mx-auto max-w-6xl px-6 py-8">
         {business.status === "SUSPENDED" && (
-          <div className="mb-6 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div className="mb-6 rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             This account has been suspended, so messages and follow-ups are off. Please contact support.
           </div>
         )}

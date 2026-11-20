@@ -31,7 +31,7 @@ export default async function QrPage({ searchParams }: { searchParams: { tag?: s
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <div>
-          <h1 className="text-xl font-semibold">QR codes</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">QR codes</h1>
           <p className="mt-1 max-w-2xl text-sm text-gray-600">
             Put these at the counter, on tables or on the bill. A customer scans, presses Send, and joins your list with their
             permission for offers. No app, no form.
@@ -42,14 +42,14 @@ export default async function QrPage({ searchParams }: { searchParams: { tag?: s
 
       <form className="flex flex-wrap items-center gap-2 text-sm print:hidden">
         <label htmlFor="tag" className="text-gray-600">Tag (optional, e.g. a table or a stylist):</label>
-        <input id="tag" name="tag" defaultValue={tag ?? ""} placeholder="T5" className="w-32 rounded-md border border-gray-300 px-3 py-1.5" />
-        <button className="rounded-md border border-gray-300 bg-white px-3 py-1.5 font-medium hover:bg-gray-50">Make QR</button>
+        <input id="tag" name="tag" defaultValue={tag ?? ""} placeholder="T5" className="w-32 rounded-input border border-control px-3 py-1.5" />
+        <button className="rounded-full border border-control bg-white px-3 py-1.5 font-medium hover:bg-gray-50">Make QR</button>
         {tag && <a href="/dashboard/qr" className="text-brand-700 hover:text-brand-800">Clear tag</a>}
       </form>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map(({ location, code, target, link, svg }) => (
-          <div key={location.id} className="break-inside-avoid rounded-lg border border-gray-200 bg-white p-4 text-center">
+          <div key={location.id} className="break-inside-avoid rounded-card border border-gray-200 bg-white p-4 text-center">
             <p className="font-semibold">{business.name}</p>
             {locations.length > 1 && <p className="text-sm text-gray-500">{location.name}</p>}
             {svg && link ? (

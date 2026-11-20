@@ -17,13 +17,13 @@ export function OfferActions({ id, status, canDecide, canCancel }: { id: string;
     router.refresh();
   }
 
-  const btn = "rounded-md px-2.5 py-1 text-xs font-medium disabled:opacity-60";
+  const btn = "rounded-full px-3 py-1 text-xs font-medium disabled:opacity-60";
   return (
     <div className="flex justify-end gap-2 whitespace-nowrap">
       {status === "PENDING_APPROVAL" && canDecide && (
         <>
           <button disabled={busy} onClick={() => act("approve")} className={`${btn} bg-green-600 text-white hover:bg-green-700`}>Approve</button>
-          <button disabled={busy} onClick={() => act("reject")} className={`${btn} border border-gray-300 text-gray-700 hover:bg-gray-50`}>Reject</button>
+          <button disabled={busy} onClick={() => act("reject")} className={`${btn} border border-control text-gray-700 hover:bg-gray-50`}>Reject</button>
         </>
       )}
       {(status === "PENDING_APPROVAL" || status === "APPROVED") && canCancel && (

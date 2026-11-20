@@ -88,11 +88,11 @@ function ProductsSection({ products }: { products: CatalogProductRow[] }) {
           <h2 className="font-medium">1. Software</h2>
           <p className="text-xs text-gray-500">Everything we sell. New software starts as Manual; making it Auto-connect needs a one-time code change in that software.</p>
         </div>
-        {!adding && <button onClick={() => setAdding(true)} className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">+ Add software</button>}
+        {!adding && <button onClick={() => setAdding(true)} className="rounded-full bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-800">+ Add software</button>}
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       {adding && <ProductForm onSubmit={(e) => submit(e)} onCancel={() => setAdding(false)} busy={busy} />}
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-card border border-gray-200 bg-white">
         <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-gray-50 text-left text-gray-500">
             <tr><th className="px-4 py-2 font-medium">Software</th><th className="px-4 py-2 font-medium">Connects</th><th className="px-4 py-2 font-medium">Price</th><th className="px-4 py-2 font-medium">Bundles</th><th className="px-4 py-2 font-medium"></th></tr>
@@ -108,8 +108,8 @@ function ProductsSection({ products }: { products: CatalogProductRow[] }) {
                   {p.url && <a href={p.url} target="_blank" rel="noopener" className="text-xs text-brand-700 underline">{p.url}</a>}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`rounded px-2 py-0.5 text-xs font-medium ${CONNECT_LABEL[p.connect]?.tone ?? ""}`} title={CONNECT_LABEL[p.connect]?.help}>{CONNECT_LABEL[p.connect]?.label ?? p.connect}</span>
-                  {p.hubTool && p.hubTool in TOOL_META && <p className="mt-1 text-xs text-gray-400">{TOOL_META[p.hubTool as Tool].name}</p>}
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${CONNECT_LABEL[p.connect]?.tone ?? ""}`} title={CONNECT_LABEL[p.connect]?.help}>{CONNECT_LABEL[p.connect]?.label ?? p.connect}</span>
+                  {p.hubTool && p.hubTool in TOOL_META && <p className="mt-1 text-xs text-gray-500">{TOOL_META[p.hubTool as Tool].name}</p>}
                 </td>
                 <td className="px-4 py-3 text-xs text-gray-600">{priceLine({ priceInr: p.priceInr, priceCad: p.priceCad })}</td>
                 <td className="px-4 py-3 text-xs text-gray-600">{p.bundleCount}</td>
@@ -133,14 +133,14 @@ function ProductsSection({ products }: { products: CatalogProductRow[] }) {
 
 function ProductForm({ product, onSubmit, onCancel, busy }: { product?: CatalogProductRow; onSubmit: (e: React.FormEvent<HTMLFormElement>) => void; onCancel: () => void; busy: boolean }) {
   return (
-    <form onSubmit={onSubmit} className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 sm:grid-cols-2">
+    <form onSubmit={onSubmit} className="grid gap-3 rounded-card border border-gray-200 bg-white p-4 sm:grid-cols-2">
       <Field label="Name" name="name" defaultValue={product?.name} required placeholder="e.g. Order Desk" />
       <Field label="Link (where the client opens it)" name="url" defaultValue={product?.url ?? ""} placeholder="https://…" type="url" />
       <div className="sm:col-span-2"><Field label="What it does" name="description" defaultValue={product?.description ?? ""} placeholder="One line for the client's home page" /></div>
       <Field label="Price ₹ / month (optional)" name="priceInr" defaultValue={product?.priceInr ?? ""} type="number" />
       <Field label="Price C$ / month (optional)" name="priceCad" defaultValue={product?.priceCad ?? ""} type="number" />
       <div className="flex gap-2 sm:col-span-2">
-        <button disabled={busy} className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Saving…" : product ? "Save" : "Add software"}</button>
+        <button disabled={busy} className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Saving…" : product ? "Save" : "Add software"}</button>
         <button type="button" onClick={onCancel} className="text-sm text-gray-600 underline">Cancel</button>
       </div>
     </form>
@@ -173,7 +173,7 @@ function BundlesSection({ products, bundles, builtInPlans }: { products: Catalog
           <h2 className="font-medium">2. Bundles</h2>
           <p className="text-xs text-gray-500">Pick any software, set a price. Regulars is always included. Editing a bundle updates every client on it.</p>
         </div>
-        {editing === null && <button onClick={() => setEditing("new")} className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">+ New bundle</button>}
+        {editing === null && <button onClick={() => setEditing("new")} className="rounded-full bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-800">+ New bundle</button>}
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       {editing === "new" && (
@@ -188,17 +188,17 @@ function BundlesSection({ products, bundles, builtInPlans }: { products: Catalog
               onSave={async (body) => { if (await run(() => send(`/api/admin/catalog/bundles/${b.id}`, "PATCH", body))) setEditing(null); }} />
           </div>
         ) : (
-          <article key={b.id} className={`flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 ${b.active ? "" : "opacity-60"}`}>
+          <article key={b.id} className={`flex flex-col gap-2 rounded-card border border-gray-200 bg-white p-4 ${b.active ? "" : "opacity-60"}`}>
             <div className="flex items-start justify-between gap-2">
               <div><h3 className="font-medium">{b.name}</h3>{b.description && <p className="text-xs text-gray-500">{b.description}</p>}</div>
-              {!b.active && <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-600">Off</span>}
+              {!b.active && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">Off</span>}
             </div>
             <p className="text-sm font-medium">{priceLine(b)}</p>
             <ul className="flex flex-wrap gap-1">
               {b.productIds.map((id) => byId.get(id)).filter(Boolean).map((p) => (
-                <li key={p!.id} className={`rounded px-2 py-0.5 text-xs ${CONNECT_LABEL[p!.connect]?.tone ?? "bg-gray-100"}`}>{p!.name}</li>
+                <li key={p!.id} className={`rounded-full px-2 py-0.5 text-xs ${CONNECT_LABEL[p!.connect]?.tone ?? "bg-gray-100"}`}>{p!.name}</li>
               ))}
-              {b.growthManager && <li className="rounded bg-purple-100 px-2 py-0.5 text-xs text-purple-800">Growth Manager</li>}
+              {b.growthManager && <li className="rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-800">Growth Manager</li>}
             </ul>
             <p className="text-xs text-gray-500">{b.clients.length ? `Clients: ${b.clients.map((c) => c.name).join(", ")}` : "No clients yet"}</p>
             <div className="mt-auto flex gap-3 pt-1">
@@ -209,12 +209,12 @@ function BundlesSection({ products, bundles, builtInPlans }: { products: Catalog
           </article>
         ))}
         {builtInPlans.map((p) => (
-          <article key={p.id} className="flex flex-col gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
-            <div className="flex items-start justify-between gap-2"><h3 className="font-medium">{p.name}</h3><span className="rounded bg-white px-2 py-0.5 text-xs text-gray-500">Built-in plan</span></div>
+          <article key={p.id} className="flex flex-col gap-2 rounded-card border border-dashed border-gray-300 bg-gray-50 p-4">
+            <div className="flex items-start justify-between gap-2"><h3 className="font-medium">{p.name}</h3><span className="rounded-full bg-white px-2 py-0.5 text-xs text-gray-500">Built-in plan</span></div>
             <p className="text-sm font-medium">{priceLine({ priceInr: p.priceInr, priceCad: p.priceCad })}</p>
             <ul className="flex flex-wrap gap-1">
-              <li className="rounded bg-brand-100 px-2 py-0.5 text-xs text-brand-800">Regulars</li>
-              {p.tools.map((t) => <li key={t} className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-800">{TOOL_META[t].name}</li>)}
+              <li className="rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-900">Regulars</li>
+              {p.tools.map((t) => <li key={t} className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">{TOOL_META[t].name}</li>)}
             </ul>
             <p className="text-xs text-gray-500">Sold on the website with online payment. Not editable here.</p>
           </article>
@@ -256,7 +256,7 @@ function BundleForm({ bundle, products, busy, onSave, onCancel }: {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4 rounded-lg border border-brand-200 bg-white p-4">
+    <form onSubmit={submit} className="space-y-4 rounded-card border border-brand-200 bg-white p-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Bundle name" name="name" defaultValue={bundle?.name} required placeholder="e.g. Manufacturer Pack" />
         <Field label="Short description (optional)" name="description" defaultValue={bundle?.description ?? ""} placeholder="Who it's for" />
@@ -265,11 +265,11 @@ function BundleForm({ bundle, products, busy, onSave, onCancel }: {
         <p className="mb-2 text-sm font-medium text-gray-700">Software in this bundle</p>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {choosable.map((p) => (
-            <label key={p.id} className={`flex items-start gap-2 rounded-md border px-3 py-2 text-sm ${picked.has(p.id) ? "border-brand-400 bg-brand-50" : "border-gray-200"}`}>
+            <label key={p.id} className={`flex items-start gap-2 rounded-card border px-3 py-2 text-sm ${picked.has(p.id) ? "border-brand-400 bg-brand-50" : "border-gray-200"}`}>
               <input type="checkbox" checked={picked.has(p.id)} disabled={p.connect === "HUB"} onChange={() => toggle(p.id)} className="mt-0.5" />
               <span>
                 <span className="font-medium">{p.name}</span>
-                <span className={`ml-2 rounded px-1.5 py-0.5 text-[11px] ${CONNECT_LABEL[p.connect]?.tone ?? ""}`}>{CONNECT_LABEL[p.connect]?.label}</span>
+                <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] ${CONNECT_LABEL[p.connect]?.tone ?? ""}`}>{CONNECT_LABEL[p.connect]?.label}</span>
                 {p.description && <span className="block text-xs text-gray-500">{p.description}</span>}
               </span>
             </label>
@@ -278,11 +278,11 @@ function BundleForm({ bundle, products, busy, onSave, onCancel }: {
       </div>
       <div className="grid gap-3 sm:grid-cols-4">
         <label className="block text-sm"><span className="mb-1 block font-medium text-gray-700">Price ₹</span>
-          <input type="number" min={0} value={priceInr} onChange={(e) => setPriceInr(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2" /></label>
+          <input type="number" min={0} value={priceInr} onChange={(e) => setPriceInr(e.target.value)} className="w-full rounded-input border border-control px-3 py-2" /></label>
         <label className="block text-sm"><span className="mb-1 block font-medium text-gray-700">Price C$</span>
-          <input type="number" min={0} value={priceCad} onChange={(e) => setPriceCad(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2" /></label>
+          <input type="number" min={0} value={priceCad} onChange={(e) => setPriceCad(e.target.value)} className="w-full rounded-input border border-control px-3 py-2" /></label>
         <label className="block text-sm"><span className="mb-1 block font-medium text-gray-700">Billed</span>
-          <select name="interval" defaultValue={bundle?.interval ?? "MONTHLY"} className="w-full rounded-md border border-gray-300 px-3 py-2"><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option></select></label>
+          <select name="interval" defaultValue={bundle?.interval ?? "MONTHLY"} className="w-full rounded-input border border-control px-3 py-2"><option value="MONTHLY">Monthly</option><option value="YEARLY">Yearly</option></select></label>
         <Field label="Included SMS / month (optional)" name="smsMonthlyLimit" defaultValue={bundle?.smsMonthlyLimit ?? ""} type="number" />
       </div>
       {(suggestion.priceInr != null || suggestion.priceCad != null) && (
@@ -296,7 +296,7 @@ function BundleForm({ bundle, products, busy, onSave, onCancel }: {
         Include the Growth Manager (morning plan, win-backs, missed-call text-back)
       </label>
       <div className="flex gap-2">
-        <button disabled={busy || picked.size === 0} className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Saving…" : bundle ? "Save bundle" : "Create bundle"}</button>
+        <button disabled={busy || picked.size === 0} className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Saving…" : bundle ? "Save bundle" : "Create bundle"}</button>
         <button type="button" onClick={onCancel} className="text-sm text-gray-600 underline">Cancel</button>
       </div>
     </form>
@@ -353,24 +353,24 @@ function AssignSection({ bundles, builtInPlans, businesses }: { bundles: Catalog
         <h2 className="font-medium">3. Give a bundle to a client</h2>
         <p className="text-xs text-gray-500">For a payment taken offline (bank, UPI, e-Transfer) or a free pilot. Connected software is set up straight away; follow manual set-ups in Admin → Bundles.</p>
       </div>
-      <div className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-6">
+      <div className="grid gap-3 rounded-card border border-gray-200 bg-white p-4 md:grid-cols-6">
         <label className="block text-sm md:col-span-2"><span className="mb-1 block font-medium text-gray-700">Client</span>
-          <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2">
+          <select value={clientId} onChange={(e) => setClientId(e.target.value)} className="w-full rounded-input border border-control px-3 py-2">
             {businesses.map((b) => <option key={b.id} value={b.id}>{b.name} · {b.country} · now: {current(b)}</option>)}
           </select></label>
         <label className="block text-sm md:col-span-2"><span className="mb-1 block font-medium text-gray-700">Bundle</span>
-          <select value={choice} onChange={(e) => pick(e.target.value)} className="w-full rounded-md border border-gray-300 px-3 py-2">
+          <select value={choice} onChange={(e) => pick(e.target.value)} className="w-full rounded-input border border-control px-3 py-2">
             {active.length > 0 && <optgroup label="Our bundles">{active.map((b) => <option key={b.id} value={`custom:${b.id}`}>{b.name}</option>)}</optgroup>}
             <optgroup label="Built-in plans">{builtInPlans.map((p) => <option key={p.id} value={`plan:${p.id}`}>{p.name}</option>)}</optgroup>
           </select></label>
         <label className="block text-sm"><span className="mb-1 block font-medium text-gray-700">Days</span>
-          <input type="number" min={1} max={366} value={days} onChange={(e) => setDays(Number(e.target.value))} className="w-full rounded-md border border-gray-300 px-3 py-2" /></label>
+          <input type="number" min={1} max={366} value={days} onChange={(e) => setDays(Number(e.target.value))} className="w-full rounded-input border border-control px-3 py-2" /></label>
         <label className="block text-sm"><span className="mb-1 block font-medium text-gray-700">Paid {currency}</span>
-          <input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="blank = pilot" className="w-full rounded-md border border-gray-300 px-3 py-2" /></label>
+          <input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="blank = pilot" className="w-full rounded-input border border-control px-3 py-2" /></label>
         <label className="block text-sm md:col-span-4"><span className="mb-1 block font-medium text-gray-700">Note (optional)</span>
-          <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} placeholder="e.g. UPI ref 4821, 3-month deal" className="w-full rounded-md border border-gray-300 px-3 py-2" /></label>
+          <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} placeholder="e.g. UPI ref 4821, 3-month deal" className="w-full rounded-input border border-control px-3 py-2" /></label>
         <div className="flex items-end md:col-span-2">
-          <button disabled={busy || !clientId || !choice} onClick={activate} className="w-full rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Activating…" : "Activate"}</button>
+          <button disabled={busy || !clientId || !choice} onClick={activate} className="w-full rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{busy ? "Activating…" : "Activate"}</button>
         </div>
         {chosenBundle && <p className="text-xs text-gray-500 md:col-span-6">{chosenBundle.name}: {priceLine(chosenBundle)}{client?.customBundleId && client.customBundleId !== chosenBundle.id ? " · replaces the client's current bundle" : ""}</p>}
         {msg && <p className={`text-sm md:col-span-6 ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</p>}
@@ -384,7 +384,7 @@ function Field({ label, name, defaultValue, placeholder, type = "text", required
     <label className="block text-sm">
       <span className="mb-1 block font-medium text-gray-700">{label}</span>
       <input name={name} type={type} defaultValue={defaultValue ?? ""} placeholder={placeholder} required={required} min={type === "number" ? 0 : undefined}
-        className="w-full rounded-md border border-gray-300 px-3 py-2" />
+        className="w-full rounded-input border border-control px-3 py-2" />
     </label>
   );
 }

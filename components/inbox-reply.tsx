@@ -64,9 +64,9 @@ export function InboxReply({ customerId, disabled, channel = "SMS", windowOpen =
           onChange={(e) => setText(e.target.value)}
           maxLength={1000}
           placeholder={ig ? "Type an Instagram reply…" : wa ? "Type a WhatsApp reply…" : "Type a reply… (your business name and “Reply STOP to opt out” are added automatically)"}
-          className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="flex-1 rounded-input border border-control px-3 py-2 text-sm"
         />
-        <button disabled={sending || !text.trim()} className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+        <button disabled={sending || !text.trim()} className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-50">
           {sending ? "Sending…" : "Send"}
         </button>
       </div>

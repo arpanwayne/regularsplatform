@@ -25,14 +25,14 @@ export default async function BillingPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-xl font-semibold">Billing</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
           <p className="text-sm text-gray-500">
             {business.bundleStatus === "ACTIVE" && until && `${bundle?.name ?? "Your bundle"} is paid until ${formatDate(until, business.country)}.`}
             {business.bundleStatus === "LAPSED" && "Your bundle has ended and your tools are paused. Nothing has been deleted."}
             {business.bundleStatus === "PENDING_PAYMENT" && `${bundle?.name ?? "Your bundle"} starts as soon as it's paid.`}
           </p>
         </div>
-        <div className="rounded-lg border border-gray-200 bg-white p-5 text-sm">
+        <div className="rounded-card border border-gray-200 bg-white p-5 text-sm">
           <p className="font-medium">{bundle?.name ?? "Your bundle"}</p>
           {price != null && <p className="text-gray-600">{business.country === "IN" ? `₹${price.toLocaleString("en-IN")}` : `C$${price}`} / {per}</p>}
           <p className="mt-2 text-gray-600">This bundle is billed by Wayne E Solutions directly. To renew or change it, message your account manager.</p>
@@ -41,7 +41,7 @@ export default async function BillingPage() {
           )}
         </div>
         {payments.length > 0 && (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+          <div className="overflow-x-auto rounded-card border border-gray-200 bg-white">
             <table className="w-full min-w-[480px] text-sm">
               <thead className="bg-gray-50 text-left text-gray-500"><tr><th className="px-4 py-2 font-medium">Date</th><th className="px-4 py-2 font-medium">Amount</th><th className="px-4 py-2 font-medium">Status</th></tr></thead>
               <tbody>{payments.map((p) => (
@@ -67,7 +67,7 @@ export default async function BillingPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h1 className="text-xl font-semibold">Billing</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
           <p className="text-sm text-gray-500">
             {business.bundleStatus === "PENDING_PAYMENT" && `One payment sets up everything in ${plan.name}: your AI receptionist, follow-ups${plan.tools.length > 1 ? ", CRM and Google profile" : ""}.`}
             {business.bundleStatus === "ACTIVE" && until && `${plan.name} is paid until ${formatDate(until, business.country)}.`}
@@ -75,18 +75,18 @@ export default async function BillingPage() {
           </p>
         </div>
         {business.bundleStatus === "ACTIVE" && days !== null && days <= RENEWAL_REMINDER_WINDOW_DAYS && (
-          <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             {days <= 0 ? `Your plan ended ${-days} day(s) ago. Tools stay on for ${GRACE_DAYS} days after the end date, then pause.` : (business.autopayStatus === "ON" ? `Your plan renews automatically in ${days} day(s).` : `Your plan ends in ${days} day(s). Turn on automatic payment or pay below to keep it running.`)}
           </div>
         )}
         {business.autopayStatus === "FAILED" && (
-          <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <div role="alert" className="rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             We couldn&apos;t charge your card. Turn automatic payment off and on again with a working card, or pay once below, to keep your tools running.
           </div>
         )}
         <BundleCheckout currentPlan={business.frontDeskPlan} status={business.bundleStatus} currency={currencyFor(business.country)} autopay={business.autopayStatus} autopayPlan={business.autopayPlan} paidUntil={until ? formatDate(until, business.country) : null} />
         {payments.length > 0 && (
-          <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+          <div className="overflow-x-auto rounded-card border border-gray-200 bg-white">
             <table className="w-full min-w-[480px] text-sm">
               <thead className="bg-gray-50 text-left text-gray-500"><tr><th className="px-4 py-2 font-medium">Date</th><th className="px-4 py-2 font-medium">Plan</th><th className="px-4 py-2 font-medium">Amount</th><th className="px-4 py-2 font-medium">Status</th></tr></thead>
               <tbody>{payments.map((p) => (
@@ -113,7 +113,7 @@ export default async function BillingPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Billing</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
         <p className="text-sm text-gray-500">
           {business.planExpiresAt
             ? `Your plan is paid until ${formatDate(business.planExpiresAt, business.country)}.`
@@ -122,13 +122,13 @@ export default async function BillingPage() {
       </div>
 
       {nearingExpiry && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           Your {business.plan} plan {daysUntilExpiry! <= 0 ? "has ended" : `ends in ${daysUntilExpiry} day(s)`}. To renew, choose the same plan below. You won&apos;t be charged automatically; when it ends you move back to Starter.
         </div>
       )}
 
       <BillingCheckout currentPlan={business.plan} />
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-gray-500">
         Plans last 30 days and renew manually, so there are no surprise charges.
       </p>
     </div>
