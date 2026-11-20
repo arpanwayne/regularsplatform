@@ -64,7 +64,7 @@ export function AppHeader({
           {switcher && switcher.length > 0 && <ToolSwitcher items={switcher} />}
         </div>
 
-        <nav className="order-last -mx-1 flex w-full gap-1 overflow-x-auto whitespace-nowrap lg:order-none lg:mx-0 lg:w-auto lg:flex-1">
+        <nav className="order-last -mx-1 flex w-full gap-1 overflow-x-auto whitespace-nowrap [scrollbar-width:none] lg:order-none lg:mx-0 lg:w-auto lg:flex-1 lg:flex-wrap lg:overflow-visible">
           {links.map((l) => {
             const active = !l.external && activeHref === l.href;
             const cls = clsx(
