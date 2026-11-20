@@ -787,3 +787,40 @@ model Offer {
   @@unique([businessId, approvalNo])
   @@index([status, requestedAt])
 }
+
+// ---------------------------------------------------------------------------
+// Tool WhatsApp through the hub (bundle rule 4, Nov 2026): one client = one
+// WhatsApp number. Loyvexa doesn't own a number; it asks Regulars to send
+// (POST /api/hub/tools/loyvexa/whatsapp/send) and Regulars forwards the
+// replies of those people back to it. Kept apart from Customer so dealers
+// and mechanics don't land in the business's customer list.
+// ---------------------------------------------------------------------------
+
+/// Someone a tool talks to on this business's number (a Loyvexa dealer / mechanic).
+model HubWaContact {
+  id             String    @id @default(cuid())
+  businessId     String
+  /// Tool: LOYVEXA
+  tool           String
+  /// Digits only, with country code (919814000101)
+  phone          String
+  /// Location whose number was used (null = the shared number)
+  locationId     String?
+  lastOutboundAt DateTime?
+  lastInboundAt  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([businessId, tool, phone])
+  @@index([phone])
+}
+
+/// A message a tool sent through Regulars, so Meta's delivery receipts go back to it.
+model HubWaMessage {
+  providerSid String   @id
+  businessId  String
+  tool        String
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}

@@ -12,6 +12,7 @@ import { onMessageDeliveryFailed } from "@/lib/growth/delivery";
 import { smsConfigured } from "@/lib/sms";
 import { handleStaffMessage } from "@/lib/staff";
 import { applyConsentReply, applyJoin, consentAnswerText, parseConsentReply, parseJoin, welcomeText } from "@/lib/onboarding";
+import { forwardInbound, forwardStatuses, inboundTool, latestSharedToolContact } from "@/lib/hub/tool-whatsapp";
 
 // GET — Meta's webhook verification handshake. Each Location gets its own
 // whatsappVerifyToken (shown on the Settings page); we also accept the
@@ -58,7 +59,8 @@ const META_SAMPLE_PHONE_NUMBER_IDS = ["123456123"];
  *  0. a QR scan: "JOIN <code>" names the location itself
  *  1. the owner of a business on the shared number (brief replies, approvals)
  *     or one of its managers ("add Rahul 98…")
- *  2. the business that last messaged this customer from the shared number
+ *  2. the business that last messaged this person from the shared number —
+ *     Regulars itself, or a tool sending through the hub (Loyvexa dealers)
  *  3. the shared-number business this phone is already a customer of
  */
 async function routeShared(from: string, text?: string): Promise<{ location: LocWithBusiness; owner: boolean } | null> {
@@ -95,8 +97,13 @@ async function routeShared(from: string, text?: string): Promise<{ location: Loc
   const lastOut = await prisma.message.findFirst({
     where: { channel: "WHATSAPP", direction: "OUTBOUND", customer: { phone: from }, location: onShared },
     orderBy: { createdAt: "desc" },
-    select: { location: { include: { business: true } } },
+    select: { createdAt: true, location: { include: { business: true } } },
   });
+  const toolContact = await latestSharedToolContact(from);
+  if (toolContact?.lastOutboundAt && (!lastOut || toolContact.lastOutboundAt >= lastOut.createdAt)) {
+    const loc = await prisma.location.findFirst({ where: { businessId: toolContact.businessId, ...onShared }, orderBy: { createdAt: "asc" }, include: { business: true } });
+    if (loc) return { location: loc, owner: false };
+  }
   if (lastOut) return { location: lastOut.location, owner: false };
 
   const known = await prisma.customer.findFirst({
@@ -158,6 +165,8 @@ export async function POST(req: NextRequest) {
           await logEvent({ businessId: msg?.businessId, source: "WHATSAPP", level: "WARN", message: `WhatsApp message failed to deliver${err?.code ? ` (Meta ${err.code})` : ""}`, meta: { id: st.id, errors: st.errors } });
         }
       }
+      // Receipts for messages a tool (Loyvexa) sent through the hub go back to it.
+      if (value.statuses?.length) await forwardStatuses(value.statuses).catch(() => {});
       if (!value.messages?.length) continue;
 
       const ownLocation = await prisma.location.findUnique({
@@ -204,6 +213,14 @@ export async function POST(req: NextRequest) {
           // The owner answering the daily brief.
           if (text && (await handleOwnerReply(location, message.from, text).catch(() => false))) continue;
           if (fromOwner) continue; // owner chatting to the shared number, not a customer
+
+          // A tool's person (Loyvexa dealer / mechanic: "points", "order", "2"…) —
+          // the tool's bot answers through the hub; not a Regulars customer.
+          const tool = await inboundTool(business.id, message.from);
+          if (tool) {
+            await forwardInbound(tool, business.id, { from: message.from, text: text ?? null, id: message.id });
+            continue;
+          }
 
           const messageType = classifyMessageType(text);
           const optOut = isOptOutMessage(text);
