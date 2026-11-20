@@ -15,7 +15,7 @@ import { signHubToken, toolSecret, toolUrl } from "@/lib/hub/tokens";
  * Contract (same for every tool):
  *   POST {TOOL_API_URL}{PATH[tool]}
  *   Authorization: Bearer <hub JWT, purpose "provision">
- *   { hubBusinessId, active, paidUntil, plan, business{…}, owner{…}, regulars? {baseUrl, apiKey?, locationId} }
+ *   { hubBusinessId, active, paidUntil, plan, tools[], business{…}, owner{…}, regulars? {baseUrl, apiKey?, locationId} }
  *   → 200 { accountId, status: "ACTIVE"|"PAUSED", data{…}, secrets? { callbackKey } }
  *
  * The tool answers the same account for the same hubBusinessId every time.
@@ -87,6 +87,9 @@ export async function provisionTool(biz: Biz, tool: Tool, opts: { active: boolea
     regulars: REPORTS_EVENTS.includes(tool)
       ? { baseUrl: (process.env.APP_URL ?? "").replace(/\/$/, "") || null, apiKey: issued?.plain ?? null, locationId: biz.locations[0]?.id ?? null }
       : undefined,
+    // Every tool in the package, so a tool can show only what the package pays for
+    // (Loyvexa: AI calls only with WAYNERING — bundle rule, Nov 2026).
+    tools: businessTools(biz),
     // Custom bundles (Products & Bundles) turn the follow-ups on with their Growth Manager box.
     growth: { missedCallTextBack: biz.customBundleId ? biz.bundleGrowth : biz.frontDeskPlan === "ANSWER_RETURN" || biz.frontDeskPlan === "GROW" },
   };

@@ -8,7 +8,7 @@ import { TOOL_META, type Tool } from "@/lib/hub/plans";
  * be used against another. Tokens are HS256 JWTs:
  *
  *   iss "regulars-hub"   aud <tool audience>   sub <Regulars business id>
- *   purpose "provision" | "sso"   jti (single use)   exp ≤ 2 minutes
+ *   purpose "provision" | "sso" | "whatsapp-inbound"   jti (single use)   exp ≤ 2 minutes
  *
  * "provision" authenticates the hub's server-to-server set-up call.
  * "sso" is handed to the owner's browser and exchanged once by the tool for
@@ -28,7 +28,7 @@ export function toolUrl(tool: Tool, kind: "api" | "app"): string | null {
   return v ? v.replace(/\/$/, "") : null;
 }
 
-export async function signHubToken(tool: Tool, purpose: "provision" | "sso", sub: string, claims: Record<string, unknown> = {}, ttlSeconds = 60) {
+export async function signHubToken(tool: Tool, purpose: "provision" | "sso" | "whatsapp-inbound", sub: string, claims: Record<string, unknown> = {}, ttlSeconds = 60) {
   const secret = toolSecret(tool);
   if (!secret) throw new Error(`${TOOL_META[tool].secretEnv} is not set (needs 32+ characters)`);
   return new SignJWT({ ...claims, purpose })
