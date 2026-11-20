@@ -33,7 +33,7 @@ export default async function OffersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Offers</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Offers</h1>
         <p className="mt-1 max-w-3xl text-sm text-gray-600">
           {isOwner
             ? "Offers you write go out straight away. Your managers' offers go out on their own when they're inside your limits; bigger ones come to your WhatsApp for APPROVE or REJECT."
@@ -47,7 +47,7 @@ export default async function OffersPage() {
         {isOwner && <ApprovalLimitsForm limits={limits} sector={business.sector} />}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-hidden rounded-card border border-gray-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-gray-500">
             <tr>

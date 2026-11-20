@@ -1,6 +1,6 @@
 const STYLES: Record<string, string> = {
   NEW: "bg-blue-100 text-blue-700",
-  REGULAR: "bg-brand-100 text-brand-700",
+  REGULAR: "bg-green-100 text-green-800",
   AT_RISK: "bg-amber-100 text-amber-700",
   HIGH_SPENDER: "bg-purple-100 text-purple-700",
   DORMANT: "bg-gray-200 text-gray-700",

@@ -82,28 +82,28 @@ export function BundleCheckout({ currentPlan, status, currency, autopay, autopay
           const p = BUNDLE_PLANS[id];
           return (
             <button key={id} type="button" onClick={() => setPlan(id)} aria-pressed={plan === id}
-              className={clsx("rounded-lg border p-4 text-left", plan === id ? "border-brand-600 bg-brand-50 ring-1 ring-brand-600" : "border-gray-200 bg-white hover:border-gray-300")}>
+              className={clsx("rounded-card border p-4 text-left", plan === id ? "border-brand-600 bg-brand-50 ring-1 ring-brand-600" : "border-gray-200 bg-white hover:border-gray-300")}>
               <div className="flex items-center justify-between"><p className="font-semibold">{p.name}</p>
-                {id === currentPlan && status === "ACTIVE" && <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-800">current</span>}</div>
+                {id === currentPlan && status === "ACTIVE" && <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">current</span>}</div>
               <p className="mt-1 text-2xl font-bold">{formatPrice(p.price[currency], currency)}<span className="text-sm font-normal text-gray-500">/month</span></p>
               <ul className="mt-2 space-y-1 text-xs text-gray-600">{p.features.map((x) => <li key={x}>· {x}</li>)}</ul>
             </button>
           );
         })}
       </div>
-      {notice && <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{notice}</div>}
+      {notice && <div className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{notice}</div>}
       {autopay === "ENDING" && <p className="text-sm text-gray-700">Automatic payment is off. Your plan runs until {paidUntil ?? "the end of this period"}.</p>}
       {locked && autopay === "ON" && (
         <p className="text-sm text-gray-700">Automatic payment is on for {isBundlePlan(autopayPlan) ? BUNDLE_PLANS[autopayPlan].name : "your plan"}.{paidUntil ? ` Paid until ${paidUntil}.` : ""} To change plan, turn it off first.</p>
       )}
       <div className="flex flex-wrap items-center gap-3">
         {!locked && (
-          <button onClick={startAutopay} disabled={busy} className="rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-700 disabled:opacity-60">
+          <button onClick={startAutopay} disabled={busy} className="rounded-full bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-800 disabled:opacity-60">
             {busy ? "Opening checkout…" : `Pay automatically · ${formatPrice(BUNDLE_PLANS[plan].price[currency], currency)}/month`}
           </button>
         )}
         {autopay !== "ON" && (
-          <button onClick={pay} disabled={busy} className="rounded-md border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
+          <button onClick={pay} disabled={busy} className="rounded-full border border-control bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
             {`${verb} once · ${formatPrice(BUNDLE_PLANS[plan].price[currency], currency)}`}
           </button>
         )}

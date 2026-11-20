@@ -29,7 +29,7 @@ export default async function AdminLogsPage({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">System logs</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">System logs</h1>
         <p className="text-sm text-gray-500">
           Latest 100 events — webhook failures, calling-script/voice-call errors, billing
           failures. Ad hoc troubleshooting, not a full observability stack.
@@ -44,7 +44,7 @@ export default async function AdminLogsPage({
             className={`rounded-full px-3 py-1 text-sm font-medium transition ${
               level === l || (!level && !l)
                 ? "bg-brand-600 text-white"
-                : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+                : "bg-white border border-control text-gray-700 hover:bg-gray-50"
             }`}
           >
             {l || "All"}
@@ -52,7 +52,7 @@ export default async function AdminLogsPage({
         ))}
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+      <div className="rounded-card border border-gray-200 bg-white overflow-hidden">
         {logs.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-gray-500">Koi log nahi mila.</p>
         ) : (
@@ -86,7 +86,7 @@ export default async function AdminLogsPage({
                   <td className="px-4 py-2">
                     <p>{log.message}</p>
                     {log.meta && (
-                      <pre className="mt-1 whitespace-pre-wrap text-xs text-gray-400">
+                      <pre className="mt-1 whitespace-pre-wrap text-xs text-gray-500">
                         {log.meta}
                       </pre>
                     )}

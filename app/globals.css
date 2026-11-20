@@ -2,6 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900;
+/* Loopdesk AI design system: the same shapes, font and layout in all 7 tools.
+   The brand scale is set per portal (lib/portal.ts → <html data-portal>):
+   Loopdesk AI = logo crimson, Regulars = its own green. Values are "R G B" so
+   Tailwind opacity modifiers (bg-brand-600/10) keep working. */
+:root {
+  --brand-50: 255 247 248;
+  --brand-100: 251 238 238;
+  --brand-200: 255 210 217;
+  --brand-300: 255 138 155;
+  --brand-400: 232 67 92;
+  --brand-500: 212 24 58;
+  --brand-600: 184 20 47;
+  --brand-700: 163 18 42;
+  --brand-800: 143 14 36;
+  --brand-900: 125 11 30;
 }
+[data-portal="REGULARS"] {
+  --brand-50: 240 253 244;
+  --brand-100: 220 252 231;
+  --brand-200: 187 247 208;
+  --brand-300: 134 239 172;
+  --brand-400: 74 222 128;
+  --brand-500: 22 163 74;
+  --brand-600: 21 128 61;
+  --brand-700: 22 101 52;
+  --brand-800: 20 83 45;
+  --brand-900: 5 46 22;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+}
+
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid rgb(var(--brand-600));
+  outline-offset: 2px;
+}
+
+/* Tabular numbers in tables and stat cards. */
+table, .tabular-nums { font-variant-numeric: tabular-nums; }

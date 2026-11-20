@@ -43,13 +43,13 @@ export function BundleSignupForm({ initialPlan, initialCountry }: { initialPlan:
     window.location.assign(d.next ?? "/dashboard/billing"); // full load: no cached pages from a previous login (bug B0)
   }
 
-  const input = "w-full rounded-md border border-gray-300 px-3 py-2 text-sm";
+  const input = "w-full rounded-input border border-control px-3 py-2 text-sm";
   return (
     <form onSubmit={submit} className="w-full max-w-3xl space-y-6">
       <div className="flex justify-end gap-1 text-sm">
         {(["CA", "IN"] as const).map((c) => (
           <button type="button" key={c} onClick={() => setCountry(c)}
-            className={clsx("rounded-md px-3 py-1", country === c ? "bg-brand-100 font-medium text-brand-700" : "text-gray-600 hover:bg-gray-100")}>
+            className={clsx("rounded-full px-3 py-1", country === c ? "bg-brand-100 font-medium text-brand-700" : "text-gray-600 hover:bg-gray-100")}>
             {c === "CA" ? "Canada · CAD" : "India · INR"}
           </button>
         ))}
@@ -59,7 +59,7 @@ export function BundleSignupForm({ initialPlan, initialCountry }: { initialPlan:
           const p = BUNDLE_PLANS[id];
           return (
             <button type="button" key={id} onClick={() => setPlan(id)} aria-pressed={plan === id}
-              className={clsx("rounded-lg border p-4 text-left transition", plan === id ? "border-brand-600 bg-brand-50 ring-1 ring-brand-600" : "border-gray-200 bg-white hover:border-gray-300")}>
+              className={clsx("rounded-card border p-4 text-left transition", plan === id ? "border-brand-600 bg-brand-50 ring-1 ring-brand-600" : "border-gray-200 bg-white hover:border-gray-300")}>
               <p className="font-semibold">{p.name}</p>
               <p className="text-xs text-gray-500">{p.tagline}</p>
               <p className="mt-2 text-2xl font-bold">{formatPrice(p.price[currency], currency)}<span className="text-sm font-normal text-gray-500">/month</span></p>
@@ -69,7 +69,7 @@ export function BundleSignupForm({ initialPlan, initialCountry }: { initialPlan:
         })}
       </div>
 
-      <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-5 md:grid-cols-2">
+      <div className="grid gap-4 rounded-card border border-gray-200 bg-white p-5 md:grid-cols-2">
         <label className="text-sm"><span className="mb-1 block font-medium text-gray-700">Your name</span><input name="name" required className={input} /></label>
         <label className="text-sm"><span className="mb-1 block font-medium text-gray-700">Business name</span><input name="businessName" required className={input} /></label>
         <label className="text-sm"><span className="mb-1 block font-medium text-gray-700">Type of business</span>
@@ -86,7 +86,7 @@ export function BundleSignupForm({ initialPlan, initialCountry }: { initialPlan:
 
       {error && <p className="text-sm text-red-600">{error}</p>}
       <div className="flex flex-wrap items-center gap-4">
-        <button type="submit" disabled={loading} className="rounded-md bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-700 disabled:opacity-60">
+        <button type="submit" disabled={loading} className="rounded-full bg-brand-600 px-5 py-2.5 font-medium text-white hover:bg-brand-800 disabled:opacity-60">
           {loading ? "Creating your account…" : `Continue to payment · ${formatPrice(BUNDLE_PLANS[plan].price[currency], currency)}/month`}
         </button>
         <p className="text-xs text-gray-500">One account, one bill. Your calls, jobs and Google profile are set up for you in {BUNDLE_NAME} after payment.</p>

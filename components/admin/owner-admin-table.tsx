@@ -32,14 +32,14 @@ export function OwnerAdminTable({ owners }: { owners: AdminOwnerRow[] }) {
 
   if (owners.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
+      <div className="rounded-card border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
         Abhi tak koi business owner signup nahi hua.
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+    <div className="rounded-card border border-gray-200 bg-white overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-gray-50 text-left text-gray-500">
           <tr>
@@ -60,7 +60,7 @@ export function OwnerAdminTable({ owners }: { owners: AdminOwnerRow[] }) {
               </td>
               <td className="px-4 py-3 text-right">
                 {o.role && o.role !== "OWNER" ? (
-                  <span className="text-xs text-gray-400">Admin account</span>
+                  <span className="text-xs text-gray-500">Admin account</span>
                 ) : tempPasswords[o.id] ? (
                   <div className="text-xs">
                     <p className="text-gray-500">Naya temporary password (ek hi baar dikhega):</p>
@@ -70,7 +70,7 @@ export function OwnerAdminTable({ owners }: { owners: AdminOwnerRow[] }) {
                   <button
                     onClick={() => resetPassword(o.id)}
                     disabled={resettingId === o.id}
-                    className="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60"
+                    className="rounded-full border border-control px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60"
                   >
                     {resettingId === o.id ? "Resetting…" : "Reset password"}
                   </button>

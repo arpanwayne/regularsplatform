@@ -21,9 +21,9 @@ export default async function SignupPage({ searchParams }: { searchParams: { pla
   if (isBundlePlan(plan)) {
     const signedIn = await getCurrentUser();
     return (
-      <main className="flex min-h-screen flex-col items-center px-6 py-12">
+      <main className="flex min-h-screen flex-col items-center px-6 pb-12 pt-28">
         {signedIn && (
-          <div role="alert" className="mb-6 w-full max-w-2xl rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div role="alert" className="mb-6 w-full max-w-2xl rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             You&apos;re signed in as {signedIn.email}. Creating an account here signs you out of that one and into the new business.
           </div>
         )}
@@ -37,7 +37,7 @@ export default async function SignupPage({ searchParams }: { searchParams: { pla
     );
   }
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-12">
+    <main className="min-h-screen flex flex-col items-center justify-center px-6 pb-12 pt-24">
       <h1 className="text-2xl font-semibold mb-6">Create your Regulars account</h1>
       <AuthForm mode="signup" />
       <p className="mt-4 text-sm text-gray-500">

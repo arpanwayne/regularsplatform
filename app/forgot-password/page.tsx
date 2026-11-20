@@ -28,7 +28,7 @@ export default function ForgotPasswordPage() {
       </p>
 
       {submitted ? (
-        <div className="max-w-sm rounded-md border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-800">
+        <div className="max-w-sm rounded-card border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           If that email has an account, a reset link is on its way. It works for one hour.
         </div>
       ) : (
@@ -39,12 +39,12 @@ export default function ForgotPasswordPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="w-full rounded-input border border-control px-3 py-2 text-sm"
           />
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-md bg-brand-600 px-4 py-2.5 text-white font-medium hover:bg-brand-700 transition disabled:opacity-60"
+            className="w-full rounded-full bg-brand-600 px-4 py-2.5 text-white font-medium hover:bg-brand-800 transition disabled:opacity-60"
           >
             {loading ? "Sending…" : "Send reset link"}
           </button>

@@ -90,29 +90,29 @@ export function WhatsAppTemplatesPanel({ accounts }: { accounts: { id: string; l
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-4">
+      <div className="flex flex-wrap items-end gap-3 rounded-card border border-gray-200 bg-white p-4">
         <label className="text-sm">
           <span className="mb-1 block text-gray-600">WhatsApp account</span>
-          <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
+          <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className="rounded-input border border-control px-3 py-2 text-sm">
             {accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
           </select>
         </label>
         <label className="text-sm">
           <span className="mb-1 block text-gray-600">WhatsApp Business Account ID {locationId ? "(required)" : "(optional — env default)"}</span>
-          <input value={wabaId} onChange={(e) => setWabaId(e.target.value.replace(/\D/g, ""))} placeholder="e.g. 102290129340398" className="w-64 rounded-md border border-gray-300 px-3 py-2 text-sm" />
+          <input value={wabaId} onChange={(e) => setWabaId(e.target.value.replace(/\D/g, ""))} placeholder="e.g. 102290129340398" className="w-64 rounded-input border border-control px-3 py-2 text-sm" />
         </label>
-        <button onClick={load} disabled={loading} className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
+        <button onClick={load} disabled={loading} className="rounded-full border border-control px-4 py-2 text-sm font-medium hover:bg-gray-50 disabled:opacity-50">
           {loading ? "Checking…" : "Refresh status"}
         </button>
-        <button onClick={submit} disabled={submitting || (!!locationId && !wabaId)} className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+        <button onClick={submit} disabled={submitting || (!!locationId && !wabaId)} className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-50">
           {submitting ? "Submitting…" : missing ? `Submit ${missing} missing to Meta` : "Submit missing to Meta"}
         </button>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-4">
+      <div className="flex flex-wrap items-end gap-3 rounded-card border border-gray-200 bg-white p-4">
         <label className="text-sm">
           <span className="mb-1 block text-gray-600">Test number (with country code)</span>
-          <input value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="+91 98765 43210" inputMode="tel" className="w-56 rounded-md border border-gray-300 px-3 py-2 text-sm" />
+          <input value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="+91 98765 43210" inputMode="tel" className="w-56 rounded-input border border-control px-3 py-2 text-sm" />
         </label>
         <p className="max-w-xl text-xs text-gray-500">
           &ldquo;Send test&rdquo; sends that template with its example values to this number. Utility templates can all go to one
@@ -121,16 +121,16 @@ export function WhatsAppTemplatesPanel({ accounts }: { accounts: { id: string; l
         </p>
       </div>
 
-      {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+      {error && <p className="rounded-card bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
       {results && (
-        <p className="rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-700">
+        <p className="rounded-card bg-gray-50 px-3 py-2 text-sm text-gray-700">
           {results.filter((r) => r.result === "SUBMITTED").length} submitted, {results.filter((r) => r.result === "ALREADY_THERE").length} already there, {failed.length} failed.
           {failed.map((f) => <span key={f.name + f.language} className="block text-red-700">{f.name} ({f.language}): {f.error}</span>)}
         </p>
       )}
       <p className="text-sm text-gray-600">{approved} of {rows.length} approved. Meta usually reviews within minutes, sometimes up to 24 hours.</p>
 
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-hidden rounded-card border border-gray-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
             <tr><th className="px-3 py-2">Template</th><th className="px-3 py-2">Lang</th><th className="px-3 py-2">Category</th><th className="px-3 py-2">Text</th><th className="px-3 py-2">Meta</th><th className="px-3 py-2">Test</th></tr>
@@ -143,7 +143,7 @@ export function WhatsAppTemplatesPanel({ accounts }: { accounts: { id: string; l
                 <td className="px-3 py-2 text-xs">{r.metaCategory ?? r.category}{r.metaCategory && r.metaCategory !== r.category && <span className="block text-amber-700">(we asked {r.category})</span>}</td>
                 <td className="max-w-xl px-3 py-2 text-xs text-gray-700">{r.body}</td>
                 <td className="px-3 py-2">
-                  <span className={`rounded px-2 py-0.5 text-xs font-medium ${r.metaStatus ? STATUS_STYLE[r.metaStatus] ?? "bg-gray-100 text-gray-700" : "bg-gray-100 text-gray-500"}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${r.metaStatus ? STATUS_STYLE[r.metaStatus] ?? "bg-gray-100 text-gray-700" : "bg-gray-100 text-gray-500"}`}>
                     {r.metaStatus ?? "Not submitted"}
                   </span>
                   {r.rejectedReason && <span className="mt-1 block text-xs text-red-700">{r.rejectedReason}</span>}
@@ -153,7 +153,7 @@ export function WhatsAppTemplatesPanel({ accounts }: { accounts: { id: string; l
                     onClick={() => sendTest(r)}
                     disabled={!testTo.trim() || testing === r.name + r.language || r.metaStatus !== "APPROVED"}
                     title={r.metaStatus !== "APPROVED" ? "Only approved templates can be sent" : !testTo.trim() ? "Enter a test number above" : undefined}
-                    className="whitespace-nowrap rounded-md border border-gray-300 px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="whitespace-nowrap rounded-full border border-control px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {testing === r.name + r.language ? "Sending…" : "Send test"}
                   </button>

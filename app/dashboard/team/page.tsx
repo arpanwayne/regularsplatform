@@ -15,7 +15,7 @@ export default async function TeamPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Team</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
         <p className="mt-1 text-sm text-gray-600">
           Managers add customers, write offers and answer the inbox. Billing, settings and approvals stay with you.
           Offers above your limits come to your WhatsApp for APPROVE or REJECT.

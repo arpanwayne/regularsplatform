@@ -30,10 +30,10 @@ export default async function AdminBundlesPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Bundles</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Bundles</h1>
         <p className="text-sm text-gray-500">Activate a plan or custom bundle paid offline, re-run the automatic set-up, issue fresh keys, or mark manual software ready. Failed set-ups retry daily on their own. Build bundles in Products &amp; Bundles.</p>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-card border border-gray-200 bg-white">
         <table className="w-full min-w-[900px] text-sm">
           <thead className="bg-gray-50 text-left text-gray-500">
             <tr><th className="px-4 py-2 font-medium">Business</th><th className="px-4 py-2 font-medium">Plan</th><th className="px-4 py-2 font-medium">Paid until</th><th className="px-4 py-2 font-medium">Tools</th><th className="px-4 py-2 font-medium"></th></tr>
@@ -43,7 +43,7 @@ export default async function AdminBundlesPage() {
             {rows.map((b) => (
               <tr key={b.id} className="border-t border-gray-100 align-top">
                 <td className="px-4 py-3"><p className="font-medium">{b.name}</p><p className="text-xs text-gray-500">{b.owner.name} · {b.owner.email} · {b.country}</p></td>
-                <td className="px-4 py-3">{b.customBundle ? <>{b.customBundle.name}<span className="ml-1 rounded bg-brand-50 px-1 text-[11px] text-brand-700">custom</span></> : isBundlePlan(b.frontDeskPlan) ? BUNDLE_PLANS[b.frontDeskPlan].name : "—"}<p className="text-xs text-gray-500">{b.bundleStatus.replace("_", " ").toLowerCase()}</p></td>
+                <td className="px-4 py-3">{b.customBundle ? <>{b.customBundle.name}<span className="ml-1 rounded-full bg-brand-100 px-2 text-[11px] text-brand-900">custom</span></> : isBundlePlan(b.frontDeskPlan) ? BUNDLE_PLANS[b.frontDeskPlan].name : "—"}<p className="text-xs text-gray-500">{b.bundleStatus.replace("_", " ").toLowerCase()}</p></td>
                 <td className="px-4 py-3">{b.bundlePaidUntil ? b.bundlePaidUntil.toLocaleDateString("en-CA") : "—"}</td>
                 <td className="px-4 py-3">
                   <ul className="space-y-1">
@@ -52,7 +52,7 @@ export default async function AdminBundlesPage() {
                       return (
                         <li key={t} className="text-xs">
                           <span className="font-medium">{TOOL_META[t].name}</span>: {a ? a.status.toLowerCase() : "not started"}
-                          {a?.externalId && <span className="text-gray-400"> · {a.externalId}</span>}
+                          {a?.externalId && <span className="text-gray-500"> · {a.externalId}</span>}
                           {a?.lastError && <span className="block text-red-600">{a.lastError}</span>}
                           {a?.apiKeyId && (() => {
                             const k = keyBy.get(a.apiKeyId);
@@ -68,7 +68,7 @@ export default async function AdminBundlesPage() {
                       const s = b.productSetups.find((x) => x.productId === p.id);
                       return (
                         <li key={p.id} className="text-xs">
-                          <span className="font-medium">{p.name}</span> <span className="text-gray-400">(manual)</span>:{" "}
+                          <span className="font-medium">{p.name}</span> <span className="text-gray-500">(manual)</span>:{" "}
                           <ManualSetupControl businessId={b.id} productId={p.id} status={s?.status ?? "SETUP"} link={s?.link ?? null} />
                         </li>
                       );

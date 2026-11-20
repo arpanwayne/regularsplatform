@@ -41,14 +41,14 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
       {isBundle && <h2 className="border-t border-gray-200 pt-6 text-lg font-semibold">Your customers</h2>}
       <div className="flex items-center justify-between">
         <div>
-          {!isBundle && <h1 className="text-xl font-semibold">Overview</h1>}
+          {!isBundle && <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>}
           <p className="text-sm text-gray-500">{business.name} · {business.sector}</p>
         </div>
         {!isBundle && <RunSegmentationButton />}
       </div>
 
       {!hasWhatsappConfig && !isBundle && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           WhatsApp isn&apos;t connected yet. Set up the webhook in{" "}
           <a href="/dashboard/settings" className="font-medium underline">
             Settings
@@ -67,7 +67,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
         <StatCard label="Dormant" value={countBySegment.DORMANT ?? 0} />
       </div>
 
-      {!isBundle && <div className="rounded-lg border border-gray-200 bg-white">
+      {!isBundle && <div className="rounded-card border border-gray-200 bg-white">
         <div className="border-b border-gray-100 px-4 py-3">
           <h2 className="font-medium">Recent AI calling activity</h2>
         </div>

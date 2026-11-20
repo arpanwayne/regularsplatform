@@ -13,7 +13,7 @@ export default async function AdminWhatsAppTemplatesPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">WhatsApp templates</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">WhatsApp templates</h1>
         <p className="max-w-3xl text-sm text-gray-500">
           WhatsApp only lets a business start a conversation with a template Meta has approved. These are all the
           templates Regulars uses (missed calls, follow-ups, reminders, win-backs, review requests and the owner&apos;s

@@ -39,14 +39,14 @@ export function BusinessAdminTable({ businesses, showPlan = true }: { businesses
 
   if (businesses.length === 0) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
+      <div className="rounded-card border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
         Abhi is portal pe koi business nahi hai.
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+    <div className="rounded-card border border-gray-200 bg-white overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-gray-50 text-left text-gray-500">
           <tr>
@@ -69,7 +69,7 @@ export function BusinessAdminTable({ businesses, showPlan = true }: { businesses
                     value={b.sector}
                     disabled={savingId === b.id}
                     onChange={(e) => patch(b.id, { sector: e.target.value })}
-                    className="mt-1 rounded border border-gray-200 px-1 py-0.5 text-xs text-gray-600"
+                    className="mt-1 rounded-input border border-gray-200 px-1 py-0.5 text-xs text-gray-600"
                     aria-label="Business type"
                     title="Business type — the Google profile tool writes posts for this type"
                   >
@@ -86,7 +86,7 @@ export function BusinessAdminTable({ businesses, showPlan = true }: { businesses
                       {b.connectedLocations}/{b._count.locations} connected
                     </span>
                   ) : (
-                    <span className="text-gray-400">0/{b._count.locations} connected</span>
+                    <span className="text-gray-500">0/{b._count.locations} connected</span>
                   )}
                 </td>
                 <td className="px-4 py-3">{b._count.customers}</td>
@@ -96,7 +96,7 @@ export function BusinessAdminTable({ businesses, showPlan = true }: { businesses
                     value={b.plan}
                     disabled={savingId === b.id}
                     onChange={(e) => patch(b.id, { plan: e.target.value })}
-                    className="rounded border border-gray-300 px-2 py-1 text-xs"
+                    className="rounded-input border border-control px-2 py-1 text-xs"
                   >
                     {PLANS.map((p) => (
                       <option key={p} value={p}>
@@ -105,7 +105,7 @@ export function BusinessAdminTable({ businesses, showPlan = true }: { businesses
                     ))}
                   </select>
                   {b.planExpiresAt && (
-                    <p className="mt-1 text-xs text-gray-400">
+                    <p className="mt-1 text-xs text-gray-500">
                       till {new Date(b.planExpiresAt).toLocaleDateString("en-IN")}
                     </p>
                   )}
@@ -119,7 +119,7 @@ export function BusinessAdminTable({ businesses, showPlan = true }: { businesses
                 <td className="px-4 py-3">
                   <span
                     className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                      b.status === "ACTIVE" ? "bg-brand-100 text-brand-700" : "bg-red-100 text-red-700"
+                      b.status === "ACTIVE" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-700"
                     }`}
                   >
                     {b.status}
@@ -131,13 +131,13 @@ export function BusinessAdminTable({ businesses, showPlan = true }: { businesses
                       patch(b.id, { status: b.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE" })
                     }
                     disabled={savingId === b.id}
-                    className="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60"
+                    className="rounded-full border border-control px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60"
                   >
                     {b.status === "ACTIVE" ? "Suspend" : "Activate"}
                   </button>
                   <button
                     onClick={() => setExpanded(expanded === b.id ? null : b.id)}
-                    className="rounded-md border border-gray-300 px-3 py-1 text-xs font-medium hover:bg-gray-50"
+                    className="rounded-full border border-control px-3 py-1 text-xs font-medium hover:bg-gray-50"
                   >
                     {expanded === b.id ? "Close" : "Segmentation"}
                   </button>
@@ -194,7 +194,7 @@ function ThresholdForm({
       <button
         type="submit"
         disabled={saving}
-        className="rounded-md bg-brand-600 px-4 py-1.5 text-white text-sm font-medium hover:bg-brand-700 disabled:opacity-60"
+        className="rounded-full bg-brand-600 px-4 py-1.5 text-white text-sm font-medium hover:bg-brand-800 disabled:opacity-60"
       >
         {saving ? "Saving…" : "Save overrides"}
       </button>
@@ -220,7 +220,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="default"
-        className="w-32 rounded-md border border-gray-300 px-2 py-1 text-sm"
+        className="w-32 rounded-input border border-control px-2 py-1 text-sm"
       />
     </div>
   );

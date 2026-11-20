@@ -18,7 +18,7 @@ export function PlanNowButton({ disabled }: { disabled?: boolean }) {
   return (
     <div className="flex items-center gap-3">
       {msg && <span className="text-sm text-gray-600">{msg}</span>}
-      <button onClick={run} disabled={busy || disabled} className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+      <button onClick={run} disabled={busy || disabled} className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-50">
         {busy ? "Planning…" : "Plan now"}
       </button>
     </div>
@@ -51,12 +51,12 @@ export function GrowthActionCard(p: {
   }
 
   return (
-    <article className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+    <article className="flex flex-col gap-3 rounded-card border border-gray-200 bg-white p-4">
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="rounded bg-brand-50 px-2 py-0.5 font-medium text-brand-700">{p.kind}</span>
-        {p.channel && <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-600">{p.channel === "CALL" ? "AI call" : "Text"}</span>}
+        <span className="rounded-full bg-brand-100 px-2 py-0.5 font-medium text-brand-900">{p.kind}</span>
+        {p.channel && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">{p.channel === "CALL" ? "AI call" : "Text"}</span>}
         {p.value && <span className="text-gray-500">worth about {p.value}</span>}
-        {p.status === "APPROVED" && <span className="rounded bg-green-50 px-2 py-0.5 text-green-700">approved, waiting for contact hours</span>}
+        {p.status === "APPROVED" && <span className="rounded-full bg-green-50 px-2 py-0.5 text-green-700">approved, waiting for contact hours</span>}
       </div>
       <div>
         <h3 className="font-medium">{p.title}</h3>
@@ -66,19 +66,19 @@ export function GrowthActionCard(p: {
       {p.text != null && (
         editing ? (
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={4} maxLength={600}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm" aria-label="Message text" />
+            className="w-full rounded-input border border-control px-3 py-2 text-sm" aria-label="Message text" />
         ) : (
-          <p className="whitespace-pre-wrap rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-800">{text}</p>
+          <p className="whitespace-pre-wrap rounded-card bg-gray-50 px-3 py-2 text-sm text-gray-800">{text}</p>
         )
       )}
       {p.textNote && <p className="text-xs text-gray-500">{p.textNote}</p>}
       {p.status === "PROPOSED" && (
         <div className="mt-auto flex flex-wrap items-center gap-2">
-          <button disabled={busy} onClick={() => decide("approve")} className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50">
+          <button disabled={busy} onClick={() => decide("approve")} className="rounded-full bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-50">
             {busy ? "Working…" : p.channel === "CALL" ? "Approve call" : "Approve"}
           </button>
-          {p.text != null && !p.textNote && !editing && <button onClick={() => setEditing(true)} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50">Edit text</button>}
-          <button disabled={busy} onClick={() => decide("skip")} className="rounded-md px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100">Skip</button>
+          {p.text != null && !p.textNote && !editing && <button onClick={() => setEditing(true)} className="rounded-full border border-control px-3 py-1.5 text-sm hover:bg-gray-50">Edit text</button>}
+          <button disabled={busy} onClick={() => decide("skip")} className="rounded-full px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100">Skip</button>
           {msg && <span className="text-sm text-gray-600">{msg}</span>}
         </div>
       )}

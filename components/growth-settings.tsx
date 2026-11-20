@@ -38,9 +38,9 @@ export function GrowthSettingsForm({ settings, autonomy, tools, managed = false 
     router.refresh();
   }
 
-  const field = "mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm";
+  const field = "mt-1 w-full rounded-input border border-control px-3 py-2 text-sm";
   return (
-    <form onSubmit={save} className="space-y-6 rounded-lg border border-gray-200 bg-white p-5">
+    <form onSubmit={save} className="space-y-6 rounded-card border border-gray-200 bg-white p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold">Settings</h2>
         <label className="flex items-center gap-2 text-sm font-medium">
@@ -71,9 +71,9 @@ export function GrowthSettingsForm({ settings, autonomy, tools, managed = false 
         <legend className="text-sm font-medium">How much it does on its own</legend>
         <div className="grid gap-2 md:grid-cols-2">
           {ACTION_TYPES.map((t) => (
-            <label key={t} className="flex items-center justify-between gap-3 rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
+            <label key={t} className="flex items-center justify-between gap-3 rounded-card border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
               <span>{ACTION_LABEL[t].one}</span>
-              <select value={levels[t]} onChange={(e) => setLevels({ ...levels, [t]: e.target.value as Autonomy })} className="rounded-md border border-gray-300 px-2 py-1">
+              <select value={levels[t]} onChange={(e) => setLevels({ ...levels, [t]: e.target.value as Autonomy })} className="rounded-input border border-control px-2 py-1">
                 {(["SUGGEST", "APPROVE", "AUTO"] as Autonomy[]).map((l) => <option key={l} value={l}>{LEVEL_TEXT[l]}</option>)}
               </select>
             </label>
@@ -111,7 +111,7 @@ export function GrowthSettingsForm({ settings, autonomy, tools, managed = false 
       </fieldset>)}
 
       <div className="flex items-center gap-3">
-        <button className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Save</button>
+        <button className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800">Save</button>
         {msg && <span className="text-sm text-gray-600">{msg}</span>}
       </div>
     </form>

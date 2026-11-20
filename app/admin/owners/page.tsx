@@ -26,7 +26,7 @@ export default async function AdminOwnersPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold">Owners</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Owners</h1>
         <p className="text-sm text-gray-500">
           Owners can reset their own password from &ldquo;Forgot password?&rdquo; on the login page
           (an email link). Use Reset password here when they can&rsquo;t get that email.

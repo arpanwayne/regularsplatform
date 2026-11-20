@@ -51,10 +51,10 @@ export function ApiKeyManager({ keys, businesses }: { keys: ApiKeyRow[]; busines
 
   return (
     <div className="space-y-6">
-      <form onSubmit={create} className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
+      <form onSubmit={create} className="rounded-card border border-gray-200 bg-white p-4 space-y-3">
         <h2 className="text-sm font-semibold">Issue a key</h2>
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-          <select required value={businessId} onChange={(e) => setBusinessId(e.target.value)} className="rounded-md border border-gray-300 px-3 py-2 text-sm">
+          <select required value={businessId} onChange={(e) => setBusinessId(e.target.value)} className="rounded-input border border-control px-3 py-2 text-sm">
             <option value="">Business…</option>
             {businesses.map((b) => (
               <option key={b.id} value={b.id}>
@@ -68,9 +68,9 @@ export function ApiKeyManager({ keys, businesses }: { keys: ApiKeyRow[]; busines
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder='Used by, e.g. "Sehat Saathi — City Care"'
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="rounded-input border border-control px-3 py-2 text-sm"
           />
-          <button disabled={busy} className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50">
+          <button disabled={busy} className="rounded-full bg-brand-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50 hover:bg-brand-800">
             {busy ? "Creating…" : "Create key"}
           </button>
         </div>
@@ -78,7 +78,7 @@ export function ApiKeyManager({ keys, businesses }: { keys: ApiKeyRow[]; busines
       </form>
 
       {issued && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-2">
+        <div className="rounded-card border border-amber-300 bg-amber-50 p-4 space-y-2">
           <p className="text-sm font-semibold text-amber-900">Copy this key now — it will not be shown again.</p>
           <code className="block break-all rounded bg-white px-3 py-2 text-sm">{issued.plaintext}</code>
           <div className="flex gap-3 text-sm">
@@ -92,7 +92,7 @@ export function ApiKeyManager({ keys, businesses }: { keys: ApiKeyRow[]; busines
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-card border border-gray-200 bg-white">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-gray-200 bg-gray-50 text-xs uppercase text-gray-500">
             <tr>
@@ -113,7 +113,7 @@ export function ApiKeyManager({ keys, businesses }: { keys: ApiKeyRow[]; busines
               </tr>
             )}
             {keys.map((k) => (
-              <tr key={k.id} className={k.revokedAt ? "text-gray-400" : undefined}>
+              <tr key={k.id} className={k.revokedAt ? "text-gray-500" : undefined}>
                 <td className="px-4 py-2 font-medium">{k.name}</td>
                 <td className="px-4 py-2">{k.business.name}</td>
                 <td className="px-4 py-2 font-mono text-xs">{k.keyPrefix}…</td>

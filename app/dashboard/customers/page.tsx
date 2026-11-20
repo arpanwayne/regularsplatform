@@ -38,7 +38,7 @@ export default async function CustomersPage({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Customers</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Customers</h1>
         {locationCount > 1 && (
           <Link
             href="/dashboard/customers/unified"
@@ -50,7 +50,7 @@ export default async function CustomersPage({
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <AddCustomerForm locations={activeLocations} />
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-card border border-gray-200 bg-white p-4">
           <CsvImport locations={activeLocations} country={business.country} />
         </div>
       </div>
@@ -82,7 +82,7 @@ function FilterLink({
     <a
       href={href}
       className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-        active ? "bg-brand-600 text-white" : "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+        active ? "bg-brand-600 text-white" : "bg-white border border-control text-gray-700 hover:bg-gray-50"
       }`}
     >
       {label}

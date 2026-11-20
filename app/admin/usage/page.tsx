@@ -39,7 +39,7 @@ export default async function AdminUsagePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Usage &amp; estimated cost</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Usage &amp; estimated cost</h1>
         <p className="text-sm text-gray-500">
           AI personalization cost is an estimate from published Claude Haiku token pricing at
           call time — not a billing-grade figure. Voice-call counts are trigger attempts, not
@@ -53,7 +53,7 @@ export default async function AdminUsagePage() {
         <StatCard label="Voice calls triggered" value={totalVoiceCalls} />
       </div>
 
-      <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+      <div className="rounded-card border border-gray-200 bg-white overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-gray-500">
             <tr>

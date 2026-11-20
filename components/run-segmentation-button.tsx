@@ -18,7 +18,7 @@ export function RunSegmentationButton() {
     <button
       onClick={run}
       disabled={loading}
-      className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50 disabled:opacity-60"
+      className="rounded-full border border-control bg-white px-3 py-1.5 text-sm font-medium hover:bg-gray-50 disabled:opacity-60"
     >
       {loading ? "Recomputing…" : "Recompute segments"}
     </button>

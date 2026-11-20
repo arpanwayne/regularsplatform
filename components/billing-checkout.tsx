@@ -74,7 +74,7 @@ export function BillingCheckout({ currentPlan }: { currentPlan: string }) {
     <div className="space-y-4">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
       {notice && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="rounded-card border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {notice}
         </div>
       )}
@@ -82,7 +82,7 @@ export function BillingCheckout({ currentPlan }: { currentPlan: string }) {
         {PLANS.map((plan) => (
           <div
             key={plan}
-            className={`rounded-lg border p-4 ${
+            className={`rounded-card border p-4 ${
               plan === currentPlan ? "border-brand-600 bg-brand-50" : "border-gray-200 bg-white"
             }`}
           >
@@ -97,7 +97,7 @@ export function BillingCheckout({ currentPlan }: { currentPlan: string }) {
               <button
                 onClick={() => upgrade(plan)}
                 disabled={loadingPlan === plan}
-                className="mt-3 w-full rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+                className="mt-3 w-full rounded-full bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-800 disabled:opacity-60"
               >
                 {loadingPlan === plan ? "Opening checkout…" : `Switch to ${plan}`}
               </button>

@@ -28,7 +28,7 @@ export default async function AdminCatalogPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Products &amp; Bundles</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Products &amp; Bundles</h1>
         <p className="text-sm text-gray-500">
           Add every product we sell, build a bundle from any of them, and give it to a client. Connected software is set up
           automatically; manual software shows on the client&apos;s home page until our team marks it ready (Admin → Bundles).
