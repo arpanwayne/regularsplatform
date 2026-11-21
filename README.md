@@ -328,7 +328,7 @@ Go-live checklist: set `WHATSAPP_APP_SECRET` (webhooks are refused without it in
 `WHATSAPP_SHARED_*` values, point the shared number's webhook at `/api/webhook/whatsapp` with
 `WHATSAPP_WEBHOOK_VERIFY_TOKEN` (subscribe to `messages`), submit templates, wait for approval.
 
-## AI Growth Manager (Bundle A brain)
+## AI Growth Manager
 
 One loop per business, in `lib/growth/`:
 
@@ -360,35 +360,10 @@ with the same `CRON_SECRET` as in `.env`. Without the growth line, the morning b
 "Plan now" on `/dashboard/growth` does not count as the day's scheduled run, so the brief still goes at the brief hour.
 Each brief writes a line to Admin → Logs ("Morning brief sent" or "NOT sent").
 
-## One platform (Bundle A) — Regulars is the hub
+## Bundles live in Loopdesk
 
-Bundle A is sold as one product. Regulars handles signup, the bill, the
-login and the home screen; the other tools are set up automatically.
+This repo is **Regulars only**: the loyalty product on its Starter / Growth / Pro plans.
+Bundles, the product catalog, single sign-on into the other tools and automatic
+set-up in them moved to the separate Loopdesk repo (Nov 2026). Regulars has its own
+database and its own address (regulars.wayneesolutions.com).
 
-| What | Where |
-| --- | --- |
-| Plans, prices, which tools each plan includes | `lib/hub/plans.ts` (INR prices are a draft) |
-| Signup with a plan | `/signup?plan=GROW&country=CA` → `app/api/auth/signup` |
-| One bill (Razorpay, CAD or INR, 30 days) | `app/api/billing/bundle` → `app/api/billing/verify` → `lib/hub/bundle.ts` |
-| Automatic set-up in every tool | `lib/hub/provision.ts` (idempotent; retried daily with backoff) |
-| One login into WayneRing / Field Service CRM | `GET /api/hub/open/wayneRing?page=calls`, `/api/hub/open/field-service` |
-| Home screen | `components/hub-home.tsx` on `/dashboard` |
-| Team tools | `/admin/bundles` — activate a plan paid offline, re-run set-up, issue new keys |
-
-**Hub ↔ tool contract.** Every tool exposes two endpoints, both checked
-with a JWT signed by the hub with that tool's own `HUB_SECRET`
-(issuer `regulars-hub`, audience = the tool, single-use `jti`, ≤ 2 min):
-
-- `POST …/hub/provision` (`purpose: "provision"`) — create or update the
-  account for `hubBusinessId`; `active: false` pauses it. Returns
-  `{ accountId, status, data, secrets? }`.
-- `POST …/hub/sso/exchange` (`purpose: "sso"`, owner-login tools only) —
-  swaps the browser's one-time token for the tool's normal session.
-
-GMB Manager and Video Studio are run by our team (no client login), so they
-only get `provision`: the client's Google listing and reel requests show up
-in Growth AI, and the team connects the Google listing once.
-
-Plan lifecycle: `PENDING_PAYMENT` → pay → `ACTIVE` (30 days; paying again
-adds 30 days to the end date) → 3-day grace → `LAPSED` (every tool paused,
-Growth Manager off, nothing deleted) → pay → `ACTIVE`.

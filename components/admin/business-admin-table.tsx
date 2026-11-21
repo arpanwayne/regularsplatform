@@ -20,7 +20,7 @@ export type AdminBusinessRow = {
   _count: { customers: number; callLogs: number; locations: number };
 };
 
-/** showPlan: Regulars plans (Starter/Growth/Pro). Off on Loopdesk, whose clients are on a bundle instead. */
+/** showPlan: show the Regulars plan (Starter/Growth/Pro) column. */
 export function BusinessAdminTable({ businesses, showPlan = true }: { businesses: AdminBusinessRow[]; showPlan?: boolean }) {
   const router = useRouter();
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -40,7 +40,7 @@ export function BusinessAdminTable({ businesses, showPlan = true }: { businesses
   if (businesses.length === 0) {
     return (
       <div className="rounded-card border border-gray-200 bg-white px-4 py-10 text-center text-sm text-gray-500">
-        Abhi is portal pe koi business nahi hai.
+        Abhi koi business nahi hai.
       </div>
     );
   }

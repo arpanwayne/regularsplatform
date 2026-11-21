@@ -13,7 +13,7 @@ async function handle(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const businesses = await prisma.business.findMany({
-    where: { status: "ACTIVE", OR: [{ frontDeskPlan: { in: ["ANSWER_RETURN", "GROW"] } }, { customBundleId: { not: null }, bundleGrowth: true, bundleStatus: "ACTIVE" }] },
+    where: { status: "ACTIVE", frontDeskPlan: { in: ["ANSWER_RETURN", "GROW"] } },
   });
   const results = [];
   for (const b of businesses) {

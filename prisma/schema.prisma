@@ -91,33 +91,6 @@ model Business {
   smsMonthlyLimit   Int?
   smsOverageRateCad Float   @default(0.05)
 
-  // ── One platform (Bundle A, Nov 2026) ──────────────────────────────────
-  // frontDeskPlan above doubles as the bundle plan. Regulars is the hub:
-  // signup, one bill, single sign-on into the other tools, and automatic
-  // account set-up in each of them (see lib/hub/).
-  /// BundleStatus: NONE | PENDING_PAYMENT | ACTIVE | LAPSED
-  bundleStatus    String    @default("NONE")
-  /// End of the paid bundle period. Tools keep working for a 3-day grace.
-  bundlePaidUntil DateTime?
-  /// Automatic monthly payment. Status: OFF | PENDING | ON | ENDING | FAILED
-  autopayStatus          String    @default("OFF")
-  autopayPlan            String?
-  razorpaySubscriptionId String?   @unique
-  renewalReminderAt      DateTime?
-
-  // ── Products & Bundles (custom bundles, Nov 2026) ──────────────────────
-  // A super admin can build a bundle from any software in the catalog
-  // (Admin → Products & Bundles) and give it to a client. When set, it
-  // replaces frontDeskPlan as "what this business gets". The two fields
-  // below are copied from the bundle so plan checks stay fast; they are
-  // refreshed whenever the bundle is edited (lib/hub/catalog.ts syncBundle).
-  customBundleId String?
-  customBundle   Bundle?   @relation(fields: [customBundleId], references: [id], onDelete: SetNull)
-  /// Comma list of the connected tools in the custom bundle (WAYNERING,GMB…).
-  bundleTools    String    @default("")
-  /// The custom bundle includes the Growth Manager.
-  bundleGrowth   Boolean   @default(false)
-
   // ── Offer approvals (onboarding flow, Nov 2026) ─────────────────────────
   // A manager's offer goes out straight away when it is inside these limits;
   // anything bigger waits for the owner's APPROVE / REJECT on WhatsApp.
@@ -132,7 +105,6 @@ model Business {
   createdAt DateTime @default(now())
 
   locations      Location[]
-  toolAccounts   ToolAccount[]
   customers      Customer[]
   messages       Message[]
   visits         Visit[]
@@ -145,12 +117,10 @@ model Business {
   growthSettings GrowthSettings?
   growthEvents   GrowthEvent[]
   growthActions  GrowthAction[]
-  productSetups  ProductSetup[]
   managers       User[]  @relation("BusinessManagers")
   offers         Offer[]
 
   @@index([ownerId])
-  @@index([customBundleId])
 }
 
 model Location {
@@ -451,10 +421,9 @@ model Payment {
   businessId String
   business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  /// Plan being purchased: STARTER | GROWTH | PRO, or a bundle plan
-  /// (ANSWER | ANSWER_RETURN | GROW) when kind = BUNDLE.
+  /// Plan being purchased: STARTER | GROWTH | PRO
   plan          String
-  /// Kind: PLAN (Regulars-only plans) | BUNDLE (the one-platform bundle)
+  /// Kind: always PLAN in Regulars (bundles live in Loopdesk).
   kind          String @default("PLAN")
   amountInPaise Int // Razorpay amounts are in paise (₹1 = 100 paise)
   currency      String @default("INR")
@@ -624,32 +593,6 @@ model GrowthAction {
   @@index([businessId, customerId, executedAt])
 }
 
-/// The business's account in one of the other tools (WayneRing, Field
-/// Service CRM, GMB Manager, Video Studio), created automatically by
-/// lib/hub/provision.ts. One row per business per tool.
-model ToolAccount {
-  id         String   @id @default(cuid())
-  businessId String
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  /// Tool: WAYNERING | FIELD_SERVICE | GMB | VIDEO
-  tool       String
-  /// Status: PENDING | ACTIVE | PAUSED | FAILED
-  status     String   @default("PENDING")
-  /// The account's id in that tool (tenant / company / client id).
-  externalId String?
-  /// JSON: what the tool reported back (assistant id, phone number, Google connected…)
-  data       String   @default("{}")
-  /// Id of the rk_live_ key the hub issued to this tool (to revoke on re-issue).
-  apiKeyId   String?
-  lastError  String?
-  attempts   Int      @default(0)
-  provisionedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@unique([businessId, tool])
-  @@index([status])
-}
 
 // Attempt counters for sign-in, signup and password reset.
 model RateLimit {
@@ -658,88 +601,11 @@ model RateLimit {
   resetAt DateTime
 }
 
-// Razorpay's plan id for each plan, currency and price.
-model RazorpayPlan {
-  key    String @id
-  planId String
-}
 
-// ── Products & Bundles (Nov 2026) ─────────────────────────────────────────
-// The catalog of everything Wayne E Solutions sells, and bundles built from
-// it. See lib/hub/catalog.ts and Admin → Products & Bundles.
 
-model Product {
-  id          String  @id @default(cuid())
-  /// Stable slug, e.g. "korvo". Built-in tools use waynering, field-service, gmb, video, regulars.
-  key         String  @unique
-  name        String
-  description String?
-  /// Where the client opens it (manual software) or our website for it.
-  url         String?
-  /// Connect: HUB (Regulars itself) | AUTO (account made automatically, one login) | MANUAL (our team sets it up)
-  connect     String  @default("MANUAL")
-  /// For AUTO: which connected tool it is (WAYNERING | FIELD_SERVICE | GMB | VIDEO).
-  hubTool     String? @unique
-  /// Optional list prices, in rupees / Canadian dollars per month.
-  priceInr    Int?
-  priceCad    Int?
-  builtIn     Boolean @default(false)
-  active      Boolean @default(true)
-  sortOrder   Int     @default(100)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
-  bundles BundleProduct[]
-  setups  ProductSetup[]
-}
 
-model Bundle {
-  id          String  @id @default(cuid())
-  name        String
-  description String?
-  /// Price per period, in rupees / Canadian dollars.
-  priceInr    Int?
-  priceCad    Int?
-  /// Interval: MONTHLY | YEARLY
-  interval    String  @default("MONTHLY")
-  /// Includes the AI Growth Manager (morning plan, win-backs…).
-  growthManager   Boolean @default(false)
-  /// Included SMS per month (null = no limit set).
-  smsMonthlyLimit Int?
-  active      Boolean @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
-  items      BundleProduct[]
-  businesses Business[]
-}
-
-model BundleProduct {
-  bundleId  String
-  bundle    Bundle  @relation(fields: [bundleId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-
-  @@id([bundleId, productId])
-}
-
-/// A MANUAL product our team sets up for one client: shown on their home page.
-model ProductSetup {
-  id         String   @id @default(cuid())
-  businessId String
-  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  productId  String
-  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  /// Status: SETUP | READY | PAUSED
-  status     String   @default("SETUP")
-  /// The client's own link/login page for it, if different from the product's.
-  link       String?
-  note       String?
-  updatedAt  DateTime @updatedAt
-  createdAt  DateTime @default(now())
-
-  @@unique([businessId, productId])
-}
 
 // ── Offers (onboarding flow, Nov 2026) ────────────────────────────────────
 // A manager (or the owner) writes an offer; inside the owner's limits it goes
@@ -789,38 +655,5 @@ model Offer {
 }
 
 // ---------------------------------------------------------------------------
-// Tool WhatsApp through the hub (bundle rule 4, Nov 2026): one client = one
-// WhatsApp number. Loyvexa doesn't own a number; it asks Regulars to send
-// (POST /api/hub/tools/loyvexa/whatsapp/send) and Regulars forwards the
-// replies of those people back to it. Kept apart from Customer so dealers
-// and mechanics don't land in the business's customer list.
-// ---------------------------------------------------------------------------
 
-/// Someone a tool talks to on this business's number (a Loyvexa dealer / mechanic).
-model HubWaContact {
-  id             String    @id @default(cuid())
-  businessId     String
-  /// Tool: LOYVEXA
-  tool           String
-  /// Digits only, with country code (919814000101)
-  phone          String
-  /// Location whose number was used (null = the shared number)
-  locationId     String?
-  lastOutboundAt DateTime?
-  lastInboundAt  DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
 
-  @@unique([businessId, tool, phone])
-  @@index([phone])
-}
-
-/// A message a tool sent through Regulars, so Meta's delivery receipts go back to it.
-model HubWaMessage {
-  providerSid String   @id
-  businessId  String
-  tool        String
-  createdAt   DateTime @default(now())
-
-  @@index([createdAt])
-}

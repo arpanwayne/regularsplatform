@@ -3,7 +3,6 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/admin";
 import { FRONT_DESK_PLANS, FRONT_DESK_SMS_LIMIT, PLANS, SECTORS, type FrontDeskPlan } from "@/lib/types";
-import { provisionBusiness } from "@/lib/hub/provision";
 
 const updateSchema = z.object({
   status: z.enum(["ACTIVE", "SUSPENDED"]).optional(),
@@ -47,10 +46,5 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     where: { id: params.id },
     data,
   });
-  // Tell the connected tools about the new business type (the GMB tool uses it for posts).
-  if (data.sector && data.sector !== business.sector && business.bundleStatus === "ACTIVE") {
-    await provisionBusiness(business.id).catch(() => []);
-  }
-
   return NextResponse.json({ business: updated });
 }

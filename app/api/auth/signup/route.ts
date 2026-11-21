@@ -4,8 +4,6 @@ import { prisma } from "@/lib/prisma";
 import { allow, clientIp } from "@/lib/rate-limit";
 import { createSessionToken, hashPassword, SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/auth";
 import { SECTORS } from "@/lib/types";
-import { BUNDLE_PLAN_IDS } from "@/lib/hub/plans";
-import { isPlaceholderPhone, normalizePhone, toE164 } from "@/lib/phone";
 
 const signupSchema = z.object({
   name: z.string().min(1),
@@ -13,11 +11,6 @@ const signupSchema = z.object({
   password: z.string().min(8),
   businessName: z.string().min(1),
   sector: z.enum(SECTORS as [string, ...string[]]),
-  // Bundle A signup (one platform). Optional so the plain Regulars signup
-  // keeps working unchanged.
-  bundlePlan: z.enum(BUNDLE_PLAN_IDS as [string, ...string[]]).optional(),
-  country: z.enum(["CA", "IN"]).optional(),
-  phone: z.string().max(30).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -26,7 +19,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
-  const { name, password, businessName, sector, bundlePlan, country, phone } = parsed.data;
+  const { name, password, businessName, sector } = parsed.data;
   const email = parsed.data.email.toLowerCase();
   if (!(await allow(`signup:ip:${clientIp(req)}`, 10, 60 * 60_000))) return NextResponse.json({ error: "Too many signups from this connection. Try again later." }, { status: 429 });
 
@@ -34,13 +27,6 @@ export async function POST(req: NextRequest) {
   if (existing) {
     return NextResponse.json({ error: "Email already registered" }, { status: 409 });
   }
-
-  const digits = phone?.trim() ? normalizePhone(phone, country ?? "IN") : null;
-  const ownerPhone = digits ? toE164(digits) : null;
-  if (bundlePlan && phone?.trim() && (!digits || isPlaceholderPhone(digits))) {
-    return NextResponse.json({ error: "That mobile number doesn't look right. Use your real mobile — your morning plan is sent to it." }, { status: 400 });
-  }
-  const india = (country ?? "IN") === "IN";
 
   const passwordHash = await hashPassword(password);
   const user = await prisma.user.create({
@@ -57,24 +43,6 @@ export async function POST(req: NextRequest) {
           // business itself so a single-outlet signup needs no extra step.
           // Multi-location chains add more from Settings.
           locations: { create: { name: businessName } },
-          ...(bundlePlan
-            ? {
-                country: country ?? "IN",
-                defaultChannel: india ? "WHATSAPP" : "SMS",
-                frontDeskPlan: bundlePlan,
-                bundleStatus: "PENDING_PAYMENT",
-                growthSettings: {
-                  create: {
-                    ownerPhone,
-                    timezone: india ? "Asia/Kolkata" : "America/Toronto",
-                    currency: india ? "INR" : "CAD",
-                    avgJobValue: india ? 1500 : 250,
-                    messageLanguage: india ? "hinglish" : "en",
-                    callQuoteAbove: india ? 20000 : 500,
-                  },
-                },
-              }
-            : {}),
         },
       },
     },
@@ -84,7 +52,7 @@ export async function POST(req: NextRequest) {
   const token = await createSessionToken({ userId: user.id, email: user.email });
   const res = NextResponse.json({
     user: { id: user.id, name: user.name, email: user.email },
-    next: bundlePlan ? "/dashboard/billing" : "/dashboard",
+    next: "/dashboard",
   });
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,

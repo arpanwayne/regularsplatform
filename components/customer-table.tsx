@@ -13,13 +13,13 @@ export function CustomerTable({
   customers,
   showLocation = false,
   country,
-  bundle = false,
+  hideScripts = false,
 }: {
   customers: CustomerWithLocation[];
   showLocation?: boolean;
   country?: string | null;
-  /** Bundle owners get AI follow-ups from Growth AI, so no manual scripts. */
-  bundle?: boolean;
+  /** Managers don't generate calling scripts; the owner does. */
+  hideScripts?: boolean;
 }) {
   const router = useRouter();
 
@@ -158,7 +158,7 @@ export function CustomerTable({
                   <button type="button" onClick={() => startEdit(c)} className="mr-3 text-xs text-brand-700 underline">Edit</button>
                   <a href={`/api/customers/${c.id}`} className="mr-3 text-xs text-gray-500 underline">Export</a>
                   <button type="button" onClick={() => removeData(c.id, c.name || c.phone)} className="mr-3 text-xs text-red-600 underline">Remove</button>
-                  {!bundle && <button
+                  {!hideScripts && <button
                     onClick={() => generateScript(c.id)}
                     disabled={loadingId === c.id || c.optedOut}
                     title={c.optedOut ? "Customer opted out — cannot generate outreach" : undefined}

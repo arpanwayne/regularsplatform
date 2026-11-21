@@ -77,12 +77,9 @@ test("B19: example values belong to one made-up business", () => {
 });
 
 test("B9: only plans that include it get the Growth Manager", () => {
-  assert.equal(growthAllowed({ plan: "STARTER", frontDeskPlan: null, bundleStatus: "NONE" }), false);
-  assert.equal(growthAllowed({ plan: "GROWTH", frontDeskPlan: null, bundleStatus: "NONE" }), true);
-  assert.equal(growthAllowed({ plan: "PRO", frontDeskPlan: null, bundleStatus: "NONE" }), true);
-  assert.equal(growthAllowed({ plan: "STARTER", frontDeskPlan: "GROW", bundleStatus: "ACTIVE" }), true);
-  assert.equal(growthAllowed({ plan: "STARTER", frontDeskPlan: "ANSWER", bundleStatus: "ACTIVE" }), false);
-  assert.equal(growthAllowed({ plan: "STARTER", frontDeskPlan: "GROW", bundleStatus: "LAPSED" }), false);
+  assert.equal(growthAllowed({ plan: "STARTER" }), false);
+  assert.equal(growthAllowed({ plan: "GROWTH" }), true);
+  assert.equal(growthAllowed({ plan: "PRO" }), true);
 });
 
 test("B17: every action asks first by default", () => {

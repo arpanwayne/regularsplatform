@@ -1,25 +1,21 @@
 import { prisma } from "@/lib/prisma";
 import { OwnerAdminTable } from "@/components/admin/owner-admin-table";
-import { businessWhere, currentPortal } from "@/lib/portal";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOwnersPage() {
   // Everyone who owns a business — including a super admin who also runs a
   // test business ("real pro media" was missing, bug B13).
-  // Only owners of this portal's businesses (Loopdesk bundle vs Regulars plan).
-  const portal = currentPortal();
-  const biz = businessWhere(portal);
   const owners = await prisma.user.findMany({
-    // An owner left without any business stays visible on Regulars.
-    where: portal === "REGULARS" ? { OR: [{ businesses: { some: biz } }, { role: "OWNER", businesses: { none: {} } }] } : { businesses: { some: biz } },
+    // An owner left without any business stays visible.
+    where: { OR: [{ businesses: { some: {} } }, { role: "OWNER", businesses: { none: {} } }] },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
       name: true,
       email: true,
       role: true,
-      businesses: { where: biz, select: { id: true, name: true, sector: true, status: true } },
+      businesses: { select: { id: true, name: true, sector: true, status: true } },
     },
   });
 
