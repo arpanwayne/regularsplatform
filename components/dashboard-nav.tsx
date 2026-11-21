@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BUNDLE_NAME } from "@/lib/brand";
-import { AppHeader, type HeaderLink, type SwitcherItem } from "@/components/app-header";
+import { AppHeader } from "@/components/app-header";
 
 const LINKS = [
   { href: "/dashboard", label: "Overview" },
@@ -22,14 +21,11 @@ export function DashboardNav({
   businessName,
   isSuperAdmin,
   isManager = false,
-  bundle,
 }: {
   businessName: string;
   isSuperAdmin?: boolean;
   /** Managers see only the pages they work in (no billing, settings, team, Growth AI). */
   isManager?: boolean;
-  /** Bundle A: one menu for every tool; tools in other apps open with single sign-on. */
-  bundle?: { calls: boolean; jobs: boolean; switcher: SwitcherItem[] };
 }) {
   const pathname = usePathname();
   const links = isManager ? LINKS.filter((l) => !l.ownerOnly) : LINKS;
@@ -40,23 +36,12 @@ export function DashboardNav({
     window.location.assign("/login");
   }
 
-  const navLinks: HeaderLink[] = bundle
-    ? links
-        .filter((l) => l.href !== "/dashboard/calling-scripts")
-        .map((l) => (l.href === "/dashboard" ? { ...l, label: "Home" } : l.href === "/dashboard/growth" ? { ...l, label: "Growth Manager" } : l))
-    : links;
-  if (bundle && !isManager) {
-    if (bundle.calls) navLinks.push({ href: "/api/hub/open/wayneRing?page=calls", label: "Calls ↗", external: true });
-    if (bundle.jobs) navLinks.push({ href: "/api/hub/open/field-service", label: "Jobs ↗", external: true });
-  }
-
   return (
     <AppHeader
-      wordmark={bundle ? BUNDLE_NAME : "Regulars"}
+      wordmark="Regulars"
       homeHref="/dashboard"
-      links={navLinks}
+      links={links}
       activeHref={pathname}
-      switcher={bundle && !isManager ? bundle.switcher : undefined}
       right={
         <>
           {isSuperAdmin && (

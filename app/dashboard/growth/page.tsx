@@ -151,7 +151,7 @@ export default async function GrowthPage() {
           wayneRingBaseUrl: s.wayneRingBaseUrl, wayneRingCallbackKeySet: !!s.wayneRingCallbackKey,
           gmbLocationId: s.gmbLocationId, videoStudioClientId: s.videoStudioClientId,
         }}
-        autonomy={autonomyMap(s)} tools={tools} managed={business.bundleStatus !== "NONE"}
+        autonomy={autonomyMap(s)} tools={tools}
       />
     </div>
   );

@@ -4,7 +4,6 @@ import type { User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
 import { downgradeIfExpired } from "@/lib/billing";
-import { lapseBundleIfExpired } from "@/lib/hub/bundle";
 
 // Server-side helper for Server Components and route handlers: resolves the
 // signed-in user and their business — the owner's first business (MVP is
@@ -45,7 +44,7 @@ export async function getCurrentBusiness() {
   // is safe to call on every request rather than needing a cron to run
   // first (the cron sweep in app/api/cron/downgrade-expired-plans covers
   // businesses nobody is actively viewing).
-  return lapseBundleIfExpired(await downgradeIfExpired(business));
+  return downgradeIfExpired(business);
 }
 
 /**

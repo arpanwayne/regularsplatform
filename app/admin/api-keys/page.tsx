@@ -1,21 +1,18 @@
 import { prisma } from "@/lib/prisma";
 import { ApiKeyManager } from "@/components/admin/api-key-manager";
-import { businessWhere, currentPortal } from "@/lib/portal";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminApiKeysPage() {
-  const biz = businessWhere(currentPortal());
   const [keys, businesses] = await Promise.all([
     prisma.apiKey.findMany({
-      where: { business: biz },
       orderBy: { createdAt: "desc" },
       select: {
         id: true, name: true, keyPrefix: true, lastUsedAt: true, revokedAt: true, createdAt: true,
         business: { select: { id: true, name: true } },
       },
     }),
-    prisma.business.findMany({ where: biz, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.business.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
   return (

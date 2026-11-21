@@ -1,12 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { StatCard } from "@/components/stat-card";
-import { businessWhere, currentPortal } from "@/lib/portal";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminUsagePage() {
   const businesses = await prisma.business.findMany({
-    where: businessWhere(currentPortal()),
     select: {
       id: true,
       name: true,

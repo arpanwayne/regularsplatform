@@ -14,10 +14,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // A signed-in team member may open a bundle signup link (/signup?plan=GROW)
-  // to test or onboard a client; the page warns that it replaces the session.
-  const bundleSignup = pathname === "/signup" && req.nextUrl.searchParams.has("plan");
-  if (session && isAuthPage && !bundleSignup) {
+  if (session && isAuthPage) {
     const url = req.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
