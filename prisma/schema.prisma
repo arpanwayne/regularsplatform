@@ -119,6 +119,7 @@ model Business {
   growthActions  GrowthAction[]
   managers       User[]  @relation("BusinessManagers")
   offers         Offer[]
+  offerMedia     OfferMedia[]
 
   @@index([ownerId])
 }
@@ -631,6 +632,9 @@ model Offer {
   audienceCount   Int      @default(0)
   /// Don't send before this time (null = as soon as it is approved, in contact hours).
   sendAt          DateTime?
+  /// Optional photo or video shown above the offer on WhatsApp (OfferMedia).
+  mediaId         String?
+  media           OfferMedia? @relation(fields: [mediaId], references: [id], onDelete: SetNull)
 
   /// Status: PENDING_APPROVAL | APPROVED | REJECTED | EXPIRED | SENDING | SENT | CANCELLED
   status         String    @default("PENDING_APPROVAL")
@@ -652,6 +656,24 @@ model Offer {
 
   @@unique([businessId, approvalNo])
   @@index([status, requestedAt])
+}
+
+/// A photo or video uploaded for an offer. Kept in the database (no object
+/// storage needed) and served publicly at /api/media/offers/<id> so WhatsApp
+/// can fetch it for the template header. The id is a random cuid.
+model OfferMedia {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  /// Kind: IMAGE | VIDEO
+  kind       String
+  mimeType   String
+  size       Int
+  data       Bytes
+  offers     Offer[]
+  createdAt  DateTime @default(now())
+
+  @@index([businessId, createdAt])
 }
 
 // ---------------------------------------------------------------------------

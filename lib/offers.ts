@@ -9,6 +9,8 @@ import { businessLanguage, sendCustomerWhatsApp } from "@/lib/whatsapp-send";
 import { sendToOwner } from "@/lib/growth/brief";
 import { getSettings, withinContactHours } from "@/lib/growth/settings";
 import { SEGMENTS, type Segment } from "@/lib/types";
+import { offerMediaUrl } from "@/lib/offer-media";
+import type { MediaHeader } from "@/lib/whatsapp-send";
 
 /**
  * Offers + owner approval (onboarding flow, Nov 2026).
@@ -67,8 +69,8 @@ export function parseSegments(raw: string | string[] | null | undefined): Segmen
 }
 
 /** One line for the owner's WhatsApp (no new lines allowed in a template variable). */
-export function offerSummary(o: Pick<Offer, "title" | "message" | "discountPercent" | "freebie">) {
-  const extra = [o.discountPercent ? `${o.discountPercent}% off` : null, o.freebie ? "free item/points" : null].filter(Boolean).join(", ");
+export function offerSummary(o: Pick<Offer, "title" | "message" | "discountPercent" | "freebie"> & { mediaKind?: string | null }) {
+  const extra = [o.discountPercent ? `${o.discountPercent}% off` : null, o.freebie ? "free item/points" : null, o.mediaKind ? `with a ${o.mediaKind === "VIDEO" ? "video" : "photo"}` : null].filter(Boolean).join(", ");
   const msg = o.message.replace(/\s+/g, " ").trim();
   const body = msg.length > 300 ? msg.slice(0, 299) + "…" : msg;
   return `${o.title}${extra ? ` (${extra})` : ""}: ${body}`;
@@ -112,7 +114,8 @@ async function messageOwner(business: Business, body: string, wa?: { templateKey
 
 async function askOwner(business: Business, offer: Offer, creator: string, reminder = false) {
   const name = business.name;
-  const summary = offerSummary(offer);
+  const media = offer.mediaId ? await prisma.offerMedia.findUnique({ where: { id: offer.mediaId }, select: { kind: true } }) : null;
+  const summary = offerSummary({ ...offer, mediaKind: media?.kind });
   const body = `${reminder ? "Reminder: " : ""}Approval needed for ${name}: ${creator} wants to send an offer to ${offer.audienceCount} customers. Offer: ${summary} Reply APPROVE ${offer.approvalNo} or REJECT ${offer.approvalNo}.`;
   const sent = await messageOwner(business, body, {
     templateKey: "owner_approval",
@@ -128,6 +131,8 @@ async function askOwner(business: Business, offer: Offer, creator: string, remin
 
 export type OfferInput = {
   title: string; message: string; discountPercent: number | null; freebie: boolean; segments: Segment[]; sendAt: Date | null;
+  /** An uploaded OfferMedia of this business (checked by the caller). */
+  mediaId?: string | null;
 };
 
 export async function createOffer(business: Business, user: Pick<User, "id" | "name">, input: OfferInput, now = new Date()) {
@@ -143,7 +148,7 @@ export async function createOffer(business: Business, user: Pick<User, "id" | "n
         data: {
           businessId: business.id, createdById: user.id,
           title: input.title, message: input.message, discountPercent: input.discountPercent, freebie: input.freebie,
-          segments: input.segments.join(","), audienceCount, sendAt: input.sendAt,
+          segments: input.segments.join(","), audienceCount, sendAt: input.sendAt, mediaId: input.mediaId ?? null,
           approvalNo: (last._max.approvalNo ?? 0) + 1,
           status: check.auto ? "APPROVED" : "PENDING_APPROVAL",
           approvalReason: check.reasons.join("; "),
@@ -191,9 +196,13 @@ export async function sendOffer(offerId: string, now = new Date()) {
   // Claim it, so the cron and an owner's reply can't both send it.
   const claimed = await prisma.offer.updateMany({ where: { id: offerId, status: "APPROVED" }, data: { status: "SENDING" } });
   if (!claimed.count) return null;
-  const offer = await prisma.offer.findUniqueOrThrow({ where: { id: offerId }, include: { business: true } });
+  const offer = await prisma.offer.findUniqueOrThrow({ where: { id: offerId }, include: { business: true, media: { select: { id: true, kind: true } } } });
   const business = offer.business;
   const lang = await businessLanguage(business);
+  const header = mediaHeader(offer.media);
+  if (offer.media && !header) {
+    await logEvent({ businessId: business.id, source: "OFFER", level: "WARN", message: `Offer #${offer.approvalNo} went without its ${offer.media.kind === "VIDEO" ? "video" : "photo"}: APP_URL must be the site's public https address so WhatsApp can fetch it` });
+  }
   const customers = await prisma.customer.findMany({
     where: audienceWhere(business, parseSegments(offer.segments), now),
     include: { location: true }, orderBy: { lastSeenAt: "desc" }, take: MAX_OFFER_RECIPIENTS,
@@ -205,7 +214,10 @@ export async function sendOffer(offerId: string, now = new Date()) {
     const channel = c.preferredChannel ?? business.defaultChannel;
     let r: SendResult | null = null;
     if (channel === "WHATSAPP") {
-      r = await sendCustomerWhatsApp({ business, location: c.location, customer: c, purpose: "OFFER", templateKey: "offer", params: [first, senderName(c.location, business), offer.message], now });
+      r = await sendCustomerWhatsApp({
+        business, location: c.location, customer: c, purpose: "OFFER", params: [first, senderName(c.location, business), offer.message], now,
+        ...(header ? { templateKey: header.kind === "IMAGE" ? "offer_image" : "offer_video", header, plainTemplateKey: "offer" } : { templateKey: "offer" }),
+      });
     }
     if (!r) r = await sendCustomerSms({ business, location: c.location, customer: c, purpose: "OFFER", body: offer.message });
     if (r.ok && r.status !== "NOT_SENT") sent++; else failed++;
@@ -214,6 +226,16 @@ export async function sendOffer(offerId: string, now = new Date()) {
   await logEvent({ businessId: business.id, source: "OFFER", level: "INFO", message: `Offer #${offer.approvalNo} sent: ${sent} delivered to WhatsApp/SMS, ${failed} not sent`, meta: { offerId: offer.id } });
   return { sent, failed };
 }
+
+/** The WhatsApp header for an offer's photo/video, or null (none, or no public APP_URL). */
+export function mediaHeader(media: { id: string; kind: string } | null | undefined, appUrl = process.env.APP_URL): MediaHeader | null {
+  if (!media) return null;
+  const link = offerMediaUrl(media.id, appUrl);
+  return link ? { kind: media.kind === "VIDEO" ? "VIDEO" : "IMAGE", link } : null;
+}
+
+/** Uploads that never made it into an offer, older than a day. */
+export const ORPHAN_MEDIA_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Hourly (app/api/cron/offers): expire offers the owner never answered (48h),
@@ -242,5 +264,7 @@ export async function processOffers(now = new Date()) {
   let sent = 0;
   for (const o of due) if (await sendIfDue(o.id, now)) sent++;
 
-  return { expired: expired.count, reminded, sent };
+  const orphans = await prisma.offerMedia.deleteMany({ where: { offers: { none: {} }, createdAt: { lte: new Date(now.getTime() - ORPHAN_MEDIA_MS) } } });
+
+  return { expired: expired.count, reminded, sent, mediaCleaned: orphans.count };
 }

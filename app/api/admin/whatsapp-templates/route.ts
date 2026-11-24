@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSuperAdmin } from "@/lib/admin";
 import { logEvent } from "@/lib/logger";
 import { listMetaTemplates, mergeStatus, submitAllTemplates } from "@/lib/whatsapp-template-sync";
+import { headerSamples } from "@/lib/whatsapp-template-samples";
 
 /**
  * GET  /api/admin/whatsapp-templates?locationId=&wabaId=  — our templates + Meta status
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
   const a = await account(parsed.data.locationId, parsed.data.wabaId);
   if ("error" in a) return NextResponse.json({ error: a.error }, { status: 400 });
   try {
-    const results = await submitAllTemplates(a.wabaId, a.token);
+    const results = await submitAllTemplates(a.wabaId, a.token, await headerSamples());
     const failed = results.filter((r) => r.result === "FAILED").length;
     await logEvent({ source: "WHATSAPP", level: failed ? "WARN" : "INFO", message: `WhatsApp templates submitted to ${a.wabaId}: ${results.filter((r) => r.result === "SUBMITTED").length} new, ${failed} failed`, meta: { failed: results.filter((r) => r.result === "FAILED") } });
     return NextResponse.json({ results });

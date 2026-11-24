@@ -28,7 +28,7 @@ This repo is the **product platform** (backend + dashboard) — separate from
 |---|---|
 | `DORMANT` | No visit in > 60 days |
 | `HIGH_SPENDER` | Total spend at/above the business's own p80 spend (needs ≥5 customers with spend data to compute) |
-| `AT_RISK` | ≥3 lifetime visits, but 30–60 days since last visit |
+| `AT_RISK` | 30–60 days since last visit (a lapsed regular, or a 1–2 visit customer who never came back) |
 | `REGULAR` | ≥3 lifetime visits, seen within the last 30 days |
 | `NEW` | Everyone else (new or low-frequency, recently seen) |
 
@@ -359,6 +359,32 @@ with the same `CRON_SECRET` as in `.env`. Without the growth line, the morning b
 
 "Plan now" on `/dashboard/growth` does not count as the day's scheduled run, so the brief still goes at the brief hour.
 Each brief writes a line to Admin → Logs ("Morning brief sent" or "NOT sent").
+
+## Offers: photos, videos, AI rewrite and AI segment ideas (Nov 2026)
+
+On **Dashboard → Offers**:
+
+- **Photo or video** — upload a JPG/PNG (≤5 MB) or MP4 (≤16 MB); WhatsApp shows it above the offer
+  (templates `offer_image` / `offer_video`). No photo? **Make a promo video in Ad Video Studio**
+  opens `aivideo.wayneesolutions.com/ads/new` with the offer as the brief; download the video there
+  and upload it here. Files live in the `OfferMedia` table and are served at `/api/media/offers/<id>`.
+  Until the photo/video templates are approved on Meta, offers fall back to the plain text template.
+- **✨ Rewrite with AI** — Claude turns a rough offer into an engaging message in the business's
+  language. A rewrite that adds a number (price, %, date) not in the draft is refused.
+- **Customer groups & offer ideas** — customers are re-scored (`lib/segmentation.ts`) and each group
+  (Regular, High-spending, New, At-risk, Dormant) is shown with its size, average spend and visits,
+  days since last visit and how many messaged this month. **✨ Get AI offer ideas** asks Claude for one
+  targeted offer per group from those numbers (ready-made ideas without an API key; clinics never get
+  discounts); **Use this offer** fills the form for that group. Code: `lib/segment-insights.ts`.
+
+**Setup:**
+
+1. `npx prisma db push` (adds `OfferMedia` and `Offer.mediaId`).
+2. `.env`: `APP_URL` = the public https address, `WHATSAPP_APP_ID`, `ANTHROPIC_API_KEY`.
+3. Nginx: uploads need `client_max_body_size 20m;` in the Regulars `server` block (the default
+   1 MB rejects most photos/videos with 413), then `sudo nginx -t && sudo systemctl reload nginx`.
+4. Admin → WhatsApp templates → submit (adds `offer_image` and `offer_video`). The video template
+   needs a sample: set `WHATSAPP_SAMPLE_VIDEO_PATH` or upload one offer video first, then submit again.
 
 ## Bundles live in Loopdesk
 

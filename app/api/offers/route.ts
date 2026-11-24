@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { prisma } from "@/lib/prisma";
 import { getCurrentMember } from "@/lib/session";
 import { createOffer, parseSegments } from "@/lib/offers";
 
@@ -15,6 +16,8 @@ const schema = z.object({
   freebie: z.boolean().optional(),
   segments: z.array(z.string()).optional(),
   sendAt: z.string().datetime({ offset: true }).nullable().optional(),
+  /** From POST /api/offers/media. */
+  mediaId: z.string().max(40).nullable().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -29,9 +32,14 @@ export async function POST(req: NextRequest) {
   const sendAt = d.sendAt ? new Date(d.sendAt) : null;
   if (sendAt && sendAt.getTime() > Date.now() + 60 * 24 * 60 * 60 * 1000) return NextResponse.json({ error: "Pick a send time within the next 60 days." }, { status: 400 });
 
+  if (d.mediaId && !(await prisma.offerMedia.findFirst({ where: { id: d.mediaId, businessId: business.id }, select: { id: true } }))) {
+    return NextResponse.json({ error: "That photo/video wasn't found. Upload it again." }, { status: 400 });
+  }
+
   const r = await createOffer(business, user, {
     title: d.title, message: d.message, discountPercent: d.discountPercent || null, freebie: !!d.freebie,
     segments: parseSegments(d.segments), sendAt: sendAt && sendAt.getTime() > Date.now() ? sendAt : null,
+    mediaId: d.mediaId || null,
   });
   return NextResponse.json({ offer: r.offer, auto: r.auto, reasons: r.reasons }, { status: 201 });
 }

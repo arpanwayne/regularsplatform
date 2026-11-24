@@ -69,6 +69,12 @@ export function computeSegment(
     return "REGULAR";
   }
 
+  // Came once or twice and hasn't been back in the at-risk window: no longer
+  // "new" — a win-back target, same as a lapsed regular.
+  if (recencyDays > thresholds.atRiskAfterDays) {
+    return "AT_RISK";
+  }
+
   return "NEW";
 }
 
