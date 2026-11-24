@@ -36,14 +36,17 @@ export async function graphSend(sender: WaSender, to: string, message: Record<st
   }
 }
 
-export const templateMessage = (key: WaTemplateKey, lang: WaLang, params: string[], name = templateName(key, lang)) => ({
-  type: "template",
-  template: {
-    name,
-    language: { code: metaLanguage(lang) },
-    components: [{ type: "body", parameters: params.map((p) => ({ type: "text", text: sanitizeParam(p) })) }],
-  },
-});
+/** A photo/video for a template's header: a public https link Meta downloads. */
+export type MediaHeader = { kind: "IMAGE" | "VIDEO"; link: string };
+
+export const templateMessage = (key: WaTemplateKey, lang: WaLang, params: string[], name = templateName(key, lang), header?: MediaHeader | null) => {
+  const components: Record<string, unknown>[] = [{ type: "body", parameters: params.map((p) => ({ type: "text", text: sanitizeParam(p) })) }];
+  if (header) {
+    const t = header.kind === "IMAGE" ? "image" : "video";
+    components.unshift({ type: "header", parameters: [{ type: t, [t]: { link: header.link } }] });
+  }
+  return { type: "template", template: { name, language: { code: metaLanguage(lang) }, components } };
+};
 
 /** Meta: the template (in this language) doesn't exist, isn't approved yet, or is paused/disabled. */
 export const TEMPLATE_MISSING_CODES = [132001, 132015, 132016];
@@ -53,22 +56,32 @@ export const TEMPLATE_MISSING_CODES = [132001, 132015, 132016];
  * (e.g. a new "_v2" or a Hindi version still in review) tries the older
  * approved name, then English. Returns what was actually sent.
  */
-export async function sendTemplateWithFallback(sender: WaSender, to: string, key: WaTemplateKey, lang: WaLang, params: string[] | ((l: WaLang) => string[])) {
+export async function sendTemplateWithFallback(
+  sender: WaSender, to: string, key: WaTemplateKey, lang: WaLang, params: string[] | ((l: WaLang) => string[]),
+  opts: { header?: MediaHeader | null; plainKey?: WaTemplateKey } = {},
+) {
   const paramsFor = (l: WaLang) => (typeof params === "function" ? params(l) : params);
-  const tries: Array<{ lang: WaLang; name: string }> = [{ lang, name: templateName(key, lang) }];
-  const legacy = legacyTemplateName(key, lang);
-  if (legacy) tries.push({ lang, name: legacy });
-  if (lang !== "en") {
-    tries.push({ lang: "en", name: templateName(key, "en") });
-    const legacyEn = legacyTemplateName(key, "en");
-    if (legacyEn) tries.push({ lang: "en", name: legacyEn });
-  }
+  const triesFor = (k: WaTemplateKey, header: MediaHeader | null) => {
+    const l = resolveLang(k, lang);
+    const out: Array<{ key: WaTemplateKey; lang: WaLang; name: string; header: MediaHeader | null }> = [{ key: k, lang: l, name: templateName(k, l), header }];
+    const legacy = legacyTemplateName(k, l);
+    if (legacy) out.push({ key: k, lang: l, name: legacy, header });
+    if (l !== "en") {
+      out.push({ key: k, lang: "en", name: templateName(k, "en"), header });
+      const legacyEn = legacyTemplateName(k, "en");
+      if (legacyEn) out.push({ key: k, lang: "en", name: legacyEn, header });
+    }
+    return out;
+  };
+  // A photo/video template still waiting for Meta's approval falls back to the plain one (no header).
+  const tries = [...triesFor(key, opts.header ?? null), ...(opts.plainKey ? triesFor(opts.plainKey, null) : [])];
   let r: GraphResult = { ok: false, id: null, error: "not sent" };
   for (const t of tries) {
-    r = await graphSend(sender, to, templateMessage(key, t.lang, paramsFor(t.lang), t.name));
-    if (r.ok || !TEMPLATE_MISSING_CODES.includes(r.code ?? 0)) return { ...r, lang: t.lang, name: t.name };
+    r = await graphSend(sender, to, templateMessage(t.key, t.lang, paramsFor(t.lang), t.name, t.header));
+    if (r.ok || !TEMPLATE_MISSING_CODES.includes(r.code ?? 0)) return { ...r, key: t.key, lang: t.lang, name: t.name, header: t.header };
   }
-  return { ...r, lang: tries[tries.length - 1].lang, name: tries[tries.length - 1].name };
+  const last = tries[tries.length - 1];
+  return { ...r, key: last.key, lang: last.lang, name: last.name, header: last.header };
 }
 
 export const textMessage = (body: string) => ({ type: "text", text: { preview_url: true, body: body.slice(0, 4096) } });
@@ -141,6 +154,10 @@ export function canSendWhatsApp(business: Business, location: Location | null | 
 export async function sendCustomerWhatsApp(p: {
   business: Business; location: Location; customer: Customer; purpose: MessagePurpose;
   templateKey?: WaTemplateKey; params?: string[]; text?: string; now?: Date;
+  /** Photo/video header for templateKey (offer_image / offer_video). */
+  header?: MediaHeader | null;
+  /** Template to use instead while the header one isn't approved on Meta yet. */
+  plainTemplateKey?: WaTemplateKey;
 }): Promise<SendResult | null> {
   const { business, location, customer, purpose } = p;
   const sender = whatsappSenderFor(location, business);
@@ -162,11 +179,11 @@ export async function sendCustomerWhatsApp(p: {
     const key = p.templateKey;
     const lang = resolveLang(key, await businessLanguage(business));
     const paramsFor = (l: WaLang) => p.params ?? customerParams(key, l, customer, location, business);
-    const t = await sendTemplateWithFallback(sender, customer.phone, key, lang, paramsFor);
+    const t = await sendTemplateWithFallback(sender, customer.phone, key, lang, paramsFor, { header: p.header, plainKey: p.plainTemplateKey });
     r = t;
     sentLang = t.lang;
     tpl = t.name;
-    shown = renderTemplate(key, t.lang, paramsFor(t.lang));
+    shown = renderTemplate(t.key, t.lang, paramsFor(t.lang)) + (t.header ? ` [${t.header.kind === "IMAGE" ? "photo" : "video"}: ${t.header.link}]` : "");
   } else {
     return { ok: false, status: "FAILED", error: "WINDOW_CLOSED: WhatsApp only allows a free reply within 24 hours of the customer's last message." };
   }

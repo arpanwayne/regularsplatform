@@ -5,6 +5,7 @@ import { offerSummary } from "@/lib/offers";
 import { OfferComposer } from "@/components/offer-composer";
 import { OfferActions } from "@/components/offer-actions";
 import { ApprovalLimitsForm } from "@/components/approval-limits-form";
+import { SegmentOfferIdeas } from "@/components/segment-offer-ideas";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function OffersPage() {
   const { business, user, isOwner } = member;
   const offers = await prisma.offer.findMany({
     where: { businessId: business.id },
-    include: { createdBy: { select: { name: true } } },
+    include: { createdBy: { select: { name: true } }, media: { select: { id: true, kind: true } } },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
@@ -41,6 +42,8 @@ export default async function OffersPage() {
           {" "}Offers go only to customers who can get them (joined by QR, said YES, or came to you themselves), in contact hours.
         </p>
       </div>
+
+      <SegmentOfferIdeas currency={business.country === "IN" ? "₹" : "$"} />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2"><OfferComposer isOwner={isOwner} limits={limits} /></div>
@@ -66,6 +69,10 @@ export default async function OffersPage() {
                 <tr key={o.id} className="align-top">
                   <td className="px-4 py-3 text-gray-500">{o.approvalNo}</td>
                   <td className="px-4 py-3">
+                    {o.media && (o.media.kind === "IMAGE"
+                      // eslint-disable-next-line @next/next/no-img-element -- user upload served by our API
+                      ? <img src={`/api/media/offers/${o.media.id}`} alt="" className="float-right ml-3 h-14 w-14 rounded object-cover" />
+                      : <span className="float-right ml-3 rounded bg-gray-900 px-2 py-1 text-xs text-white">🎬 video</span>)}
                     <p className="font-medium">{o.title}</p>
                     <p className="text-gray-600">{offerSummary(o).slice(o.title.length + 2)}</p>
                     <p className="mt-1 text-xs text-gray-500">

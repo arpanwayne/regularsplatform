@@ -38,7 +38,12 @@ export type WaTemplateKey =
   | "owner_new_message"
   | "consent_request"
   | "offer"
+  | "offer_image"
+  | "offer_video"
   | "owner_approval";
+
+/** A template whose header is a photo or video (the file link is given at send time). */
+export type WaHeader = "IMAGE" | "VIDEO";
 
 type Def = {
   key: WaTemplateKey;
@@ -55,6 +60,8 @@ type Def = {
    * resolveLang() skips them and the message goes in English.
    */
   noSend?: WaLang[];
+  /** Photo/video header shown above the body (offer_image / offer_video). */
+  header?: WaHeader;
 };
 
 const BOOK_EX = "You can book here: https://cal.com/glow-salon";
@@ -172,6 +179,46 @@ export const WA_TEMPLATE_DEFS: Def[] = [
   {
     // A manager's offer, after the owner approved it (or it was inside the limits).
     key: "offer",
+    category: "MARKETING",
+    audience: "customer",
+    vars: ["customer first name", "business name", "the offer"],
+    examples: {
+      en: ["Priya", "Glow Salon", "20% off any hair spa this week, show this message at the counter."],
+      hinglish: ["Priya", "Glow Salon", "Is hafte hair spa pe 20% off, counter pe ye message dikhayein."],
+      hi: ["प्रिया", "Glow Salon", "इस हफ़्ते हेयर स्पा पर 20% छूट, काउंटर पर यह मैसेज दिखाएँ।"],
+      pa: ["ਪ੍ਰਿਆ", "Glow Salon", "ਇਸ ਹਫ਼ਤੇ ਹੇਅਰ ਸਪਾ ਤੇ 20% ਛੋਟ, ਕਾਊਂਟਰ ਤੇ ਇਹ ਮੈਸੇਜ ਦਿਖਾਓ।"],
+    },
+    bodies: {
+      en: "Hi {{1}}, a special offer from {{2}}: {{3}} Reply STOP to stop these messages.",
+      hinglish: "Namaste {{1}}, {{2}} ki taraf se aapke liye ek khaas offer: {{3}} Ye messages band karne ke liye STOP likhein.",
+      hi: "नमस्ते {{1}}, {{2}} की ओर से आपके लिए एक ख़ास ऑफ़र: {{3}} ये मैसेज बंद करने के लिए STOP लिखें।",
+      pa: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ {{1}}, {{2}} ਵੱਲੋਂ ਤੁਹਾਡੇ ਲਈ ਇੱਕ ਖ਼ਾਸ ਆਫ਼ਰ: {{3}} ਇਹ ਮੈਸੇਜ ਬੰਦ ਕਰਨ ਲਈ STOP ਲਿਖੋ।",
+    },
+  },
+  {
+    // The same offer with the offer's photo above it (lib/offer-media.ts).
+    key: "offer_image",
+    header: "IMAGE",
+    category: "MARKETING",
+    audience: "customer",
+    vars: ["customer first name", "business name", "the offer"],
+    examples: {
+      en: ["Priya", "Glow Salon", "20% off any hair spa this week, show this message at the counter."],
+      hinglish: ["Priya", "Glow Salon", "Is hafte hair spa pe 20% off, counter pe ye message dikhayein."],
+      hi: ["प्रिया", "Glow Salon", "इस हफ़्ते हेयर स्पा पर 20% छूट, काउंटर पर यह मैसेज दिखाएँ।"],
+      pa: ["ਪ੍ਰਿਆ", "Glow Salon", "ਇਸ ਹਫ਼ਤੇ ਹੇਅਰ ਸਪਾ ਤੇ 20% ਛੋਟ, ਕਾਊਂਟਰ ਤੇ ਇਹ ਮੈਸੇਜ ਦਿਖਾਓ।"],
+    },
+    bodies: {
+      en: "Hi {{1}}, a special offer from {{2}}: {{3}} Reply STOP to stop these messages.",
+      hinglish: "Namaste {{1}}, {{2}} ki taraf se aapke liye ek khaas offer: {{3}} Ye messages band karne ke liye STOP likhein.",
+      hi: "नमस्ते {{1}}, {{2}} की ओर से आपके लिए एक ख़ास ऑफ़र: {{3}} ये मैसेज बंद करने के लिए STOP लिखें।",
+      pa: "ਸਤ ਸ੍ਰੀ ਅਕਾਲ {{1}}, {{2}} ਵੱਲੋਂ ਤੁਹਾਡੇ ਲਈ ਇੱਕ ਖ਼ਾਸ ਆਫ਼ਰ: {{3}} ਇਹ ਮੈਸੇਜ ਬੰਦ ਕਰਨ ਲਈ STOP ਲਿਖੋ।",
+    },
+  },
+  {
+    // The same offer with its video above it (made in Ad Video Studio or uploaded).
+    key: "offer_video",
+    header: "VIDEO",
     category: "MARKETING",
     audience: "customer",
     vars: ["customer first name", "business name", "the offer"],
@@ -345,11 +392,17 @@ export function nextStep(lang: WaLang, bookingUrl?: string | null) {
   }
 }
 
+export type MetaBodyComponent = { type: "BODY"; text: string; example: { body_text: string[][] } };
+/** example.header_handle is filled in at submit time (Meta wants an uploaded sample file). */
+export type MetaHeaderComponent = { type: "HEADER"; format: WaHeader; example?: { header_handle: string[] } };
+
 export type MetaTemplatePayload = {
   name: string;
   language: string;
   category: WaCategory;
-  components: Array<{ type: "BODY"; text: string; example: { body_text: string[][] } }>;
+  /** The body is always first; a media header, if any, follows it. */
+  components: [MetaBodyComponent, ...MetaHeaderComponent[]];
+  header?: WaHeader;
 };
 
 /** Every template × language, in the shape Meta's message_templates API takes. */
@@ -362,7 +415,10 @@ export function allMetaTemplates(): Array<MetaTemplatePayload & { key: WaTemplat
       const example = (d.examples[lang] ?? d.examples.en).map((v) => sanitizeParam(v));
       out.push({
         key: d.key, lang, name: templateName(d.key, lang), language: metaLanguage(lang), category: d.category,
-        components: [{ type: "BODY", text, example: { body_text: [example] } }],
+        components: d.header
+          ? [{ type: "BODY", text, example: { body_text: [example] } }, { type: "HEADER", format: d.header }]
+          : [{ type: "BODY", text, example: { body_text: [example] } }],
+        ...(d.header ? { header: d.header } : {}),
       });
     }
   }

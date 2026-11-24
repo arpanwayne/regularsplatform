@@ -3,7 +3,18 @@
 //   npm run wa:templates -- --list  → show status only
 // Uses WHATSAPP_SHARED_WABA_ID and WHATSAPP_SHARED_ACCESS_TOKEN from the environment
 // (on the server: run it from the app folder so .env is loaded by your shell / pm2).
-import { listMetaTemplates, mergeStatus, submitAllTemplates } from "../lib/whatsapp-template-sync";
+import { readFile } from "node:fs/promises";
+import { listMetaTemplates, mergeStatus, submitAllTemplates, type HeaderSample } from "../lib/whatsapp-template-sync";
+
+// Photo/video offer templates need sample files (and WHATSAPP_APP_ID): the logo, and WHATSAPP_SAMPLE_VIDEO_PATH.
+async function samples() {
+  const out: { IMAGE?: HeaderSample; VIDEO?: HeaderSample } = {};
+  const logo = await readFile("public/brand/logo.png").catch(() => null);
+  if (logo) out.IMAGE = { bytes: new Uint8Array(logo), mimeType: "image/png", fileName: "offer-sample.png" };
+  const v = process.env.WHATSAPP_SAMPLE_VIDEO_PATH ? await readFile(process.env.WHATSAPP_SAMPLE_VIDEO_PATH).catch(() => null) : null;
+  if (v) out.VIDEO = { bytes: new Uint8Array(v), mimeType: "video/mp4", fileName: "offer-sample.mp4" };
+  return out;
+}
 
 async function main() {
   const waba = process.env.WHATSAPP_SHARED_WABA_ID, token = process.env.WHATSAPP_SHARED_ACCESS_TOKEN;
@@ -12,7 +23,7 @@ async function main() {
     process.exit(1);
   }
   if (!process.argv.includes("--list")) {
-    for (const r of await submitAllTemplates(waba, token)) {
+    for (const r of await submitAllTemplates(waba, token, await samples())) {
       console.log(`${r.result.padEnd(13)} ${r.name} (${r.language})${r.error ? `  ← ${r.error}` : ""}`);
     }
     console.log("");
