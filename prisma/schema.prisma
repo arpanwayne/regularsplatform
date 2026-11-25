@@ -102,6 +102,16 @@ model Business {
   /// Free items / bonus points go out without asking the owner.
   approvalAutoFreebie Boolean @default(false)
 
+  // ── Loopdesk AI (Nov 2026) ─────────────────────────────────────────────
+  /// Set when Loopdesk AI created or linked this business (POST /api/hub/provision).
+  /// Loopdesk is the hub: it bills the client, and its bundle decides whether
+  /// Regulars is on. Null for businesses that signed up to Regulars directly.
+  hubBusinessId String? @unique
+  /// True while the business is SUSPENDED because Loopdesk paused it (bundle
+  /// lapsed, or Regulars taken out of the bundle). Loopdesk only lifts its own
+  /// pause, never a super admin's suspension.
+  hubSuspended  Boolean @default(false)
+
   createdAt DateTime @default(now())
 
   locations      Location[]
@@ -679,3 +689,13 @@ model OfferMedia {
 // ---------------------------------------------------------------------------
 
 
+
+/// One-time Loopdesk tokens already used (provision / one-login). A token's
+/// jti is stored until it expires so the same token can't be replayed.
+model HubTokenUse {
+  jti       String   @id
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}

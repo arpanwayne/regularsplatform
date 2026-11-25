@@ -393,3 +393,29 @@ Bundles, the product catalog, single sign-on into the other tools and automatic
 set-up in them moved to the separate Loopdesk repo (Nov 2026). Regulars has its own
 database and its own address (regulars.wayneesolutions.com).
 
+
+### Regulars as a Loopdesk AI tool (Nov 2026)
+
+Loopdesk AI is the hub; Regulars is one of its tools, like Korvo and Loyvexa.
+When a Loopdesk bundle includes Regulars, Loopdesk sets up the client here and
+signs the owner in with one click. Bundles without Regulars never touch this app.
+
+| What | Where |
+| --- | --- |
+| Set up / update / pause a client | `POST /api/hub/provision` → `app/api/hub/provision/route.ts` |
+| One login from Loopdesk | `/sso#token=…` → `POST /api/hub/sso/exchange` |
+| Token rules, owner matching, pause rules | `lib/hub-rules.ts` (tests: `test/loopdesk-connection.test.ts`) |
+| Single-use tokens | `lib/hub.ts` + `HubTokenUse` table |
+
+- Tokens: HS256 JWT signed with `HUB_SECRET` (Loopdesk: `HUB_SECRET_REGULARS`),
+  issuer `regulars-hub`, audience `regulars`, at most 2 minutes old, used once.
+- A Loopdesk client is on PRO with no expiry date here; Loopdesk bills and pauses.
+  The Billing page tells them so and the Regulars checkout refuses them.
+- Pausing from Loopdesk suspends the business (`hubSuspended = true`). Resuming
+  only lifts Loopdesk's own pause, never a super admin's suspension.
+- The owner's email decides the account: a new email creates the owner; an
+  owner who already uses Regulars keeps their business (it gets linked); a
+  manager / admin email, or an owner already linked to another Loopdesk client,
+  is refused and shows as "Failed" in Loopdesk → Admin → Bundles.
+- New owners get a random password; they come in through Loopdesk, or set
+  their own with "Forgot password".
