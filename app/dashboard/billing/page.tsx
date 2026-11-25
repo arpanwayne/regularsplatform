@@ -9,6 +9,18 @@ export default async function BillingPage() {
   const business = await getOwnerBusinessOrRedirect();
   if (!business) return null;
 
+  // Loopdesk AI clients pay for Regulars in their Loopdesk bundle, not here.
+  if (business.hubBusinessId) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
+        <div className="rounded-card border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+          Regulars is part of your Loopdesk AI plan. Your bill, renewals and plan changes are on the Billing page in Loopdesk AI.
+        </div>
+      </div>
+    );
+  }
+
   const daysUntilExpiry = business.planExpiresAt
     ? Math.ceil((business.planExpiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;

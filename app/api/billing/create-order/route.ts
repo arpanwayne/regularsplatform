@@ -13,6 +13,10 @@ export async function POST(req: NextRequest) {
   if (!business) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // Loopdesk AI clients are billed by Loopdesk, never here.
+  if (business.hubBusinessId) {
+    return NextResponse.json({ error: "Regulars is billed through your Loopdesk AI plan." }, { status: 409 });
+  }
 
   if (!isRazorpayConfigured()) {
     return NextResponse.json({ razorpayConfigured: false });
