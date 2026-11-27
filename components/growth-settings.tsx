@@ -98,6 +98,12 @@ export function GrowthSettingsForm({ settings, autonomy, tools, managed = false 
           <input className={field} type="number" min={1} max={5} value={f.maxTouchesPerWeek} onChange={(e) => set("maxTouchesPerWeek", Number(e.target.value))} /></label>
       </fieldset>
 
+      {managed && (
+        <p className="rounded-card bg-gray-50 px-4 py-3 text-sm text-gray-600">
+          Connected tools: this business is on a Loopdesk AI plan, so calls, Google profile and videos are connected in Loopdesk AI
+          (Growth Manager there). Nothing to fill in here.
+        </p>
+      )}
       {!managed && (<fieldset className="grid gap-4 md:grid-cols-3">
         <legend className="mb-2 text-sm font-medium md:col-span-3">Connected tools</legend>
         <label className="text-sm"><span className="text-gray-600">WayneRing URL {tools.wayneRing ? "· connected" : ""}</span>

@@ -37,6 +37,10 @@ async function reply(business: Business, location: Location, to: string, text: s
   }
 }
 
+/** Reply to an owner who writes to the shared number with something that isn't a command. */
+export const OWNER_NOT_INBOX =
+  "Ye number aapke business ka hai, isliye aapke apne messages Inbox mein nahi aate. Customer ki tarah test karna ho to kisi doosre phone se QR scan karke message bhejein. Commands: APPROVE <no>, REJECT <no>, add <naam> <mobile>.";
+
 export const MANAGER_HELP = "Hi! To add a customer, send: add <name> <mobile>, e.g. add Rahul 9876543210. Offers are written on the dashboard (Offers).";
 
 /** True when the message was a staff command (or a manager writing in) and has been handled. */

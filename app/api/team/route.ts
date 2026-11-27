@@ -5,6 +5,7 @@ import { getOwnerBusiness } from "@/lib/session";
 import { hashPassword } from "@/lib/auth";
 import { isPlaceholderPhone, normalizePhone } from "@/lib/phone";
 import { logEvent } from "@/lib/logger";
+import { sendOwnerWhatsApp } from "@/lib/whatsapp-send";
 
 /**
  * Dashboard → Team (owner only). A manager is a staff login for one business:
@@ -49,5 +50,14 @@ export async function POST(req: NextRequest) {
     select: { id: true, name: true, email: true, phone: true, createdAt: true },
   });
   await logEvent({ businessId: business.id, source: "AUTH", level: "INFO", message: `Manager added: ${email}` });
-  return NextResponse.json({ manager }, { status: 201 });
+
+  // Bug 11 (27 Nov 2026): tell the manager on WhatsApp (template — they haven't written to us yet).
+  // A failed send never undoes the add; the owner sees it on the Team page.
+  const location = await prisma.location.findFirst({ where: { businessId: business.id }, orderBy: { createdAt: "asc" } });
+  const base = (process.env.APP_URL || req.nextUrl.origin).replace(/\/$/, "");
+  const welcomed = await sendOwnerWhatsApp(business, location, phone, {
+    templateKey: "manager_welcome", params: [name.split(/\s+/)[0] || name, business.name, `${base}/login`],
+  }).catch(() => false);
+  if (!welcomed) await logEvent({ businessId: business.id, source: "WHATSAPP", level: "WARN", message: `Manager welcome WhatsApp not sent to +${phone}`, meta: { hint: "No WhatsApp number for this business, or the manager_welcome template isn't approved yet (Admin → WhatsApp templates)." } });
+  return NextResponse.json({ manager, welcomed }, { status: 201 });
 }

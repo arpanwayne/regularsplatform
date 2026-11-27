@@ -2,6 +2,7 @@ import { getOwnerBusinessOrRedirect } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { LocationsManager } from "@/components/locations-manager";
 import { FrontDeskSettings } from "@/components/front-desk-settings";
+import { BusinessNameForm } from "@/components/business-name-form";
 import { sharedDisplayNumber, sharedSender, usesSharedNumber } from "@/lib/whatsapp-sender";
 import { instagramAllowed } from "@/lib/instagram";
 
@@ -25,6 +26,11 @@ export default async function SettingsPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+      <BusinessNameForm
+        name={business.name}
+        linked={!!business.hubBusinessId}
+        senderNames={rows.filter((l) => l.smsSenderName && l.smsSenderName.trim() !== business.name).map((l) => ({ location: l.name, sender: l.smsSenderName!.trim() }))}
+      />
       <LocationsManager locations={locations} sharedNumber={sharedNumber} instagram={instagramAllowed(business)} />
       <FrontDeskSettings business={business} locations={locations} />
     </div>

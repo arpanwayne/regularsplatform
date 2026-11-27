@@ -20,7 +20,7 @@ const SEGMENTS = [
 
 type Limits = { approvalMaxDiscount: number; approvalMaxAudience: number; approvalAutoFreebie: boolean };
 
-export function OfferComposer({ isOwner, limits }: { isOwner: boolean; limits: Limits }) {
+export function OfferComposer({ isOwner, limits, loopdeskVideoUrl = null }: { isOwner: boolean; limits: Limits; loopdeskVideoUrl?: string | null }) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
@@ -154,7 +154,7 @@ export function OfferComposer({ isOwner, limits }: { isOwner: boolean; limits: L
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); }} />
             </label>
             <span className="text-xs text-gray-500">No photo?</span>
-            <a href={adVideoStudioUrl([title, message].filter(Boolean).join(". "))} target="_blank" rel="noopener noreferrer"
+            <a href={loopdeskVideoUrl ?? adVideoStudioUrl([title, message].filter(Boolean).join(". "))} target="_blank" rel="noopener noreferrer"
               className="rounded-full bg-gray-900 px-3 py-1 text-xs font-medium text-white hover:bg-gray-700">
               🎬 Make a promo video in Ad Video Studio
             </a>

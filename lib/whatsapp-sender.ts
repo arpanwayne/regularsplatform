@@ -38,8 +38,20 @@ export function usesSharedNumber(business: { country: string }) {
   return sharedCountries().includes((business.country || "").toUpperCase());
 }
 
+/**
+ * A Meta phone number ID is all digits. Anything else (a login email the
+ * browser autofilled into Settings, bug 2 of 27 Nov 2026) is not a number
+ * of our own, so it must never be used to send.
+ */
+export const isMetaPhoneNumberId = (v: string | null | undefined) => /^\d{1,25}$/.test(String(v ?? "").trim());
+
+/** The location really has its own WhatsApp number set up. */
+export function hasOwnWhatsApp(location: LocationLike | null | undefined) {
+  return !!location?.whatsappAccessToken && isMetaPhoneNumberId(location.whatsappPhoneNumberId);
+}
+
 export function whatsappSenderFor(location: LocationLike | null | undefined, business: { country: string }): WaSender | null {
-  if (location?.whatsappPhoneNumberId && location.whatsappAccessToken) {
+  if (location && hasOwnWhatsApp(location) && location.whatsappPhoneNumberId && location.whatsappAccessToken) {
     return { phoneNumberId: location.whatsappPhoneNumberId, accessToken: location.whatsappAccessToken, shared: false };
   }
   return usesSharedNumber(business) ? sharedSender() : null;

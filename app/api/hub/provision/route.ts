@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import { logEvent } from "@/lib/logger";
-import { HubAuthError, useHubToken } from "@/lib/hub";
+import { HubAuthError, consumeHubToken } from "@/lib/hub";
 import { HUB_PLAN, bearer, hubAnswerStatus, hubStatusChange, matchOwner, toSector } from "@/lib/hub-rules";
 
 /**
@@ -36,7 +36,7 @@ const bodySchema = z.object({
 export async function POST(req: NextRequest) {
   let claims;
   try {
-    claims = await useHubToken(bearer(req.headers.get("authorization")), "provision");
+    claims = await consumeHubToken(bearer(req.headers.get("authorization")), "provision");
   } catch (err) {
     const e = err instanceof HubAuthError ? err : new HubAuthError("Invalid token");
     return NextResponse.json({ error: e.message }, { status: e.status });

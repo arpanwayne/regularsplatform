@@ -23,7 +23,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         isSuperAdmin={user.role === "SUPER_ADMIN"}
         isManager={business.ownerId !== user.id}
       />
-      <div className="mx-auto max-w-6xl px-6 py-8">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         {business.status === "SUSPENDED" && (
           <div className="mb-6 rounded-card border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             This account has been suspended, so messages and follow-ups are off. Please contact support.

@@ -6,6 +6,9 @@ import { generateCallingScript } from "@/lib/calling-scripts/generate";
 
 const schema = z.object({ customerId: z.string() });
 
+/** Same customer within this time = the same script (no duplicates). */
+const DUPLICATE_WINDOW_MS = 10 * 60 * 1000;
+
 export async function POST(req: NextRequest) {
   const business = await getOwnerBusiness();
   if (!business) {
@@ -33,11 +36,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Bug 15: a double tap (or a second tap while the first is still running)
+  // gives back the script made a moment ago instead of a copy.
+  const recent = await prisma.callingScript.findFirst({
+    where: { businessId: business.id, customerId: customer.id, isDefault: false, createdAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) } },
+    orderBy: { createdAt: "desc" },
+  });
+  if (recent) return NextResponse.json({ script: recent, aiPersonalized: false, reused: true });
+
   const script = await generateCallingScript(business, customer);
 
   const record = await prisma.callingScript.create({
     data: {
       businessId: business.id,
+      customerId: customer.id,
       sector: business.sector,
       segment: customer.segment,
       title: script.title,

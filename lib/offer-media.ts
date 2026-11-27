@@ -53,3 +53,13 @@ export function adVideoStudioUrl(brief: string, base = process.env.NEXT_PUBLIC_A
   const b = brief.replace(/\s+/g, " ").trim().slice(0, 1500);
   return `${base.replace(/\/+$/, "")}/ads/new${b ? `?kind=video&brief=${encodeURIComponent(b)}` : "?kind=video"}`;
 }
+
+/**
+ * Bug 7 (27 Nov 2026): a Loopdesk AI client has Video Studio in its plan and
+ * is signed in through Loopdesk, so open it through Loopdesk's one-login link
+ * (no second password). Others get the plain Video Studio link.
+ */
+export function loopdeskVideoStudioUrl(hubLinked: boolean, base = process.env.LOOPDESK_APP_URL || "https://app.loopdeskai.wayneesolutions.com"): string | null {
+  if (!hubLinked) return null;
+  return `${base.replace(/\/+$/, "")}/api/hub/open/video?page=make`;
+}

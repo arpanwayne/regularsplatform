@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import type { Customer } from "@prisma/client";
 import { useRouter } from "next/navigation";
 import { SegmentBadge } from "@/components/segment-badge";
@@ -63,19 +63,90 @@ export function CustomerTable({
   const [scripts, setScripts] = useState<Record<string, { title: string; content: string }>>({});
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
+  const generating = useRef(false); // bug 15: a fast double tap fired two requests
   async function generateScript(customerId: string) {
+    if (generating.current) return;
+    generating.current = true;
     setLoadingId(customerId);
     const res = await fetch("/api/calling-scripts/generate", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ customerId }),
-    });
+    }).catch(() => null);
     setLoadingId(null);
-    if (!res.ok) return;
+    generating.current = false;
+    if (!res?.ok) return;
     const data = await res.json();
     setScripts((prev) => ({ ...prev, [customerId]: data.script }));
     setOpenScriptFor(customerId);
   }
+
+
+  // Shared by the table (desktop) and the cards (phone, bug 12 of 27 Nov 2026).
+  const badgesFor = (c: CustomerWithLocation) => (
+    <>
+      <SegmentBadge segment={c.segment} />
+      {c.consentStatus === "PENDING" && (
+        <span title="Asked to reply YES or NO — no offers until YES" className="ml-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+          Waiting for YES
+        </span>
+      )}
+      {c.consentStatus === "DECLINED" && (
+        <span title="Said NO to offers" className="ml-1 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+          No offers
+        </span>
+      )}
+      {c.consentStatus === "GRANTED" && c.consentSource === "QR" && (
+        <span title={c.joinTag ? `Joined by QR (${c.joinTag})` : "Joined by QR"} className="ml-1 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+          QR{c.joinTag ? ` · ${c.joinTag}` : ""}
+        </span>
+      )}
+      {c.optedOut && (
+        <span className="ml-1 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+          Opted out
+        </span>
+      )}
+    </>
+  );
+  const nameCell = (c: CustomerWithLocation) => (
+    <>
+      {editingId === c.id ? (
+        <div className="space-y-1">
+          <input value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={80} placeholder="Name"
+            aria-label="Customer name" className="w-44 rounded-input border border-control px-2 py-1 text-sm" />
+          <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} maxLength={25} placeholder="+91 98765 43210"
+            aria-label="Phone number" inputMode="tel" className="block w-44 rounded-input border border-control px-2 py-1 text-sm" />
+          {editError && <p className="max-w-[16rem] text-xs text-red-600">{editError}</p>}
+          <div className="flex gap-2">
+            <button type="button" disabled={saving} onClick={() => saveEdit(c.id)} className="rounded-full bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-800 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+            <button type="button" onClick={() => setEditingId(null)} className="text-xs text-gray-600 underline">Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p className="font-medium">{c.name || "Unnamed"}</p>
+          <p className="text-gray-500">
+            {isInstagramOnly(c) ? <>Instagram{c.instagramUsername ? ` · @${c.instagramUsername}` : ""}</> : `+${c.phone}`}
+          </p>
+        </>
+      )}
+    </>
+  );
+  const actionsFor = (c: CustomerWithLocation) => (
+    <>
+      <button type="button" onClick={() => startEdit(c)} className="mr-3 text-xs text-brand-700 underline">Edit</button>
+      <a href={`/api/customers/${c.id}`} className="mr-3 text-xs text-gray-500 underline">Export</a>
+      <button type="button" onClick={() => removeData(c.id, c.name || c.phone)} className="mr-3 text-xs text-red-600 underline">Remove</button>
+      {!hideScripts && <button
+        onClick={() => generateScript(c.id)}
+        disabled={loadingId !== null || c.optedOut}
+        title={c.optedOut ? "Customer opted out — cannot generate outreach" : undefined}
+        className="rounded-full border border-control px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+      >
+        {loadingId === c.id ? "Generating…" : "Generate calling script"}
+      </button>}
+    </>
+  );
 
   if (customers.length === 0) {
     return (
@@ -86,7 +157,27 @@ export function CustomerTable({
   }
 
   return (
-    <div className="rounded-card border border-gray-200 bg-white overflow-hidden">
+    <>
+    {/* Phone: one card per customer (bug 12). */}
+    <ul className="space-y-3 md:hidden">
+      {customers.map((c) => (
+        <li key={c.id} className="space-y-2 rounded-card border border-gray-200 bg-white p-4 text-sm">
+          <div>{nameCell(c)}</div>
+          <div className="flex flex-wrap items-center gap-1">{badgesFor(c)}</div>
+          <p className="text-gray-500">
+            {c.visitCount} visits · last seen {formatDate(c.lastSeenAt, country)}{showLocation && c.location ? ` · ${c.location.name}` : ""}
+          </p>
+          <div className="flex flex-wrap items-center gap-y-2">{actionsFor(c)}</div>
+          {openScriptFor === c.id && scripts[c.id] && (
+            <div className="rounded-input bg-gray-50 p-3">
+              <p className="mb-1 text-xs font-medium text-gray-500">{scripts[c.id].title}</p>
+              <p className="whitespace-pre-wrap">{scripts[c.id].content}</p>
+            </div>
+          )}
+        </li>
+      ))}
+    </ul>
+    <div className="hidden overflow-x-auto rounded-card border border-gray-200 bg-white md:block">
       <table className="w-full text-sm">
         <thead className="bg-gray-50 text-left text-gray-500">
           <tr>
@@ -103,69 +194,20 @@ export function CustomerTable({
             <Fragment key={c.id}>
               <tr>
                 <td className="px-4 py-3">
-                  {editingId === c.id ? (
-                    <div className="space-y-1">
-                      <input value={editName} onChange={(e) => setEditName(e.target.value)} maxLength={80} placeholder="Name"
-                        aria-label="Customer name" className="w-44 rounded-input border border-control px-2 py-1 text-sm" />
-                      <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} maxLength={25} placeholder="+91 98765 43210"
-                        aria-label="Phone number" inputMode="tel" className="block w-44 rounded-input border border-control px-2 py-1 text-sm" />
-                      {editError && <p className="max-w-[16rem] text-xs text-red-600">{editError}</p>}
-                      <div className="flex gap-2">
-                        <button type="button" disabled={saving} onClick={() => saveEdit(c.id)} className="rounded-full bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-800 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
-                        <button type="button" onClick={() => setEditingId(null)} className="text-xs text-gray-600 underline">Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="font-medium">{c.name || "Unnamed"}</p>
-                      <p className="text-gray-500">
-                        {isInstagramOnly(c) ? <>Instagram{c.instagramUsername ? ` · @${c.instagramUsername}` : ""}</> : `+${c.phone}`}
-                      </p>
-                    </>
-                  )}
+                  {nameCell(c)}
                 </td>
                 {showLocation && (
                   <td className="px-4 py-3 text-gray-600">{c.location?.name ?? "—"}</td>
                 )}
                 <td className="px-4 py-3">
-                  <SegmentBadge segment={c.segment} />
-                  {c.consentStatus === "PENDING" && (
-                    <span title="Asked to reply YES or NO — no offers until YES" className="ml-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                      Waiting for YES
-                    </span>
-                  )}
-                  {c.consentStatus === "DECLINED" && (
-                    <span title="Said NO to offers" className="ml-1 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                      No offers
-                    </span>
-                  )}
-                  {c.consentStatus === "GRANTED" && c.consentSource === "QR" && (
-                    <span title={c.joinTag ? `Joined by QR (${c.joinTag})` : "Joined by QR"} className="ml-1 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                      QR{c.joinTag ? ` · ${c.joinTag}` : ""}
-                    </span>
-                  )}
-                  {c.optedOut && (
-                    <span className="ml-1 inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                      Opted out
-                    </span>
-                  )}
+                  {badgesFor(c)}
                 </td>
                 <td className="px-4 py-3">{c.visitCount}</td>
                 <td className="px-4 py-3 text-gray-500">
                   {formatDate(c.lastSeenAt, country)}
                 </td>
                 <td className="px-4 py-3 text-right whitespace-nowrap">
-                  <button type="button" onClick={() => startEdit(c)} className="mr-3 text-xs text-brand-700 underline">Edit</button>
-                  <a href={`/api/customers/${c.id}`} className="mr-3 text-xs text-gray-500 underline">Export</a>
-                  <button type="button" onClick={() => removeData(c.id, c.name || c.phone)} className="mr-3 text-xs text-red-600 underline">Remove</button>
-                  {!hideScripts && <button
-                    onClick={() => generateScript(c.id)}
-                    disabled={loadingId === c.id || c.optedOut}
-                    title={c.optedOut ? "Customer opted out — cannot generate outreach" : undefined}
-                    className="rounded-full border border-control px-3 py-1 text-xs font-medium hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {loadingId === c.id ? "Generating…" : "Generate calling script"}
-                  </button>}
+                  {actionsFor(c)}
                 </td>
               </tr>
               {openScriptFor === c.id && scripts[c.id] && (
@@ -181,5 +223,6 @@ export function CustomerTable({
         </tbody>
       </table>
     </div>
+    </>
   );
 }

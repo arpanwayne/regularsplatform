@@ -152,6 +152,7 @@ export default async function GrowthPage() {
           gmbLocationId: s.gmbLocationId, videoStudioClientId: s.videoStudioClientId,
         }}
         autonomy={autonomyMap(s)} tools={tools}
+        managed={!!business.hubBusinessId}
       />
     </div>
   );

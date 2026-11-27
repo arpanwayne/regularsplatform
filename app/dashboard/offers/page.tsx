@@ -3,6 +3,7 @@ import { getCurrentMember } from "@/lib/session";
 import { formatDateTime } from "@/lib/format";
 import { offerSummary } from "@/lib/offers";
 import { OfferComposer } from "@/components/offer-composer";
+import { loopdeskVideoStudioUrl } from "@/lib/offer-media";
 import { OfferActions } from "@/components/offer-actions";
 import { ApprovalLimitsForm } from "@/components/approval-limits-form";
 import { SegmentOfferIdeas } from "@/components/segment-offer-ideas";
@@ -46,12 +47,12 @@ export default async function OffersPage() {
       <SegmentOfferIdeas currency={business.country === "IN" ? "₹" : "$"} />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2"><OfferComposer isOwner={isOwner} limits={limits} /></div>
+        <div className="lg:col-span-2"><OfferComposer isOwner={isOwner} limits={limits} loopdeskVideoUrl={loopdeskVideoStudioUrl(!!business.hubBusinessId)} /></div>
         {isOwner && <ApprovalLimitsForm limits={limits} sector={business.sector} />}
       </div>
 
-      <div className="overflow-hidden rounded-card border border-gray-200 bg-white">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-card border border-gray-200 bg-white">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-gray-50 text-left text-gray-500">
             <tr>
               <th className="px-4 py-2 font-medium">#</th>
