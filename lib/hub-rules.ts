@@ -21,7 +21,7 @@ export const HUB_ISSUER = "regulars-hub";
 export const HUB_AUDIENCE = "regulars";
 export const MAX_TOKEN_AGE_SECONDS = 120;
 
-export type HubPurpose = "provision" | "sso" | "opt-out";
+export type HubPurpose = "provision" | "sso" | "opt-out" | "whatsapp-inbound";
 export type HubClaims = JWTPayload & { sub: string; jti: string; exp: number; purpose: HubPurpose; [k: string]: unknown };
 
 export function hubSecret(env: Record<string, string | undefined> = process.env): Uint8Array | null {

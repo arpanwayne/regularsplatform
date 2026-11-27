@@ -31,7 +31,8 @@ test("bugs 2 + 10: an autofilled email in Phone number ID is never used to send"
   assert.equal(whatsappSenderFor({ whatsappPhoneNumberId: "109876543210123", whatsappAccessToken: "EAAG" }, { country: "IN" })?.shared, false);
   setEnv("WHATSAPP_SHARED_PHONE_NUMBER_ID", undefined); setEnv("WHATSAPP_SHARED_ACCESS_TOKEN", undefined);
   const form = read("components/locations-manager.tsx");
-  assert.match(form, /autoComplete="new-password"/);
+  // Retest 27 Nov 2026: the token box is masked text, not type="password" (Chrome treated it as a login form).
+  assert.match(form, /WebkitTextSecurity/);
   assert.match(form, /whatsappDisconnect: true/);
   assert.match(read("components/team-manager.tsx"), /type="password" autoComplete="new-password"/);
 });
@@ -48,7 +49,7 @@ test("bug 17: Meta is asked before a number is saved", async () => {
 });
 
 test("bugs 4 + 5 + 6: QR join is handled before owner / staff routing; owners are told why", () => {
-  const hook = read("app/api/webhook/whatsapp/route.ts");
+  const hook = read("lib/whatsapp-inbound.ts") /* moved out of the webhook so Loopdesk-forwarded messages run the same code */;
   const at = hook.indexOf("const joining =");
   assert.ok(at > 0 && hook.indexOf("handleStaffMessage(location") > at && hook.indexOf("handleOwnerReply(location") > at);
   assert.match(hook, /if \(fromOwner && !joining\)/);

@@ -9,6 +9,7 @@ import {
 } from "@/lib/whatsapp-templates";
 import { sharedSender, whatsappSenderFor, windowOpen, type WaSender } from "@/lib/whatsapp-sender";
 import { isInstagramOnly } from "@/lib/instagram-shared";
+import { hubSend } from "@/lib/whatsapp-hub";
 
 /**
  * Outgoing WhatsApp (Cloud API). Every business-started message uses an
@@ -22,6 +23,8 @@ const GRAPH = `https://graph.facebook.com/${process.env.WHATSAPP_GRAPH_VERSION |
 type GraphResult = { ok: boolean; id: string | null; error?: string; code?: number };
 
 export async function graphSend(sender: WaSender, to: string, message: Record<string, unknown>): Promise<GraphResult> {
+  // Bundle client: Loopdesk sends it from the bundle's one number.
+  if (sender.hubBusinessId) return hubSend(sender.hubBusinessId, to, message);
   try {
     const res = await fetch(`${GRAPH}/${sender.phoneNumberId}/messages`, {
       method: "POST",
@@ -213,7 +216,7 @@ export async function sendCustomerWhatsApp(p: {
  * business without a texting number still get its morning plan (bug B2).
  * Set WHATSAPP_OWNER_ANY_COUNTRY=false to switch that off.
  */
-export function ownerWhatsAppSender(location: Location | null | undefined, business: Pick<Business, "country">): WaSender | null {
+export function ownerWhatsAppSender(location: Location | null | undefined, business: Pick<Business, "country" | "hubBusinessId">): WaSender | null {
   return whatsappSenderFor(location, business) ?? (process.env.WHATSAPP_OWNER_ANY_COUNTRY === "false" ? null : sharedSender());
 }
 

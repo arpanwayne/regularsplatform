@@ -1,6 +1,8 @@
 import { getOwnerBusinessOrRedirect } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { StatCard } from "@/components/stat-card";
+import { GrowthRetryButton } from "@/components/growth-retry-button";
+import { clientError } from "@/lib/growth/client-error";
 import { formatDateTime } from "@/lib/format";
 import { GrowthActionCard, PlanNowButton } from "@/components/growth-actions";
 import { GrowthSettingsForm } from "@/components/growth-settings";
@@ -68,8 +70,8 @@ export default async function GrowthPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">AI Growth Manager</h1>
           <p className="max-w-2xl text-sm text-gray-600">
-            Every day it reads your calls, texts, quotes, jobs and reviews, picks the actions most likely to bring in work,
-            and asks you before it contacts anyone. {s.enabled ? "It's on." : "It's off — turn it on in the settings below."}
+            Every day it reads your customers, their visits, the offers they got, their messages and your reviews,
+            picks the people most likely to come back, and asks you before it contacts anyone. {s.enabled ? "It's on." : "It's off — turn it on in the settings below."}
           </p>
         </div>
         <PlanNowButton disabled={business.status === "SUSPENDED" || !allowed} />
@@ -132,14 +134,23 @@ export default async function GrowthPage() {
                 <tr key={a.id} className="border-t border-gray-100">
                   <td className="px-4 py-2 text-gray-500">{formatDateTime(a.executedAt ?? a.updatedAt, business.country, s.timezone)}</td>
                   <td className="px-4 py-2">{a.title}</td>
-                  <td className="px-4 py-2">{a.status === "DONE" ? "Done" : a.status === "FAILED" ? <span className="text-red-600" title={a.error ?? ""}>Failed</span> : "Running"}</td>
+                  <td className="px-4 py-2">
+                    {a.status === "DONE" ? "Done" : a.status === "FAILED" ? (
+                      // Retest 27 Nov 2026, NEW 4: say why, and offer Retry once it's fixed.
+                      <div className="space-y-1">
+                        <span className="font-medium text-red-600">Failed</span>
+                        <p className="max-w-xs text-xs text-gray-600">{clientError(a.error)}</p>
+                        <GrowthRetryButton id={a.id} />
+                      </div>
+                    ) : a.status === "SKIPPED" ? <span className="text-gray-500" title={a.error ?? ""}>Skipped{a.error ? ` — ${clientError(a.error)}` : ""}</span> : "Running"}
+                  </td>
                   <td className="px-4 py-2">{a.outcome === "WON" ? <span className="rounded-full bg-green-100 px-2 py-0.5 text-green-800">Won {a.outcomeValue != null ? money(s, a.outcomeValue) : ""}</span> : <span className="text-gray-500">—</span>}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="text-xs text-gray-500">&ldquo;Won&rdquo; means the customer booked, accepted a quote, paid or visited within 14 days of the action (last-touch). It shows revenue the AI influenced, not proof it caused it.</p>
+        <p className="text-xs text-gray-500">&ldquo;Won&rdquo; means the customer booked, paid or visited within 14 days of the action (last-touch). It shows revenue the AI influenced, not proof it caused it.</p>
       </section>
 
       <GrowthSettingsForm

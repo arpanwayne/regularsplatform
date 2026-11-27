@@ -69,11 +69,45 @@ export function parseSegments(raw: string | string[] | null | undefined): Segmen
 }
 
 /** One line for the owner's WhatsApp (no new lines allowed in a template variable). */
-export function offerSummary(o: Pick<Offer, "title" | "message" | "discountPercent" | "freebie"> & { mediaKind?: string | null }) {
+/** The offer's extras ("10% off, with a photo") and its message, shortened. */
+export function offerParts(o: Pick<Offer, "message" | "discountPercent" | "freebie"> & { mediaKind?: string | null }) {
   const extra = [o.discountPercent ? `${o.discountPercent}% off` : null, o.freebie ? "free item/points" : null, o.mediaKind ? `with a ${o.mediaKind === "VIDEO" ? "video" : "photo"}` : null].filter(Boolean).join(", ");
   const msg = o.message.replace(/\s+/g, " ").trim();
-  const body = msg.length > 300 ? msg.slice(0, 299) + "…" : msg;
+  return { extra, body: msg.length > 300 ? msg.slice(0, 299) + "…" : msg };
+}
+
+export function offerSummary(o: Pick<Offer, "title" | "message" | "discountPercent" | "freebie"> & { mediaKind?: string | null }) {
+  const { extra, body } = offerParts(o);
   return `${o.title}${extra ? ` (${extra})` : ""}: ${body}`;
+}
+
+/**
+ * The badge for an offer that went out (retest 27 Nov 2026, NEW 1): "Sent" only
+ * when everyone got it; nobody → "Failed"; some → "Partly sent".
+ */
+export function sentOutcome(o: { sentCount: number; failedCount: number }): "SENT" | "PARTLY_SENT" | "FAILED" {
+  if (o.sentCount === 0 && o.failedCount > 0) return "FAILED";
+  return o.failedCount > 0 ? "PARTLY_SENT" : "SENT";
+}
+
+/** Why one customer didn't get it, in the owner's words. */
+export function notSentReason(r: SendResult | null, locationActive = true): string {
+  if (!locationActive) return "Location is suspended";
+  if (!r) return "WhatsApp not connected";
+  if (r.status === "NOT_SENT" || r.status === "NO_NUMBER") return r.status === "NO_NUMBER" ? "No WhatsApp number (Instagram only)" : "WhatsApp not connected and texting not set up";
+  if (r.status === "OPTED_OUT") return "Customer said STOP";
+  if (r.status === "SUSPENDED") return "Account paused";
+  const e = String(("error" in r ? r.error : "") ?? "");
+  if (e.startsWith("DAILY_LIMIT")) return "Already got an offer today (WhatsApp limit)";
+  if (e.startsWith("WINDOW_CLOSED")) return "WhatsApp needs an approved template";
+  if (/STOP/i.test(e)) return "Customer said STOP";
+  if (/Loopdesk/i.test(e)) return "Could not reach Loopdesk AI (WhatsApp)";
+  return e ? `WhatsApp refused: ${e.replace(/\s+/g, " ").slice(0, 80)}` : "Not delivered";
+}
+
+/** "WhatsApp not connected (3); Customer said STOP (1)" */
+export function reasonSummary(counts: Map<string, number>) {
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} (${n})`).join("; ").slice(0, 500) || null;
 }
 
 // ── Audience ──────────────────────────────────────────────────────────────
@@ -208,8 +242,10 @@ export async function sendOffer(offerId: string, now = new Date()) {
     include: { location: true }, orderBy: { lastSeenAt: "desc" }, take: MAX_OFFER_RECIPIENTS,
   });
   let sent = 0, failed = 0;
+  const reasons = new Map<string, number>();
+  const miss = (why: string) => { failed++; reasons.set(why, (reasons.get(why) ?? 0) + 1); };
   for (const c of customers) {
-    if (c.location.status !== "ACTIVE") { failed++; continue; }
+    if (c.location.status !== "ACTIVE") { miss(notSentReason(null, false)); continue; }
     const first = (c.name ?? "").trim().split(/\s+/)[0] || (lang === "en" ? "there" : "ji");
     const channel = c.preferredChannel ?? business.defaultChannel;
     let r: SendResult | null = null;
@@ -219,10 +255,12 @@ export async function sendOffer(offerId: string, now = new Date()) {
         ...(header ? { templateKey: header.kind === "IMAGE" ? "offer_image" : "offer_video", header, plainTemplateKey: "offer" } : { templateKey: "offer" }),
       });
     }
+    const wa = r;
     if (!r) r = await sendCustomerSms({ business, location: c.location, customer: c, purpose: "OFFER", body: offer.message });
-    if (r.ok && r.status !== "NOT_SENT") sent++; else failed++;
+    if (r.ok && r.status !== "NOT_SENT") sent++;
+    else miss(notSentReason(wa ?? (r.status === "NOT_SENT" ? r : null)));
   }
-  await prisma.offer.update({ where: { id: offer.id }, data: { status: "SENT", sentAt: now, sentCount: sent, failedCount: failed } });
+  await prisma.offer.update({ where: { id: offer.id }, data: { status: "SENT", sentAt: now, sentCount: sent, failedCount: failed, failReasons: reasonSummary(reasons) } });
   await logEvent({ businessId: business.id, source: "OFFER", level: "INFO", message: `Offer #${offer.approvalNo} sent: ${sent} delivered to WhatsApp/SMS, ${failed} not sent`, meta: { offerId: offer.id } });
   return { sent, failed };
 }
