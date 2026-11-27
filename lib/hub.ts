@@ -11,7 +11,7 @@ export class HubAuthError extends Error {
  * Verify a Loopdesk token and burn its jti, so it works exactly once.
  * Throws HubAuthError (503 when HUB_SECRET isn't set on this server).
  */
-export async function useHubToken(token: string | null | undefined, purpose: HubPurpose): Promise<HubClaims> {
+export async function consumeHubToken(token: string | null | undefined, purpose: HubPurpose): Promise<HubClaims> {
   const secret = hubSecret();
   if (!secret) throw new HubAuthError("Loopdesk connection is not set up on this server (HUB_SECRET missing)", 503);
   if (!token) throw new HubAuthError("Missing token");

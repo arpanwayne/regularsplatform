@@ -344,11 +344,15 @@ model CallingScript {
   title     String
   content   String
   isDefault Boolean  @default(false) // seeded template vs. custom edit
+  /// The customer a personal script was generated for (null = template). Bugs 8 + 15, 27 Nov 2026.
+  customerId String?
   createdAt DateTime @default(now())
 
   callLogs CallLog[]
 
   @@index([businessId, sector, segment])
+
+  @@index([businessId, customerId, createdAt])
 }
 
 model CallLog {

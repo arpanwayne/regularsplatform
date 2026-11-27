@@ -77,8 +77,8 @@ export default async function UnifiedCustomersPage() {
           No customers yet.
         </div>
       ) : (
-        <div className="rounded-card border border-gray-200 bg-white overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-card border border-gray-200 bg-white overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-gray-50 text-left text-gray-500">
               <tr>
                 <th className="px-4 py-2 font-medium">Customer</th>

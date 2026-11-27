@@ -147,6 +147,7 @@ export default async function InboxPage({ searchParams }: { searchParams: { c?: 
                 customerId={active.id}
                 channel={replyChannel}
                 windowOpen={waWindowOpen}
+                neverWrote={!thread.some((m) => m.direction === "INBOUND" && m.channel === "WHATSAPP")}
                 disabled={replyOnInstagram ? false : replyOnWhatsApp ? active.optedOut : active.smsOptedOut}
               />
             )}

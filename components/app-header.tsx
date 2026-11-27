@@ -117,7 +117,7 @@ function ToolSwitcher({ items }: { items: SwitcherItem[] }) {
         </svg>
       </button>
       {open && (
-        <div role="menu" aria-label="Loopdesk AI tools" className="absolute left-0 top-10 z-30 w-[340px] rounded-modal border border-gray-200 bg-white p-3 text-gray-900 shadow-pop">
+        <div role="menu" aria-label="Loopdesk AI tools" className="absolute left-0 top-10 z-30 w-[min(340px,calc(100vw-2rem))] rounded-modal border border-gray-200 bg-white p-3 text-gray-900 shadow-pop">
           <p className="px-2 pb-2 text-xs font-medium text-gray-500">Loopdesk AI</p>
           <div className="grid grid-cols-2 gap-1">
             {items.map((t) => {

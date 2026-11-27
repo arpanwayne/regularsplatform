@@ -10,7 +10,7 @@ import { ownerWhatsAppSender, sendCustomerWhatsApp, sendOwnerWhatsApp } from "@/
 import { sharedCountries, waErrorText } from "@/lib/whatsapp-sender";
 import { onMessageDeliveryFailed } from "@/lib/growth/delivery";
 import { smsConfigured } from "@/lib/sms";
-import { handleStaffMessage } from "@/lib/staff";
+import { handleStaffMessage, OWNER_NOT_INBOX } from "@/lib/staff";
 import { applyConsentReply, applyJoin, consentAnswerText, parseConsentReply, parseJoin, welcomeText } from "@/lib/onboarding";
 
 // GET — Meta's webhook verification handshake. Each Location gets its own
@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
           location = routed?.location ?? null;
           fromOwner = !!routed?.owner;
           if (!location) {
-            await logEvent({ source: "WHATSAPP", level: "WARN", message: "Message on the shared number from someone no business has contacted", meta: { from: message.from } });
+            await logEvent({ source: "WHATSAPP", level: "WARN", message: "Message on the shared number from someone no business has contacted (they must scan a business's QR first, so we know which business they mean)", meta: { from: message.from, text: text?.slice(0, 80) ?? null } });
             continue;
           }
         }
@@ -197,14 +197,25 @@ export async function POST(req: NextRequest) {
         if (business.status === "SUSPENDED" || location.status === "SUSPENDED") continue;
 
         try {
+          // A QR scan ("JOIN <code>" for this location) is always a customer
+          // joining, even from the owner's or a manager's own phone while
+          // testing (bugs 4 + 5, 27 Nov 2026).
+          const qrJoin = parseJoin(text);
+          const joining = !!qrJoin && location.joinCode === qrJoin.code;
+
           // The owner approving an offer / a manager adding a customer.
-          if (text && (await handleStaffMessage(location, message.from, text, "WHATSAPP").catch(async (err) => {
+          if (text && !joining && (await handleStaffMessage(location, message.from, text, "WHATSAPP").catch(async (err) => {
             await logEvent({ businessId: business.id, source: "WHATSAPP", level: "ERROR", message: "Staff command failed", meta: { error: err instanceof Error ? err.message : String(err) } });
             return false;
           }))) continue;
           // The owner answering the daily brief.
-          if (text && (await handleOwnerReply(location, message.from, text).catch(() => false))) continue;
-          if (fromOwner) continue; // owner chatting to the shared number, not a customer
+          if (text && !joining && (await handleOwnerReply(location, message.from, text).catch(() => false))) continue;
+          if (fromOwner && !joining) {
+            // The owner chatting to the shared number is not a customer, so it
+            // never shows in the inbox. Say so, instead of going quiet (bug 6).
+            await sendOwnerWhatsApp(business, location, message.from, { text: OWNER_NOT_INBOX }).catch(() => false);
+            continue;
+          }
 
           const messageType = classifyMessageType(text);
           const optOut = isOptOutMessage(text);
@@ -268,10 +279,9 @@ export async function POST(req: NextRequest) {
           // QR scan ("JOIN <code>") or an answer to the YES/NO consent request:
           // handled automatically — a thank-you goes back, the owner isn't pinged.
           let automatic = false;
-          const join = parseJoin(text);
           const decision = !optOut && customer.consentStatus === "PENDING" ? parseConsentReply(text) : null;
-          if (join && location.joinCode === join.code) {
-            const joined = await applyJoin(customer, join.tag, now);
+          if (joining && qrJoin) {
+            const joined = await applyJoin(customer, qrJoin.tag, now);
             await sendCustomerWhatsApp({ business, location, customer: joined, purpose: "OTHER", text: await welcomeText(business, senderName(location, business)), now });
             automatic = true;
           } else if (decision) {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createSessionToken, SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/auth";
-import { HubAuthError, useHubToken } from "@/lib/hub";
+import { HubAuthError, consumeHubToken } from "@/lib/hub";
 import { safeNext } from "@/lib/hub-rules";
 
 /**
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => null)) as { token?: unknown } | null;
   let claims;
   try {
-    claims = await useHubToken(typeof body?.token === "string" ? body.token : null, "sso");
+    claims = await consumeHubToken(typeof body?.token === "string" ? body.token : null, "sso");
   } catch (err) {
     const e = err instanceof HubAuthError ? err : new HubAuthError("Invalid token");
     return NextResponse.json({ error: e.message }, { status: e.status });

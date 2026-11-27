@@ -66,6 +66,7 @@ function LocationCard({ location, canDelete, sharedNumber, instagram }: { locati
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [waError, setWaError] = useState<string | null>(null);
   const webhookUrl =
     typeof window !== "undefined" ? `${window.location.origin}/api/webhook/whatsapp` : "/api/webhook/whatsapp";
 
@@ -73,21 +74,36 @@ function LocationCard({ location, canDelete, sharedNumber, instagram }: { locati
     e.preventDefault();
     setSaving(true);
     setSaved(false);
+    setWaError(null);
     const form = new FormData(e.currentTarget);
     const phoneId = String(form.get("whatsappPhoneNumberId") ?? "").trim();
     const token = String(form.get("whatsappAccessToken") ?? "").trim();
+    if (!phoneId && !token) { setSaving(false); setWaError("Nothing to save. Leave these empty to use the shared number."); return; }
     const res = await fetch(`/api/locations/${location.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       // Empty token field = keep the saved one.
       body: JSON.stringify({ ...(phoneId ? { whatsappPhoneNumberId: phoneId } : {}), ...(token ? { whatsappAccessToken: token } : {}) }),
     });
+    const data = await res.json().catch(() => ({}));
     setSaving(false);
     if (res.ok) {
       setSaved(true);
       router.refresh();
+    } else {
+      setWaError(typeof data.error === "string" ? data.error : "Couldn't save. Check the Phone number ID and token.");
     }
   }
+
+  async function disconnectWhatsApp() {
+    if (!confirm("Stop using this location's own WhatsApp number? Messages will go from the shared number (if your country uses it).")) return;
+    setWaError(null);
+    const res = await fetch(`/api/locations/${location.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ whatsappDisconnect: true }) });
+    if (res.ok) router.refresh(); else setWaError("Couldn't disconnect. Please try again.");
+  }
+
+  // Bug 2 (27 Nov 2026): a login email autofilled into "Phone number ID" is not a number.
+  const badPhoneId = !!location.whatsappPhoneNumberId && !/^\d{6,25}$/.test(location.whatsappPhoneNumberId);
 
   async function toggleStatus() {
     await fetch(`/api/locations/${location.id}`, {
@@ -137,8 +153,10 @@ function LocationCard({ location, canDelete, sharedNumber, instagram }: { locati
 
       <p className="text-sm">
         WhatsApp:{" "}
-        {location.whatsappPhoneNumberId && location.hasWhatsappToken
-          ? <span className="font-medium text-green-700">own number connected</span>
+        {badPhoneId
+          ? <span className="font-medium text-red-700">wrong value saved in Phone number ID — press Disconnect, then enter the real ID or use the shared number</span>
+          : location.whatsappPhoneNumberId && location.hasWhatsappToken
+          ? <span className="font-medium text-green-700">own number connected{location.whatsappDisplayNumber ? ` (${location.whatsappDisplayNumber})` : ""}</span>
           : sharedNumber
             ? <span className="font-medium text-green-700">using the shared number {sharedNumber}</span>
             : <span className="font-medium text-amber-700">not connected</span>}
@@ -152,12 +170,17 @@ function LocationCard({ location, canDelete, sharedNumber, instagram }: { locati
         <CopyRow label="Verify token" value={location.whatsappVerifyToken} />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-3 max-w-md">
+      {/* autoComplete off: browsers filled the owner's login email and password in here (bugs 2 + 10). */}
+      <form onSubmit={handleSubmit} className="space-y-3 max-w-md" autoComplete="off">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Phone number ID</label>
           <input
             name="whatsappPhoneNumberId"
-            defaultValue={location.whatsappPhoneNumberId ?? ""}
+            defaultValue={badPhoneId ? "" : location.whatsappPhoneNumberId ?? ""}
+            autoComplete="off"
+            inputMode="numeric"
+            data-lpignore="true"
+            data-1p-ignore
             className="w-full rounded-input border border-control px-3 py-2 text-sm"
             placeholder="e.g. 109876543210123"
           />
@@ -168,6 +191,9 @@ function LocationCard({ location, canDelete, sharedNumber, instagram }: { locati
             name="whatsappAccessToken"
             type="password"
             defaultValue=""
+            autoComplete="new-password"
+            data-lpignore="true"
+            data-1p-ignore
             className="w-full rounded-input border border-control px-3 py-2 text-sm"
             placeholder={location.hasWhatsappToken ? "Saved — leave empty to keep it" : "System user permanent access token"}
           />
@@ -179,7 +205,13 @@ function LocationCard({ location, canDelete, sharedNumber, instagram }: { locati
         >
           {saving ? "Saving…" : "Save"}
         </button>
-        {saved && <span className="ml-3 text-sm text-brand-700">Saved</span>}
+        {location.whatsappPhoneNumberId && (
+          <button type="button" onClick={disconnectWhatsApp} className="ml-3 rounded-full border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">
+            Disconnect own number
+          </button>
+        )}
+        {saved && <span className="ml-3 text-sm text-brand-700">Saved — Meta accepted this number</span>}
+        {waError && <p className="text-sm text-red-600">{waError}</p>}
       </form>
 
       {instagram && <InstagramConnect location={location} />}

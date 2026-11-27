@@ -21,7 +21,7 @@ export const HUB_ISSUER = "regulars-hub";
 export const HUB_AUDIENCE = "regulars";
 export const MAX_TOKEN_AGE_SECONDS = 120;
 
-export type HubPurpose = "provision" | "sso";
+export type HubPurpose = "provision" | "sso" | "opt-out";
 export type HubClaims = JWTPayload & { sub: string; jti: string; exp: number; purpose: HubPurpose; [k: string]: unknown };
 
 export function hubSecret(env: Record<string, string | undefined> = process.env): Uint8Array | null {
@@ -110,3 +110,17 @@ export function matchOwner(
  * and auto-downgrade don't apply.
  */
 export const HUB_PLAN = { plan: "PRO", planExpiresAt: null } as const;
+
+/**
+ * Phone spellings a customer row may have for these digits (bug 1, 27 Nov
+ * 2026: STOP in Loopdesk must stop Regulars too). "917087064479" →
+ * 917087064479, +917087064479, 7087064479, 07087064479.
+ */
+export function phoneVariants(raw: string): string[] {
+  const digits = String(raw ?? "").replace(/\D/g, "");
+  if (digits.length < 10 || digits.length > 15) return [];
+  const out = new Set([digits, `+${digits}`]);
+  if (digits.length === 12 && digits.startsWith("91")) { out.add(digits.slice(2)); out.add(`0${digits.slice(2)}`); }
+  if (digits.length === 11 && digits.startsWith("1")) out.add(digits.slice(1));
+  return Array.from(out);
+}

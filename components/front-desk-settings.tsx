@@ -84,13 +84,13 @@ function LocationSms({ location }: { location: Location }) {
   const field = (k: keyof typeof form, label: string, placeholder: string) => (
     <label className="block text-sm">
       <span className="text-gray-600">{label}</span>
-      <input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} placeholder={placeholder}
+      <input value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} placeholder={placeholder} autoComplete="off"
         className="mt-1 w-full rounded-input border border-control px-3 py-2" />
     </label>
   );
 
   return (
-    <form onSubmit={save} className="space-y-3 rounded-card border border-gray-100 bg-gray-50 p-4">
+    <form onSubmit={save} autoComplete="off" className="space-y-3 rounded-card border border-gray-100 bg-gray-50 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-medium">{location.name}</h3>
         <span className="text-sm text-gray-600">

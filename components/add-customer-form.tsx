@@ -28,8 +28,8 @@ export function AddCustomerForm({ locations }: { locations: { id: string; name: 
       <h2 className="font-medium">Add a customer</h2>
       <p className="text-gray-600">Ask them first if they&apos;d like offers on WhatsApp. They get one message to reply YES or NO, and offers start only after YES.</p>
       <div className="flex flex-wrap items-center gap-2">
-        <input className="rounded-input border border-control px-3 py-2" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="rounded-input border border-control px-3 py-2" placeholder="Mobile" value={phone} onChange={(e) => setPhone(e.target.value)} required />
+        <input className="w-full rounded-input border border-control px-3 py-2 sm:w-auto" placeholder="Name" autoComplete="off" value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="w-full rounded-input border border-control px-3 py-2 sm:w-auto" placeholder="Mobile" inputMode="tel" autoComplete="off" value={phone} onChange={(e) => setPhone(e.target.value)} required />
         {locations.length > 1 && (
           <select className="rounded-input border border-control px-2 py-2" value={locationId} onChange={(e) => setLocationId(e.target.value)}>
             {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}

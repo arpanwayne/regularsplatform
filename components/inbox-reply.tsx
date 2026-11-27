@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export function InboxReply({ customerId, disabled, channel = "SMS", windowOpen = true }: {
+export function InboxReply({ customerId, disabled, channel = "SMS", windowOpen = true, neverWrote = false }: {
   customerId: string; disabled?: boolean; channel?: "WHATSAPP" | "SMS" | "INSTAGRAM"; windowOpen?: boolean;
+  /** The customer has never written to us (bug 16: they were told "more than 24 hours"). */
+  neverWrote?: boolean;
 }) {
   const wa = channel === "WHATSAPP";
   const ig = channel === "INSTAGRAM";
@@ -48,6 +50,11 @@ export function InboxReply({ customerId, disabled, channel = "SMS", windowOpen =
   if (ig && !windowOpen) {
     return <p className="border-t border-gray-200 px-5 py-3 text-sm text-gray-500">
       More than 24 hours since this customer&apos;s last Instagram message, so Instagram won&apos;t allow a reply. You can reply again as soon as they DM you.
+    </p>;
+  }
+  if (wa && !windowOpen && neverWrote) {
+    return <p className="border-t border-gray-200 px-5 py-3 text-sm text-gray-500">
+      This customer hasn&apos;t written to you on WhatsApp yet, so WhatsApp only allows approved templates (like the YES/NO request or an offer). You can reply freely once they message you.
     </p>;
   }
   if (wa && !windowOpen) {
