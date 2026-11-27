@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentMember } from "@/lib/session";
 import { formatDateTime } from "@/lib/format";
-import { offerSummary } from "@/lib/offers";
+import { offerParts, sentOutcome } from "@/lib/offers";
 import { OfferComposer } from "@/components/offer-composer";
 import { loopdeskVideoStudioUrl } from "@/lib/offer-media";
 import { OfferActions } from "@/components/offer-actions";
@@ -15,6 +15,8 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   APPROVED: { label: "Approved, sending soon", cls: "bg-blue-100 text-blue-800" },
   SENDING: { label: "Sending", cls: "bg-blue-100 text-blue-800" },
   SENT: { label: "Sent", cls: "bg-green-100 text-green-800" },
+  PARTLY_SENT: { label: "Partly sent", cls: "bg-amber-100 text-amber-800" },
+  FAILED: { label: "Failed", cls: "bg-red-100 text-red-700" },
   REJECTED: { label: "Rejected", cls: "bg-gray-100 text-gray-700" },
   EXPIRED: { label: "Expired (no answer in 48h)", cls: "bg-gray-100 text-gray-700" },
   CANCELLED: { label: "Cancelled", cls: "bg-gray-100 text-gray-700" },
@@ -65,7 +67,10 @@ export default async function OffersPage() {
           <tbody className="divide-y divide-gray-100">
             {offers.length === 0 && <tr><td colSpan={5} className="px-4 py-6 text-center text-gray-500">No offers yet.</td></tr>}
             {offers.map((o) => {
-              const st = STATUS[o.status] ?? { label: o.status, cls: "bg-gray-100 text-gray-700" };
+              // Retest 27 Nov 2026, NEW 1: a green "Sent" only when it reached everyone.
+              const shown = o.status === "SENT" ? sentOutcome(o) : o.status;
+              const st = STATUS[shown] ?? { label: o.status, cls: "bg-gray-100 text-gray-700" };
+              const parts = offerParts({ ...o, mediaKind: o.media?.kind ?? null });
               return (
                 <tr key={o.id} className="align-top">
                   <td className="px-4 py-3 text-gray-500">{o.approvalNo}</td>
@@ -75,7 +80,9 @@ export default async function OffersPage() {
                       ? <img src={`/api/media/offers/${o.media.id}`} alt="" className="float-right ml-3 h-14 w-14 rounded object-cover" />
                       : <span className="float-right ml-3 rounded bg-gray-900 px-2 py-1 text-xs text-white">🎬 video</span>)}
                     <p className="font-medium">{o.title}</p>
-                    <p className="text-gray-600">{offerSummary(o).slice(o.title.length + 2)}</p>
+                    {/* NEW 2: the message itself, not a slice of the "Title (10% off): …" summary. */}
+                    {parts.extra && <p className="text-xs font-medium text-brand-700">{parts.extra}</p>}
+                    <p className="text-gray-600">{parts.body}</p>
                     <p className="mt-1 text-xs text-gray-500">
                       By {o.createdBy?.name ?? "a removed manager"}, {formatDateTime(o.createdAt, business.country)}
                       {o.segments ? ` · ${o.segments.split(",").map((s) => s.replace("_", " ").toLowerCase()).join(", ")}` : " · all customers"}
@@ -83,7 +90,12 @@ export default async function OffersPage() {
                     </p>
                     {o.approvalReason && o.status === "PENDING_APPROVAL" && <p className="mt-1 text-xs text-amber-700">Needs the owner: {o.approvalReason}.</p>}
                   </td>
-                  <td className="px-4 py-3 text-gray-700">{o.status === "SENT" ? `${o.sentCount} sent${o.failedCount ? `, ${o.failedCount} not sent` : ""}` : o.audienceCount}</td>
+                  <td className="px-4 py-3 text-gray-700">
+                    {o.status === "SENT" ? `${o.sentCount} sent${o.failedCount ? `, ${o.failedCount} not sent` : ""}` : o.audienceCount}
+                    {o.status === "SENT" && o.failedCount > 0 && (
+                      <p className="mt-1 max-w-[16rem] text-xs text-red-700">Not sent: {o.failReasons ?? "reason not recorded (sent before this was tracked)"}</p>
+                    )}
+                  </td>
                   <td className="px-4 py-3"><span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}>{st.label}</span></td>
                   <td className="px-4 py-3 text-right">
                     <OfferActions id={o.id} status={o.status} canDecide={isOwner} canCancel={isOwner || o.createdById === user.id} />

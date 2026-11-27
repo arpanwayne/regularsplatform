@@ -178,6 +178,8 @@ function LocationCard({ location, canDelete, sharedNumber, instagram }: { locati
             name="whatsappPhoneNumberId"
             defaultValue={badPhoneId ? "" : location.whatsappPhoneNumberId ?? ""}
             autoComplete="off"
+            pattern="\d{6,25}"
+            title="Only digits, from Meta → WhatsApp → API Setup"
             inputMode="numeric"
             data-lpignore="true"
             data-1p-ignore
@@ -187,11 +189,16 @@ function LocationCard({ location, canDelete, sharedNumber, instagram }: { locati
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Access token</label>
+          {/* Not type="password": a text box above a password box is what Chrome treats as a
+              login form, so it filled the owner's email + password here even with autocomplete off
+              (retest 27 Nov 2026, bug 10). Masked with CSS instead. */}
           <input
             name="whatsappAccessToken"
-            type="password"
+            type="text"
             defaultValue=""
-            autoComplete="new-password"
+            autoComplete="off"
+            spellCheck={false}
+            style={{ WebkitTextSecurity: "disc" } as React.CSSProperties}
             data-lpignore="true"
             data-1p-ignore
             className="w-full rounded-input border border-control px-3 py-2 text-sm"

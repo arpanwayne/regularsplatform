@@ -30,8 +30,10 @@ test("B2: the owner brief picks a channel that can really reach the owner, or sa
   setEnv("WHATSAPP_OWNER_ANY_COUNTRY", "false");
   const r = ownerChannel(settings({ ownerPhone: "+14165551234" }), biz({ country: "CA", defaultChannel: "SMS" }));
   assert.equal(r.ok, false);
-  assert.match((r as { reason: string }).reason, /texting number/);
-  assert.match((r as { reason: string }).reason, /Twilio/);
+  // Retest 27 Nov 2026, NEW 3: the technical part is for Admin → Logs (detail), the client gets plain words.
+  assert.match((r as { detail: string }).detail, /texting number/);
+  assert.match((r as { detail: string }).detail, /Twilio/);
+  assert.doesNotMatch((r as { reason: string }).reason, /TWILIO|GROWTH_SMS_FROM/);
   setEnv("WHATSAPP_OWNER_ANY_COUNTRY", undefined);
 
   // SMS business with Twilio + a texting number: SMS.

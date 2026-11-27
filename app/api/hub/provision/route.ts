@@ -31,6 +31,8 @@ const bodySchema = z.object({
     email: z.string().email(),
     phone: z.string().nullish(),
   }),
+  /** Loopdesk's QR join code for this business: our QR uses the same one (one WhatsApp number per bundle). */
+  joinCode: z.string().regex(/^[A-Z0-9]{4,12}$/i).nullish(),
 });
 
 export async function POST(req: NextRequest) {
@@ -97,6 +99,17 @@ export async function POST(req: NextRequest) {
       include: { locations: { orderBy: { createdAt: "asc" }, take: 1 } },
     });
     if (change) await logEvent({ businessId: biz.id, source: "BILLING", level: "INFO", message: body.active ? "Resumed by Loopdesk AI" : "Paused by Loopdesk AI" });
+  }
+
+  // One number for the whole bundle (Regulars retest, 27 Nov 2026): a Regulars QR
+  // must carry Loopdesk's join code, so the scan reaches Loopdesk's webhook,
+  // which knows the business and passes the message on to us.
+  const first = biz!.locations[0];
+  const joinCode = body.joinCode?.toUpperCase();
+  if (first && joinCode && first.joinCode !== joinCode) {
+    const taken = await prisma.location.findFirst({ where: { joinCode, NOT: { id: first.id } }, select: { id: true } });
+    if (taken) await logEvent({ businessId: biz!.id, source: "BILLING", level: "WARN", message: "Loopdesk QR join code already used by another location here; kept our own", meta: { joinCode } });
+    else await prisma.location.update({ where: { id: first.id }, data: { joinCode } });
   }
 
   return NextResponse.json({

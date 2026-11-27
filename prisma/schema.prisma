@@ -664,6 +664,8 @@ model Offer {
   sentAt         DateTime?
   sentCount      Int       @default(0)
   failedCount    Int       @default(0)
+  /// Why customers didn't get it, e.g. "WhatsApp not connected (1)" (retest 27 Nov 2026, NEW 1).
+  failReasons String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

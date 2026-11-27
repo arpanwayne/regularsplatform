@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { mayMarket } from "@/lib/consent";
 import { logEvent } from "@/lib/logger";
 import { sendReviewRequest, sendToCustomer } from "@/lib/front-desk";
 import { gmb, ToolError, videoStudio, wayneRing } from "@/lib/growth/connectors";
@@ -59,6 +60,12 @@ export async function executeAction(actionId: string, now = new Date()): Promise
   if (contact && (!c || c.optedOut)) {
     await prisma.growthAction.update({ where: { id: action.id }, data: { status: "SKIPPED", error: "Customer opted out or removed" } });
     return { id: action.id, status: "SKIPPED", detail: "opted out" };
+  }
+  // Retest 27 Nov 2026 (check point): consent is checked again at Approve time, not only when
+  // the plan was made — someone who said NO (or never answered the YES/NO) since then gets nothing.
+  if (contact && c && !mayMarket(c, business.country, now)) {
+    await prisma.growthAction.update({ where: { id: action.id }, data: { status: "SKIPPED", error: "Customer hasn't said YES to messages (opted in)" } });
+    return { id: action.id, status: "SKIPPED", detail: "no consent" };
   }
 
   // Claim it (two cron runs or a cron + an owner reply can't both execute it).

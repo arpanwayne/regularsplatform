@@ -17,7 +17,27 @@
  *   WHATSAPP_SHARED_COUNTRIES         comma list, default "IN"
  */
 
-export type WaSender = { phoneNumberId: string; accessToken: string; shared: boolean };
+/**
+ * hubBusinessId set = this message goes out through Loopdesk AI (the bundle's
+ * one WhatsApp number, Regulars retest 27 Nov 2026): lib/whatsapp-hub.ts.
+ * phoneNumberId / accessToken are then empty — Loopdesk holds them.
+ */
+export type WaSender = { phoneNumberId: string; accessToken: string; shared: boolean; hubBusinessId?: string };
+
+/**
+ * Bundle clients (set up by Loopdesk AI, hubBusinessId) send from the
+ * bundle's number through Loopdesk, not from WhatsApp keys on this server.
+ * Needs HUB_SECRET (≥ 32 chars) and LOOPDESK_API_URL (or LOOPDESK_APP_URL).
+ */
+export function loopdeskApiUrl(env: Record<string, string | undefined> = process.env) {
+  return (env.LOOPDESK_API_URL || env.LOOPDESK_APP_URL || "").replace(/\/$/, "") || null;
+}
+export function hubWhatsAppReady(env: Record<string, string | undefined> = process.env) {
+  return !!loopdeskApiUrl(env) && (env.HUB_SECRET?.length ?? 0) >= 32;
+}
+export function hubSender(hubBusinessId: string | null | undefined): WaSender | null {
+  return hubBusinessId && hubWhatsAppReady() ? { phoneNumberId: "", accessToken: "", shared: true, hubBusinessId } : null;
+}
 
 type LocationLike = { whatsappPhoneNumberId: string | null; whatsappAccessToken: string | null };
 
@@ -50,10 +70,13 @@ export function hasOwnWhatsApp(location: LocationLike | null | undefined) {
   return !!location?.whatsappAccessToken && isMetaPhoneNumberId(location.whatsappPhoneNumberId);
 }
 
-export function whatsappSenderFor(location: LocationLike | null | undefined, business: { country: string }): WaSender | null {
+export function whatsappSenderFor(location: LocationLike | null | undefined, business: { country: string; hubBusinessId?: string | null }): WaSender | null {
   if (location && hasOwnWhatsApp(location) && location.whatsappPhoneNumberId && location.whatsappAccessToken) {
     return { phoneNumberId: location.whatsappPhoneNumberId, accessToken: location.whatsappAccessToken, shared: false };
   }
+  // Bundle client: the bundle's one number, through Loopdesk (any country).
+  const viaHub = hubSender(business.hubBusinessId);
+  if (viaHub) return viaHub;
   return usesSharedNumber(business) ? sharedSender() : null;
 }
 

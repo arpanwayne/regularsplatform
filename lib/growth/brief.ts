@@ -36,7 +36,11 @@ export function ownerPhoneFor(s: GrowthSettings, b: Business & { locations: Loca
 
 export type OwnerChannel =
   | { ok: true; channel: "WHATSAPP" | "SMS"; to: string }
-  | { ok: false; reason: string };
+  /** reason: shown to the client, plain words. detail: for Admin → Logs only (server settings by name). */
+  | { ok: false; reason: string; detail?: string };
+
+/** Retest 27 Nov 2026, NEW 3: clients never see server setting names. */
+export const OWNER_UNREACHABLE = "WhatsApp isn't connected yet, so we can't send you the plan. Please contact Loopdesk support.";
 
 /**
  * How the owner's morning plan will reach them, or exactly why it can't.
@@ -61,9 +65,11 @@ export function ownerChannel(s: GrowthSettings, b: Business & { locations: Locat
   const missing = [
     !smsFrom && "no texting number (Admin → assign one, or set GROWTH_SMS_FROM)",
     !smsConfigured() && "Twilio not set up (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN)",
-    "no WhatsApp sender (WHATSAPP_SHARED_PHONE_NUMBER_ID / WHATSAPP_SHARED_ACCESS_TOKEN)",
+    b.hubBusinessId
+      ? "no WhatsApp sender (bundle client: set LOOPDESK_API_URL and HUB_SECRET so WhatsApp goes through Loopdesk AI)"
+      : "no WhatsApp sender (WHATSAPP_SHARED_PHONE_NUMBER_ID / WHATSAPP_SHARED_ACCESS_TOKEN)",
   ].filter(Boolean);
-  return { ok: false, reason: `Can't reach the owner: ${missing.join("; ")}.` };
+  return { ok: false, reason: OWNER_UNREACHABLE, detail: `Can't reach the owner: ${missing.join("; ")}.` };
 }
 
 /** Groups today's proposals into numbered brief items (one item per action type; single actions keep their own title). */
@@ -117,7 +123,7 @@ type OwnerTemplate = { templateKey: WaTemplateKey; params: string[] };
 export async function sendToOwner(business: Business & { locations: Location[] }, s: GrowthSettings, body: string, wa?: OwnerTemplate) {
   const ch = ownerChannel(s, business);
   if (!ch.ok) {
-    await logEvent({ businessId: business.id, source: "GROWTH", level: "WARN", message: `Owner message not sent: ${ch.reason}`, meta: { body } });
+    await logEvent({ businessId: business.id, source: "GROWTH", level: "WARN", message: `Owner message not sent: ${ch.detail ?? ch.reason}`, meta: { body } });
     return false;
   }
   const loc = firstLoc(business);
