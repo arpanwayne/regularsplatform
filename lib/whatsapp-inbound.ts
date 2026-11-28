@@ -71,7 +71,7 @@ export async function handleWhatsAppStatus(st: WaStatus): Promise<void> {
  * One customer / owner message. Returns true when it was stored (the caller
  * re-runs segmentation for the business), false when it was handled or skipped.
  */
-export async function handleInboundWhatsApp(p: { location: LocWithBusiness; message: WaInboundMessage; profileName: string | null; fromOwner: boolean }): Promise<boolean> {
+export async function handleInboundWhatsApp(p: { location: LocWithBusiness; message: WaInboundMessage; profileName: string | null; fromOwner: boolean; hubJoin?: boolean }): Promise<boolean> {
   const { location, message, fromOwner } = p;
   const business = location.business;
   const text = message.text?.body ?? message.button?.text ?? message.interactive?.button_reply?.title;
@@ -80,7 +80,9 @@ export async function handleInboundWhatsApp(p: { location: LocWithBusiness; mess
   // joining, even from the owner's or a manager's own phone while
   // testing (bugs 4 + 5, 27 Nov 2026).
   const qrJoin = parseJoin(text);
-  const joining = !!qrJoin && location.joinCode === qrJoin.code;
+  // hubJoin: Loopdesk AI already matched this JOIN code to this business (A3,
+  // 28 Nov 2026) — e.g. a Regulars QR printed before the codes were unified.
+  const joining = !!qrJoin && (location.joinCode === qrJoin.code || p.hubJoin === true);
 
   // The owner approving an offer / a manager adding a customer.
   if (text && !joining && (await handleStaffMessage(location, message.from, text, "WHATSAPP").catch(async (err) => {

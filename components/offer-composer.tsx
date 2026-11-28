@@ -30,6 +30,8 @@ export function OfferComposer({ isOwner, limits, loopdeskVideoUrl = null }: { is
   const [sendAt, setSendAt] = useState("");
   const [audience, setAudience] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // B6: shown once when the message's % differs from the discount box; the next Save keeps it.
+  const [mismatch, setMismatch] = useState<string | null>(null);
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [media, setMedia] = useState<Media | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -98,11 +100,13 @@ export function OfferComposer({ isOwner, limits, loopdeskVideoUrl = null }: { is
     const res = await fetch("/api/offers", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title, message, discountPercent: discount ? Number(discount) : null, freebie, segments, sendAt: sendAt ? new Date(sendAt).toISOString() : null, mediaId: media?.id ?? null }),
+      body: JSON.stringify({ title, message, discountPercent: discount ? Number(discount) : null, freebie, segments, confirmMismatch: !!mismatch, sendAt: sendAt ? new Date(sendAt).toISOString() : null, mediaId: media?.id ?? null }),
     });
     const d = await res.json().catch(() => ({}));
     setBusy(false);
+    if (res.status === 409 && d.code === "DISCOUNT_MISMATCH") { setMismatch(d.error); setResult({ ok: false, text: d.error }); return; }
     if (!res.ok) { setResult({ ok: false, text: d.error || "Couldn't save the offer." }); return; }
+    setMismatch(null);
     setResult({
       ok: true,
       text: d.auto
@@ -118,7 +122,7 @@ export function OfferComposer({ isOwner, limits, loopdeskVideoUrl = null }: { is
     <form ref={formRef} onSubmit={submit} className="space-y-3 rounded-card border border-gray-200 bg-white p-4 text-sm">
       <h2 className="font-medium">New offer</h2>
       <input className={input} placeholder="Title, e.g. Weekend hair spa offer" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={80} required />
-      <textarea className={input} rows={3} placeholder="What customers read, e.g. 20% off any hair spa this Saturday and Sunday. Show this message at the counter." value={message} onChange={(e) => setMessage(e.target.value)} maxLength={500} required />
+      <textarea className={input} rows={3} placeholder="What customers read, e.g. 20% off any hair spa this Saturday and Sunday. Show this message at the counter." value={message} onChange={(e) => { setMessage(e.target.value); setMismatch(null); }} maxLength={500} required />
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={rewrite} disabled={rewriting || message.trim().length < 5}
           className="rounded-full border border-brand-600 px-3 py-1 text-xs font-medium text-brand-800 hover:bg-brand-50 disabled:opacity-50">
@@ -165,7 +169,7 @@ export function OfferComposer({ isOwner, limits, loopdeskVideoUrl = null }: { is
       </div>
       <div className="flex flex-wrap items-center gap-4">
         <label className="flex items-center gap-2">Discount
-          <input className="w-20 rounded-input border border-control px-2 py-1" type="number" min={0} max={100} value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="0" /> %
+          <input className="w-20 rounded-input border border-control px-2 py-1" type="number" min={0} max={100} value={discount} onChange={(e) => { setDiscount(e.target.value); setMismatch(null); }} placeholder="0" /> %
         </label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={freebie} onChange={(e) => setFreebie(e.target.checked)} /> Free item or bonus points</label>
         <label className="flex items-center gap-2">Send after

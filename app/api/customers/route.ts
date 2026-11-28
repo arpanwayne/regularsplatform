@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { getCurrentBusiness } from "@/lib/session";
-import { isPlaceholderPhone, normalizePhone } from "@/lib/phone";
+import { isPlaceholderPhone, mobileProblem, normalizePhone, oneDigitAway } from "@/lib/phone";
 import { addCustomerByStaff, staffAddReply } from "@/lib/onboarding";
 
 /**
@@ -14,6 +14,8 @@ const schema = z.object({
   name: z.string().trim().max(80).optional().nullable(),
   phone: z.string().trim().min(6).max(30),
   locationId: z.string().optional(),
+  /** The owner saw "a similar number already exists" and adds it anyway (B8). */
+  confirmSimilar: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -25,6 +27,22 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Enter the customer's mobile number." }, { status: 400 });
   const phone = normalizePhone(parsed.data.phone, business.country);
   if (!phone || isPlaceholderPhone(phone)) return NextResponse.json({ error: "That doesn't look like a real mobile number." }, { status: 400 });
+  // B8 (28 Nov 2026): country code + length, then "is this the same person?".
+  const problem = mobileProblem(phone);
+  if (problem) return NextResponse.json({ error: problem }, { status: 400 });
+  if (!parsed.data.confirmSimilar) {
+    const near = await prisma.customer.findMany({
+      where: { businessId: business.id, phone: { startsWith: phone.slice(0, 2) }, NOT: { phone } },
+      select: { name: true, phone: true }, take: 20000,
+    });
+    const similar = near.find((c) => oneDigitAway(c.phone, phone));
+    if (similar) {
+      return NextResponse.json({
+        error: `${similar.name ? `${similar.name} ` : ""}+${similar.phone} is already a customer — just one digit different. Same person? Fix the number, or press Add again to add it anyway.`,
+        code: "SIMILAR_NUMBER",
+      }, { status: 409 });
+    }
+  }
 
   const location = parsed.data.locationId
     ? await prisma.location.findFirst({ where: { id: parsed.data.locationId, businessId: business.id } })

@@ -50,7 +50,7 @@ export const DEFAULT_AUTONOMY: Record<ActionType, Autonomy> = {
 export const ACTION_LABEL: Record<ActionType, { one: string; many: (n: number) => string }> = {
   MISSED_LEAD_CALLBACK: { one: "Call back a missed lead", many: (n) => `Call back ${n} missed leads` },
   QUOTE_FOLLOW_UP: { one: "Follow up a quote", many: (n) => `Follow up ${n} quotes` },
-  SERVICE_DUE: { one: "Remind a customer their service is due", many: (n) => `Remind ${n} customers their service is due` },
+  SERVICE_DUE: { one: "Remind a customer it's time to come again", many: (n) => `Remind ${n} customers it's time to come again` },
   WIN_BACK: { one: "Win back a quiet customer", many: (n) => `Win back ${n} quiet customers` },
   REVIEW_REQUEST: { one: "Ask for a Google review", many: (n) => `Ask ${n} customers for a Google review` },
   REVIEW_REPLY: { one: "Reply to a Google review", many: (n) => `Reply to ${n} Google reviews` },

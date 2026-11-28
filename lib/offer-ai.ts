@@ -1,5 +1,6 @@
 import { logEvent } from "@/lib/logger";
 import { estimateClaudeCostUsd, recordUsageEvent } from "@/lib/usage";
+import { discountMismatch } from "@/lib/offers";
 
 /**
  * AI help for offers (Nov 2026): rewrite a rough offer into a message people
@@ -92,6 +93,7 @@ export function rewritePrompt(p: RewriteInput): string {
     "Rules:",
     `- At most 350 characters, one paragraph, no line breaks. At most one emoji.`,
     "- Keep every real detail (what, price, discount, dates, conditions). Do NOT invent prices, percentages, dates, deadlines, products or guarantees that aren't in the draft.",
+    ...(p.discountPercent ? [`- The discount is exactly ${p.discountPercent}%. Write ${p.discountPercent}% and no other percentage. Only change the wording, never the discount, price or dates.`] : []),
     "- Do not start with a greeting or the business name, and do not add an opt-out line (the template adds both).",
     "- End with a clear next step (visit, reply, show this message at the counter) only if it fits the draft.",
     "- Also write a short title (max 50 characters) for the owner's offer list.",
@@ -115,5 +117,17 @@ export async function rewriteOffer(businessId: string, p: RewriteInput): Promise
     await logEvent({ businessId, source: "API", level: "WARN", message: "Offer rewrite dropped: it added numbers that weren't in the draft", meta: { invented } });
     return { ok: false, error: `The AI added details you didn't give (${invented.join(", ")}). Try again, or add those details to your draft if they're real.` };
   }
+  // B6 (28 Nov 2026): the label said 10% off and the rewrite said 20%.
+  const wrong = discountMismatch(`${title} ${message}`, p.discountPercent);
+  if (wrong.length) {
+    await logEvent({ businessId, source: "API", level: "WARN", message: "Offer rewrite dropped: it changed the discount", meta: { wrong, discountPercent: p.discountPercent } });
+    return { ok: false, error: `The AI wrote ${wrong.map((n) => `${n}%`).join(", ")} but your discount is ${p.discountPercent}%. Try again.` };
+  }
   return { ok: true, title: title || p.title?.trim() || "", message };
+}
+
+/** The draft itself disagrees with the discount box: ask the owner before the AI picks one (B6). */
+export function draftMismatchError(draft: string, title: string | undefined, discountPercent: number | null | undefined): string | null {
+  const wrong = discountMismatch(`${title ?? ""} ${draft}`, discountPercent);
+  return wrong.length ? `Your message says ${wrong.map((n) => `${n}%`).join(", ")} but the discount box says ${discountPercent}%. Fix one of them first, then rewrite.` : null;
 }

@@ -11,14 +11,17 @@ export function AddCustomerForm({ locations }: { locations: { id: string; name: 
   const [locationId, setLocationId] = useState(locations[0]?.id ?? "");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  // B8: after "a similar number already exists", the next Add goes through.
+  const [similarFor, setSimilarFor] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setMsg(null);
-    const res = await fetch("/api/customers", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, phone, locationId }) });
+    const res = await fetch("/api/customers", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, phone, locationId, confirmSimilar: similarFor === phone }) });
     const d = await res.json().catch(() => ({}));
     setBusy(false);
+    setSimilarFor(res.status === 409 && d.code === "SIMILAR_NUMBER" ? phone : null);
     setMsg({ ok: res.ok, text: res.ok ? d.message : d.error || "Couldn't add. Please try again." });
     if (res.ok) { setName(""); setPhone(""); router.refresh(); }
   }

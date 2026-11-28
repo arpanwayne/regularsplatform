@@ -5,6 +5,7 @@ import { getOwnerBusiness } from "@/lib/session";
 import { executeAction } from "@/lib/growth/executor";
 import { parseJson } from "@/lib/growth/settings";
 import { GROWTH_UPGRADE_MESSAGE, growthAllowed } from "@/lib/growth/access";
+import { retryBlockedUntil } from "@/lib/growth/client-error";
 
 const schema = z.object({
   decision: z.enum(["approve", "skip", "retry"]),
@@ -24,6 +25,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   if (parsed.data.decision === "retry") {
     if (action.status !== "FAILED") return NextResponse.json({ error: `Only a failed action can be retried (this one is ${action.status.toLowerCase()})` }, { status: 409 });
     if (!growthAllowed(business)) return NextResponse.json({ error: GROWTH_UPGRADE_MESSAGE }, { status: 403 });
+    // B7: right after WhatsApp held it back, a retry fails the same way.
+    const blocked = retryBlockedUntil(action);
+    if (blocked) return NextResponse.json({ error: `WhatsApp is still holding marketing messages to this customer. Retry after ${blocked.toISOString().slice(0, 10)}.` }, { status: 409 });
     const payload = parseJson<Record<string, unknown>>(action.payload, {});
     delete payload.retryAfter;
     const r = await prisma.growthAction.updateMany({ where: { id: action.id, status: "FAILED" }, data: { status: "APPROVED", error: null, payload: JSON.stringify(payload) } });

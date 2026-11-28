@@ -13,7 +13,13 @@ type S = {
 
 const LEVEL_TEXT: Record<Autonomy, string> = { SUGGEST: "Suggest only", APPROVE: "Ask me first", AUTO: "Do it, then tell me" };
 
-export function GrowthSettingsForm({ settings, autonomy, tools, managed = false }: { settings: S; autonomy: Record<ActionType, Autonomy>; tools: { wayneRing: boolean; gmb: boolean; videoStudio: boolean }; managed?: boolean }) {
+/**
+ * jobs: which job-type sources this business really has (bug list 28 Nov 2026,
+ * B10). A shop / salon on Regulars has customers and visits, not quotes or
+ * missed calls, so those settings and actions only show when CRM (quotes) or
+ * WayneRing (missed calls) feed them.
+ */
+export function GrowthSettingsForm({ settings, autonomy, tools, managed = false, jobs = { quotes: false, missedLeads: tools.wayneRing } }: { settings: S; autonomy: Record<ActionType, Autonomy>; tools: { wayneRing: boolean; gmb: boolean; videoStudio: boolean }; managed?: boolean; jobs?: { quotes: boolean; missedLeads: boolean } }) {
   const router = useRouter();
   const [f, setF] = useState({ ...settings, wayneRingCallbackKey: "" });
   const [levels, setLevels] = useState(autonomy);
@@ -53,24 +59,26 @@ export function GrowthSettingsForm({ settings, autonomy, tools, managed = false 
           <select className={field} value={f.goal} onChange={(e) => set("goal", e.target.value)}>
             <option value="MORE_BOOKINGS">More bookings</option><option value="MORE_REPEAT_VISITS">More repeat visits</option><option value="MORE_REVIEWS">More Google reviews</option>
           </select></label>
-        <label className="text-sm"><span className="text-gray-600">Typical job value ({f.currency})</span>
+        <label className="text-sm"><span className="text-gray-600">Average bill per visit ({f.currency})</span>
           <input className={field} type="number" min={1} value={f.avgJobValue} onChange={(e) => set("avgJobValue", Number(e.target.value))} /></label>
         <label className="text-sm"><span className="text-gray-600">Language for customer texts</span>
           <select className={field} value={f.messageLanguage} onChange={(e) => set("messageLanguage", e.target.value)}>
             <option value="en">English</option><option value="hinglish">Hinglish</option><option value="hi">Hindi</option><option value="pa">Punjabi</option>
           </select></label>
-        <label className="text-sm"><span className="text-gray-600">Service due after (days, blank = off)</span>
+        <label className="text-sm"><span className="text-gray-600">Remind customers to come again after (days, blank = off)</span>
           <input className={field} type="number" min={7} value={f.serviceIntervalDays ?? ""} onChange={(e) => set("serviceIntervalDays", num(e.target.value))} placeholder="e.g. 180" /></label>
+        {jobs.quotes && (<>
         <label className="text-sm"><span className="text-gray-600">Follow up quotes after (days)</span>
           <input className={field} type="number" min={1} value={f.quoteFollowupDays} onChange={(e) => set("quoteFollowupDays", Number(e.target.value))} /></label>
         <label className="text-sm"><span className="text-gray-600">Call (not text) quotes worth at least</span>
           <input className={field} type="number" min={0} value={f.callQuoteAbove} onChange={(e) => set("callQuoteAbove", Number(e.target.value))} /></label>
+        </>)}
       </div>
 
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">How much it does on its own</legend>
         <div className="grid gap-2 md:grid-cols-2">
-          {ACTION_TYPES.map((t) => (
+          {ACTION_TYPES.filter((t) => (t !== "QUOTE_FOLLOW_UP" || jobs.quotes) && (t !== "MISSED_LEAD_CALLBACK" || jobs.missedLeads)).map((t) => (
             <label key={t} className="flex items-center justify-between gap-3 rounded-card border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
               <span>{ACTION_LABEL[t].one}</span>
               <select value={levels[t]} onChange={(e) => setLevels({ ...levels, [t]: e.target.value as Autonomy })} className="rounded-input border border-control px-2 py-1">

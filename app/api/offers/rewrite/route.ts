@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getCurrentMember } from "@/lib/session";
 import { allow } from "@/lib/rate-limit";
 import { parseSegments } from "@/lib/offers";
-import { rewriteOffer } from "@/lib/offer-ai";
+import { draftMismatchError, rewriteOffer } from "@/lib/offer-ai";
 import { businessLanguage } from "@/lib/whatsapp-send";
 
 /** POST /api/offers/rewrite — AI turns the owner's rough offer into an engaging message (never inventing prices or dates). */
@@ -23,6 +23,8 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: "Write a few words about the offer first." }, { status: 400 });
   if (!(await allow(`offer-ai:${business.id}`, 60, 60 * 60 * 1000))) return NextResponse.json({ error: "That's a lot of rewrites this hour. Try again later." }, { status: 429 });
   const d = parsed.data;
+  const clash = draftMismatchError(d.draft, d.title, d.discountPercent);
+  if (clash) return NextResponse.json({ error: clash }, { status: 422 });
   const r = await rewriteOffer(business.id, {
     businessName: business.name, sector: business.sector, language: await businessLanguage(business),
     draft: d.draft, title: d.title, discountPercent: d.discountPercent ?? null, freebie: !!d.freebie, segments: parseSegments(d.segments),
