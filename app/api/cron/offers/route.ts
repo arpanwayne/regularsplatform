@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processOffers } from "@/lib/offers";
 import { processQueuedConsentRequests } from "@/lib/onboarding";
+import { flushHubSync } from "@/lib/hub-sync";
 
 // Hourly: offers (expire unanswered approvals at 48h, remind the owner at 24h,
 // send approved offers that are due, in contact hours) and queued YES/NO
@@ -12,7 +13,9 @@ async function handle(req: NextRequest) {
   const now = new Date();
   const offers = await processOffers(now);
   const consent = await processQueuedConsentRequests(now);
-  return NextResponse.json({ offers, consent });
+  // Loopdesk ⇄ Regulars customer sync catch-up (bug list 28 Nov 2026, A1).
+  const hubSync = await flushHubSync().catch(() => null);
+  return NextResponse.json({ offers, consent, hubSync });
 }
 
 export const GET = handle;

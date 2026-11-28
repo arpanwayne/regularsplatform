@@ -44,3 +44,40 @@ export function isPlaceholderPhone(raw: string | null | undefined): boolean {
   if (d.length === 11 && d.startsWith("1") && /^\d{3}55501\d\d$/.test(local)) return true; // North American fiction range 555-01xx
   return false;
 }
+
+/**
+ * Country code + length check for a normalised number (bug list 28 Nov 2026,
+ * B8: "+56456546546" was saved). null = looks like a real mobile; otherwise
+ * the reason, in plain words. Countries we serve are checked exactly; other
+ * country codes are refused, since nothing can be sent there from our numbers.
+ */
+const MOBILE_RULES: { cc: string; country: string; re: RegExp }[] = [
+  { cc: "91", country: "India", re: /^91[6-9]\d{9}$/ },
+  { cc: "1", country: "Canada / US", re: /^1[2-9]\d{2}[2-9]\d{6}$/ },
+  { cc: "44", country: "UK", re: /^447\d{9}$/ },
+  { cc: "61", country: "Australia", re: /^614\d{8}$/ },
+  { cc: "971", country: "UAE", re: /^9715\d{8}$/ },
+];
+
+export function mobileProblem(digits: string | null | undefined): string | null {
+  const d = String(digits ?? "").replace(/\D/g, "");
+  if (!/^\d{11,15}$/.test(d)) return "That doesn't look like a real mobile number.";
+  if (isPlaceholderPhone(d)) return "That doesn't look like a real mobile number.";
+  // Longest code first ("971" before "91"… and "1").
+  const rule = [...MOBILE_RULES].sort((a, b) => b.cc.length - a.cc.length).find((r) => d.startsWith(r.cc));
+  if (!rule) return `+${d.slice(0, 3)}… isn't a country we can message. Check the country code (India +91, Canada/US +1).`;
+  if (!rule.re.test(d)) return `That isn't a valid ${rule.country} mobile number (+${rule.cc}). Check the digits.`;
+  return null;
+}
+
+/**
+ * Numbers one typo away from this one (same length, one digit different), e.g.
+ * +91 70870 64479 and +91 70870 66479 (bug list 28 Nov 2026, B8). Pure.
+ */
+export function oneDigitAway(a: string, b: string): boolean {
+  const x = a.replace(/\D/g, ""), y = b.replace(/\D/g, "");
+  if (x === y || x.length !== y.length) return false;
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) if (x[i] !== y[i] && ++diff > 1) return false;
+  return diff === 1;
+}

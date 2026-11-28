@@ -2,8 +2,8 @@ import { getOwnerBusinessOrRedirect } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { StatCard } from "@/components/stat-card";
 import { GrowthRetryButton } from "@/components/growth-retry-button";
-import { clientError } from "@/lib/growth/client-error";
-import { formatDateTime } from "@/lib/format";
+import { clientError, retryBlockedUntil } from "@/lib/growth/client-error";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { GrowthActionCard, PlanNowButton } from "@/components/growth-actions";
 import { GrowthSettingsForm } from "@/components/growth-settings";
 import { DAY, autonomyMap, getSettings, money, parseJson } from "@/lib/growth/settings";
@@ -140,7 +140,9 @@ export default async function GrowthPage() {
                       <div className="space-y-1">
                         <span className="font-medium text-red-600">Failed</span>
                         <p className="max-w-xs text-xs text-gray-600">{clientError(a.error)}</p>
-                        <GrowthRetryButton id={a.id} />
+                        {retryBlockedUntil(a)
+                          ? <p className="text-xs text-gray-500">Retry {formatDate(retryBlockedUntil(a)!, business.country, s.timezone)} ke baad</p>
+                          : <GrowthRetryButton id={a.id} />}
                       </div>
                     ) : a.status === "SKIPPED" ? <span className="text-gray-500" title={a.error ?? ""}>Skipped{a.error ? ` — ${clientError(a.error)}` : ""}</span> : "Running"}
                   </td>
@@ -164,6 +166,7 @@ export default async function GrowthPage() {
         }}
         autonomy={autonomyMap(s)} tools={tools}
         managed={!!business.hubBusinessId}
+        jobs={{ quotes: false, missedLeads: tools.wayneRing && !business.hubBusinessId }}
       />
     </div>
   );

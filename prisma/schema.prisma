@@ -260,6 +260,11 @@ model Customer {
   /// QR tag scanned on joining, e.g. "T5" for table 5.
   joinTag            String?
 
+  // Loopdesk ⇄ Regulars customer sync (bug list 28 Nov 2026, A1): set by
+  // lib/prisma.ts on every change to a synced field, cleared once Loopdesk has it.
+  syncPending   Boolean   @default(false)
+  syncChangedAt DateTime?
+
   messages Message[]
   visits   Visit[]
   callLogs CallLog[]
@@ -271,6 +276,7 @@ model Customer {
   @@index([locationId, instagramId])
   @@index([businessId, segment])
   @@index([locationId])
+  @@index([syncPending])
 }
 
 model Message {
@@ -302,10 +308,15 @@ model Message {
   segments    Int?
   /// Inbox: null = unread inbound message.
   readAt      DateTime?
+  /// "loopdesk" = a copy of a message from Loopdesk AI (customer sync, 28 Nov 2026).
+  syncOrigin  String?
+  /// Our own message, not yet copied to Loopdesk AI (bundle clients only).
+  syncPending Boolean   @default(false)
 
   @@index([businessId, customerId])
   @@index([locationId])
   @@index([businessId, channel, createdAt])
+  @@index([syncPending])
 }
 
 model Visit {

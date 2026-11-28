@@ -1,7 +1,7 @@
 import type { Business, Customer, Location } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
-import { isPlaceholderPhone, normalizePhone, toE164 } from "@/lib/phone";
+import { isPlaceholderPhone, mobileProblem, normalizePhone, toE164 } from "@/lib/phone";
 import { sendCustomerSms, senderName } from "@/lib/sms";
 import { businessLanguage, sendCustomerWhatsApp } from "@/lib/whatsapp-send";
 import { sharedDisplayNumber, whatsappSenderFor } from "@/lib/whatsapp-sender";
@@ -94,6 +94,8 @@ export function parseStaffAdd(text: string | null | undefined, country = "IN"):
   if (!num) return { error: "No mobile number found. Send: add <name> <mobile>, e.g. add Rahul 9876543210" };
   const phone = normalizePhone(num[0], country);
   if (!phone || isPlaceholderPhone(phone)) return { error: `${num[0].trim()} doesn't look like a real mobile number.` };
+  const problem = mobileProblem(phone); // B8 (28 Nov 2026)
+  if (problem) return { error: `${num[0].trim()}: ${problem}` };
   const name = rest.replace(num[0], " ").replace(/[,:;|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || null;
   return { name, phone };
 }

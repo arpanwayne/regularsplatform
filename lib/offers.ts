@@ -105,6 +105,21 @@ export function notSentReason(r: SendResult | null, locationActive = true): stri
   return e ? `WhatsApp refused: ${e.replace(/\s+/g, " ").slice(0, 80)}` : "Not delivered";
 }
 
+/**
+ * Percentages in the message that differ from the offer's discount box
+ * (bug list 28 Nov 2026, B6: label "10% off", message "20% discount paao").
+ * [] = fine. No discount set → nothing to compare.
+ */
+export function discountMismatch(text: string, discountPercent: number | null | undefined): number[] {
+  if (!discountPercent) return [];
+  const found = Array.from(String(text ?? "").matchAll(/(\d{1,3}(?:\.\d+)?)\s*(?:%|percent\b|per\s*cent\b|pratishat\b|प्रतिशत|ਫ਼ੀਸਦੀ|ਪ੍ਰਤੀਸ਼ਤ)/gi)).map((m) => Number(m[1]));
+  return Array.from(new Set(found.filter((n) => n !== discountPercent)));
+}
+
+/** The owner-facing warning for a mismatch. */
+export const mismatchText = (found: number[], discountPercent: number) =>
+  `The message says ${found.map((n) => `${n}%`).join(", ")} but the discount is ${discountPercent}%. Customers would be promised the wrong discount — fix one of them, or save again to keep it.`;
+
 /** "WhatsApp not connected (3); Customer said STOP (1)" */
 export function reasonSummary(counts: Map<string, number>) {
   return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${k} (${n})`).join("; ").slice(0, 500) || null;

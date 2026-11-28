@@ -1,7 +1,7 @@
 import type { Business, Customer, Location } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logEvent } from "@/lib/logger";
-import { senderName, type SendResult } from "@/lib/sms";
+import type { SendResult } from "@/lib/sms";
 import type { MessagePurpose } from "@/lib/types";
 import {
   fallbackName, getDef, legacyTemplateName, metaLanguage, nextStep, renderTemplate, resolveLang, sanitizeParam, templateName, WA_LANGS, WA_TEMPLATE_DEFS,
@@ -105,10 +105,18 @@ export async function lastInboundWhatsApp(customerId: string) {
 }
 
 /** The standard [first name, business name, next step / review link] values for a customer template. */
+/** The business's own name for template slots about the place (B9). */
+export function templateBusinessName(location: Pick<Location, "name">, business: Pick<Business, "name">) {
+  return (business.name || location.name).trim();
+}
+
 export function customerParams(key: WaTemplateKey, lang: WaLang, customer: Pick<Customer, "name">, location: Location, business: Pick<Business, "name">) {
   const first = (customer.name ?? "").trim().split(/\s+/)[0] || fallbackName(lang);
   const third = key === "review_request" ? location.googleReviewUrl ?? "" : nextStep(lang, location.bookingUrl);
-  return [first, senderName(location, business), third];
+  // {{2}} sits where a place goes ("kaafi time ho gaya aap {{2}} nahi aaye"), so it is
+  // the business name, never the Settings sender name, which can be a person
+  // ("aap Pavnoor Kaur nahi aaye", bug list 28 Nov 2026, B9).
+  return [first, templateBusinessName(location, business), third];
 }
 
 /** Names of every MARKETING-category template (all languages). */
